@@ -7,6 +7,7 @@
     { id: 'network', selector: '#networkApp', factoryName: 'network', title: '网络' },
     { id: 'settings', selector: '#settingsApp', factoryName: 'settings', title: '设置' },
     { id: 'sms', selector: '#smsApp', factoryName: 'sms', title: '短信' },
+    { id: 'forwarding', selector: '#forwardingApp', factoryName: 'forwarding', title: '短信转发' },
     { id: 'deviceinfo', selector: '#deviceinfoApp', factoryName: 'deviceinfo', title: '设备信息' },
     { id: 'console', selector: null, factoryName: null, title: '控制台', frameSelector: '#consoleFrame', frameSrc: '/console' }
   ];

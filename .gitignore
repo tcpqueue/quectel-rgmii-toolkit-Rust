@@ -4,4 +4,6 @@
 *.auth
 *.key
 monitor.json
+forwarding.json
+sms-delete-receipts.json
 /windows-test/state/

@@ -254,6 +254,42 @@ fn newlines(raw: &str) -> String {
         .replace("\\n", "\n")
         .replace("\\r", "\n")
 }
+// Forward only received messages; keep UDH fragments separate until all parts arrive.
+pub fn received(raw: &str) -> Vec<Value> {
+    let mut messages = Vec::new();
+    for block in raw.split("+CMGL:").skip(1) {
+        let mut lines = block.lines();
+        let header = fields(lines.next().unwrap_or_default());
+        if !matches!(
+            header.get(1).map(String::as_str),
+            Some("0" | "1" | "REC READ" | "REC UNREAD")
+        ) {
+            continue;
+        }
+        let Some(index) = header.first().and_then(|n| n.parse::<i64>().ok()) else {
+            continue;
+        };
+        let body: Vec<_> = lines
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && *s != "OK")
+            .collect();
+        let entry = if let Some((entry, _)) = body.first().and_then(|pdu| deliver(pdu, index)) {
+            Some(entry)
+        } else if header.get(1).is_some_and(|s| s.starts_with("REC ")) {
+            list(&format!("+CMGL:{block}"))["messages"]
+                .as_array()
+                .and_then(|v| v.first())
+                .cloned()
+        } else {
+            None
+        };
+        if let Some(mut entry) = entry {
+            entry["text"] = json!(newlines(text(&entry, "text")));
+            messages.push(entry);
+        }
+    }
+    messages
+}
 fn merge(mut group: Vec<Value>) -> Value {
     if group.len() == 1 {
         return group.remove(0);

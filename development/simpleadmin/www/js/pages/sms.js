@@ -1,5 +1,33 @@
 function fetchSMS() {
   return {
+    smsEnabled: false,
+    deleteAfterDay: false,
+    smsSettingsLoaded: false,
+    smsSettingsLoading: false,
+    smsSettingsSaving: false,
+    smsSettingsMessage: '',
+    pendingDeletes: 0,
+    async loadSmsSettings() {
+      if (this.smsSettingsLoading || this.smsSettingsSaving) return;
+      this.smsSettingsLoading=true;
+      try {
+        const response=await SimpleAdmin.Api.request('/api/forwarding');const data=await response.json();
+        if (!response.ok) throw new Error(data.error || '读取设置失败');
+        this.smsEnabled=data.sms_enabled;this.deleteAfterDay=data.delete_after_day;this.pendingDeletes=data.cleanup.pending;this.smsSettingsLoaded=true;
+        if (data.cleanup.error) this.smsSettingsMessage=data.cleanup.error;
+        if (this.smsEnabled) {await this.requestSMS({force:true});this.startSMSAutoRefresh();} else {this.stopSMSAutoRefresh();this.clearData();}
+      } catch(error) {this.smsSettingsMessage=error.message;} finally {this.smsSettingsLoading=false;}
+    },
+    async saveSmsSettings() {
+      this.smsSettingsSaving=true;this.smsSettingsMessage='';
+      try {
+        const response=await SimpleAdmin.Api.request('/api/sms/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:this.smsEnabled,delete_after_day:this.deleteAfterDay})});const data=await response.json();
+        if (!response.ok) throw new Error(data.error || '保存失败');
+        this.smsEnabled=data.sms_enabled;this.deleteAfterDay=data.delete_after_day;this.pendingDeletes=data.cleanup.pending;
+        this.smsSettingsMessage=SimpleAdmin.Lang.t('已保存');
+        if (this.smsEnabled) {await this.requestSMS({force:true});this.startSMSAutoRefresh();} else {this.stopSMSAutoRefresh();this.clearData();}
+      } catch(error) {this.smsSettingsMessage=error.message;} finally {this.smsSettingsSaving=false;}
+    },
     isLoading: false,
     messages: [],
     senders: [],
@@ -39,6 +67,7 @@ function fetchSMS() {
     },
 
     requestSMS(options = {}) {
+      if (!this.smsEnabled) return Promise.resolve();
       const silent = options.silent === true;
       const params = { action: 'list' };
       if (options.force === true) params.force = '1';
@@ -56,6 +85,7 @@ function fetchSMS() {
     },
 
     applySMSData(data, options = {}) {
+      if (data.disabled) {this.smsEnabled=false;this.stopSMSAutoRefresh();this.clearData();return;}
       const activeKey = options.keepDetail === true ? this.currentMessageKey(this.activeMessageIndex) : '';
       const selectedKeys = options.keepSelection === true
         ? this.selectedMessages.map((index) => this.currentMessageKey(index)).filter(Boolean)
@@ -210,7 +240,7 @@ function fetchSMS() {
       this.smsDetailGlobalHandlersBound = true;
       window.addEventListener('simpleadmin:page-changed', (event) => {
         if (event?.detail?.page === 'sms') {
-          this.startSMSAutoRefresh();
+          this.loadSmsSettings();
           return;
         }
         this.stopSMSAutoRefresh();
@@ -229,6 +259,7 @@ function fetchSMS() {
     },
 
     startSMSAutoRefresh() {
+      if (!this.smsEnabled || !this.smsSettingsLoaded) return;
       if (!this.isSMSPageActive()) return;
       if (this.smsAutoRefreshTimer) return;
       this.smsAutoRefreshTimer = setInterval(() => {
@@ -246,7 +277,7 @@ function fetchSMS() {
     },
 
     autoRefreshSMS() {
-      if (!this.isSMSPageActive()) {
+      if (!this.isSMSPageActive() || !this.smsEnabled) {
         this.stopSMSAutoRefresh();
         return;
       }
@@ -254,6 +285,7 @@ function fetchSMS() {
       this.smsAutoRefreshInFlight = true;
       SimpleAdmin.Api.smsData({ action: 'list_meta', force: '1' })
         .then((data) => {
+          if (data.disabled) {this.smsEnabled=false;this.stopSMSAutoRefresh();this.clearData();return null;}
           if (!this.isSMSPageActive()) return null;
           return this.handlePolledSMSMeta(data);
         })
@@ -448,10 +480,7 @@ function fetchSMS() {
     init() {
       this.bindMessageDetailGlobalHandlers();
       this.clearData();
-      this.requestSMS({ force: true })
-        .finally(() => {
-          this.startSMSAutoRefresh();
-        });
+      this.loadSmsSettings();
     },
 
     toggleAll(event) {

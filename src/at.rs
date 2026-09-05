@@ -89,6 +89,8 @@ fn cacheable(command: &str) -> bool {
 }
 #[derive(Clone)]
 pub struct At {
+    #[cfg(test)]
+    pub trace: Arc<Mutex<Vec<String>>>,
     tx: mpsc::Sender<Request>,
     cache: Arc<Mutex<HashMap<String, Entry>>>,
     pub overrides: Arc<Mutex<HashMap<String, String>>>,
@@ -159,6 +161,8 @@ impl At {
             .unwrap_or(35.0);
         let delay = if mock { 0.0 } else { (35.0 - uptime).max(0.0) };
         Ok(Self {
+            #[cfg(test)]
+            trace: Arc::new(Mutex::new(Vec::new())),
             tx,
             cache: Arc::new(Mutex::new(HashMap::new())),
             overrides,
@@ -181,6 +185,8 @@ impl At {
         if command.len() > 4096 || command.chars().any(|c| c.is_control()) {
             bail!("invalid AT command")
         }
+        #[cfg(test)]
+        self.trace.lock().unwrap().push(command.into());
         let (reply, rx) = oneshot::channel();
         self.tx
             .try_send(Request {

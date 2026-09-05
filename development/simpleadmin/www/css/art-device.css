@@ -138,6 +138,50 @@ html[dir="rtl"] .art-chart-footer > span:last-child { margin-left: 0; margin-rig
 .art-download-key { color: #5d87ff; }
 .art-upload-key { color: #13b99a; }
 .art-chart-empty { position: absolute; top: 45%; left: 0; right: 0; text-align: center; font-size: 13px; color: var(--sa-muted); pointer-events: none; }
+.sa-forward-form { border-top: 1px solid var(--sa-border); }
+.sa-sms-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 18px 0; margin-bottom: 20px; border-top: 1px solid var(--sa-border); border-bottom: 1px solid var(--sa-border); }
+.sa-sms-controls .form-check { margin: 0; min-width: 0; font-size: 13px; }
+.sa-forward-toolbar { display: flex; align-items: center; gap: 24px; padding: 24px 0 18px; flex-wrap: wrap; }
+.sa-forward-toolbar .form-check, .sa-forward-editor-heading .form-check { margin-bottom: 0; }
+.sa-forward-toolbar > button { margin-inline-start: auto; }
+.sa-forward-device { display: flex; align-items: center; gap: 12px; }
+.sa-forward-device label { white-space: nowrap; font-size: 13px; }
+.sa-forward-device input { max-width: 280px; }
+.sa-forward-facts { display: flex; flex-wrap: wrap; gap: 12px 28px; color: var(--sa-muted); font-size: 12px; padding-bottom: 22px; border-bottom: 1px solid var(--sa-border); }
+.sa-forward-facts b { color: var(--sa-text); font-weight: 500; }
+.sa-forward-message { padding: 12px 0; margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.sa-forward-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 32px; padding: 24px 0; }
+.sa-forward-platforms { display: flex; flex-direction: column; gap: 4px; border-inline-end: 1px solid var(--sa-border); padding-inline-end: 16px; }
+.sa-forward-platforms button { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 46px; padding: 10px 14px; background: transparent; border: 0; color: var(--sa-muted); text-align: start; font-size: 13px; }
+.sa-forward-platforms button.active { background: var(--sa-accent-soft); color: var(--sa-accent); }
+.sa-forward-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sa-border-strong); flex: 0 0 7px; }
+.sa-forward-dot.enabled { background: #13b99a; }
+.sa-forward-editor { min-width: 0; max-width: 720px; }
+.sa-forward-editor-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
+.sa-forward-editor-heading h2 { font-size: 16px; margin: 0; color: var(--sa-text); }
+.sa-forward-editor-heading > span { font-size: 12px; color: var(--sa-muted); }
+.sa-forward-fields { display: grid; gap: 20px; }
+.sa-forward-fields label { font-size: 13px; }
+.sa-forward-fields input { direction: ltr; text-align: start; }
+.sa-forward-editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 24px; }
+.sa-forward-history { margin-top: 22px; padding-top: 24px; border-top: 1px solid var(--sa-border); }
+.sa-forward-table { table-layout: fixed; font-size: 13px; }
+.sa-forward-table th, .sa-forward-table td { padding: 12px 10px; overflow-wrap: anywhere; }
+.sa-forward-table small { display: block; margin-top: 4px; color: var(--sa-muted); }
+.sa-forward-result.sent { color: #0b927c; }
+.sa-forward-result.retrying { color: #b88022; }
+.sa-forward-result.failed { color: var(--sa-danger); }
+.sa-forward-empty { text-align: center; color: var(--sa-muted); height: 100px; vertical-align: middle; }
+@media (max-width: 767px) {
+  .sa-forward-layout { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .sa-forward-platforms { flex-direction: row; flex-wrap: wrap; padding: 0 0 12px; border-inline-end: 0; border-bottom: 1px solid var(--sa-border); }
+  .sa-forward-platforms button { min-height: 40px; padding: 8px 10px; gap: 8px; }
+  .sa-forward-toolbar { gap: 16px; }
+  .sa-forward-device { order: 3; width: 100%; }
+  .sa-forward-device input { min-width: 0; flex: 1; max-width: none; }
+  .sa-forward-table { font-size: 11px; }
+  .sa-forward-table th, .sa-forward-table td { padding: 10px 4px; }
+}
 .art-target-form { display: flex; align-items: center; gap: 8px; width: min(100%, 350px); }
 .art-target-form input { min-width: 0; height: 36px; font-size: 13px; color: var(--sa-text); background: var(--sa-control-bg); border-color: var(--sa-border-strong); }
 .art-target-form button { height: 36px; min-width: 66px; white-space: nowrap; font-size: 13px; }
