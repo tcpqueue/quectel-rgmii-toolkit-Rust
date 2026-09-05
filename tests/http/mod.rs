@@ -12,6 +12,45 @@ fn application() -> (Arc<App>, tempfile::TempDir) {
     cfg.ttl_file = dir.path().join("ttl");
     (App::new(cfg).unwrap(), dir)
 }
+#[tokio::test]
+async fn disabled_sms_rejects_send_and_delete_without_at_commands() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    assert_eq!(
+        call(
+            &app,
+            "/api/sms/settings",
+            r#"{"enabled":false,"delete_after_day":false}"#,
+            &token
+        )
+        .await
+        .status(),
+        200
+    );
+    assert_eq!(
+        call(
+            &app,
+            "/api/sms_data",
+            "action=send&number=%2B1234&message=test",
+            &token
+        )
+        .await
+        .status(),
+        400
+    );
+    assert_eq!(
+        call(&app, "/api/sms_data", "action=delete_all", &token)
+            .await
+            .status(),
+        400
+    );
+    assert!(app.at.trace.lock().unwrap().is_empty());
+    let response = call(&app, "/api/sms_data", "action=list", &token).await;
+    assert_eq!(response.status(), 200);
+    let data: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+    assert_eq!(data["disabled"], true);
+}
 async fn call(app: &Arc<App>, uri: &str, body: &str, token: &str) -> Response {
     app.router()
         .oneshot(

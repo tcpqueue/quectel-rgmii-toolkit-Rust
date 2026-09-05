@@ -11,6 +11,7 @@ pub fn kind(raw: &str) -> Option<&'static str> {
         "at" | "all" | "full" | "dashboard" | "at-test" | "at_test_payload" => Some("dashboard"),
         "qca" | "qcainfo" | "qca-test" | "qcainfo-test" | "qcainfo_test_payload" => Some("qcainfo"),
         "qeng" | "qeng-test" | "qeng_test_payload" => Some("qeng"),
+        "sms" => Some("sms"),
         _ => None,
     }
 }
@@ -28,6 +29,11 @@ pub fn response(
         .get(source)
         .cloned()
         .unwrap_or_else(|| "\r\nOK\r\n".into());
+    if source == crate::at::SMS_LIST
+        && let Some(sms) = overrides.get("sms")
+    {
+        return envelope(command, sms);
+    }
     if let Some(dashboard) = overrides.get("dashboard").filter(|s| !s.is_empty())
         && source == DASHBOARD
     {
@@ -131,7 +137,7 @@ pub async fn handle(at: &At, p: &Params) -> Result<Value> {
     let mut status = json!({});
     {
         let map = at.overrides.lock().unwrap();
-        for key in ["dashboard", "qcainfo", "qeng"] {
+        for key in ["dashboard", "qcainfo", "qeng", "sms"] {
             status[key] = json!(if map.get(key).is_some_and(|v| !v.is_empty()) {
                 "manual"
             } else {

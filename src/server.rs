@@ -3,6 +3,7 @@ use crate::{
     actions::{self, Params},
     at::At,
     auth::{self, Auth},
+    forwarding::{Forwarder, Settings as ForwardingSettings},
     parser,
     persistence::Store,
     sms,
@@ -37,6 +38,7 @@ pub struct App {
     pub auth: Auth,
     pub store: Arc<Store>,
     pub monitor: Arc<Monitor>,
+    pub forwarding: Arc<Forwarder>,
     metrics: Metrics,
     pub sockets: Arc<tokio::sync::Semaphore>,
     ttl_lock: tokio::sync::Mutex<()>,
@@ -110,12 +112,17 @@ impl App {
             config.mock,
             store.clone(),
         );
+        let forwarding = Arc::new(Forwarder::new(
+            config.auth_file.with_file_name("forwarding.json"),
+            store.clone(),
+        ));
         Ok(Arc::new(Self {
             config,
             at,
             auth,
             store,
             monitor,
+            forwarding,
             metrics: Metrics::default(),
             sockets: Arc::new(tokio::sync::Semaphore::new(32)),
             ttl_lock: tokio::sync::Mutex::new(()),
@@ -124,6 +131,7 @@ impl App {
     pub fn start(self: &Arc<Self>) {
         self.at.start_refresh();
         self.monitor.start(self.at.clone());
+        self.forwarding.start(self.at.clone());
         let app = self.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(30));
@@ -243,6 +251,9 @@ pub async fn api(
         "/api/set_password",
         "/api/set_root_password",
         "/api/telemetry/target",
+        "/api/forwarding/save",
+        "/api/forwarding/test",
+        "/api/sms/settings",
     ]
     .contains(&path)
         && method != "POST"
@@ -290,6 +301,21 @@ pub async fn api(
     let action = p.get("action");
     let result:Result<Response>=async {
         let value=match path {
+            "/api/sms/settings"=>{
+                #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct SmsSettings{enabled:bool,delete_after_day:bool}
+                if body.len()>128{bail!("SMS settings request too large")}
+                let settings:SmsSettings=serde_json::from_str(body)?;app.forwarding.sms_settings(settings.enabled,settings.delete_after_day).await?
+            },
+            "/api/forwarding"=>app.forwarding.snapshot(),
+            "/api/forwarding/save"=>{
+                if body.len()>16384{bail!("forwarding settings too large")}
+                app.forwarding.save(serde_json::from_str::<ForwardingSettings>(body)?).await?
+            },
+            "/api/forwarding/test"=>{
+                #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Test{platform:String}
+                if body.len()>128{bail!("test request too large")}
+                let test:Test=serde_json::from_str(body)?;app.forwarding.test(&test.platform).await?
+            },
             "/api/telemetry"=>app.monitor.snapshot(),
             "/api/telemetry/target"=>{
                 #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Target{target:String}
@@ -312,16 +338,18 @@ pub async fn api(
             "/api/settings_data"=>if action.is_empty()||action=="status"{parser::settings(&app.at.page("settings",force).await?)}else{
                 let commands=actions::settings(&p)?;if commands.len()>1{let app=app.clone();tokio::spawn(async move{for command in commands{tokio::time::sleep(Duration::from_secs(1)).await;if run_action(&app,&command).await.ok().is_none_or(|v|v["ok"]!=true){break}}});json!({"ok":true,"response":"设备即将重启","reboot":true,"rebooting":true,"rebootAfterSeconds":1,"rebootCountdownSeconds":40,"message":"设备即将重启，请等待前端倒计时。"})}else{run_action(app,&commands[0]).await?}
             },
-            "/api/sms_data"=>match action {
+            "/api/sms_data"=>if !app.forwarding.sms_enabled(){
+                if matches!(action,""|"list"|"list_meta"){json!({"messages":[],"serviceCenters":[],"disabled":true})}else{bail!("SMS service disabled")}
+            }else{match action {
                 ""|"list"|"list_meta"=>{let mut data=sms::list(&app.at.page("sms",force).await?);if action=="list_meta"{for value in data["messages"].as_array_mut().unwrap(){value.as_object_mut().unwrap().remove("text");value.as_object_mut().unwrap().remove("textLines");}}data},
                 "delete_all"=>run_action(app,"AT+CMGD=,4").await?,
                 "delete_indices"=>{let values=p.list("indices",',');if values.is_empty()||values.len()>1024{bail!("missing indices or too many messages")}let mut commands=Vec::new();for v in values{let index=v.parse::<u16>()?;commands.push(format!("+CMGD={index}"))}run_action(app,&format!("AT{}",commands.join(";"))).await?},
                 "sim_status"=>{let raw=app.at.run("AT+CPIN?").await?.to_ascii_uppercase();json!({"inserted":!raw.contains("SIM NOT INSERTED")&&!raw.contains("+CME ERROR: 10")})},
                 "send"=>send_sms(app,p.get("number"),p.get("message")).await?,_=>bail!("unsupported action")
-            },
-            "/api/get_atcache"|"/api/get_atcommand"|"/api/user_atcommand"=>{return Ok(text_response(if p.get("atcmd").is_empty(){String::new()}else{app.at.fetch_wait(p.get("atcmd"),force,p.flag("wait",true)).await?}))},
+            }},
+            "/api/get_atcache"|"/api/get_atcommand"|"/api/user_atcommand"=>{let _guard=app.forwarding.sms_mutation.lock().await;return Ok(text_response(if p.get("atcmd").is_empty(){String::new()}else{app.at.fetch_wait(p.get("atcmd"),force,p.flag("wait",true)).await?}))},
             "/api/get_ping"=>return Ok(text_response(if app.monitor.connected(){"OK"}else{"ERROR"})),
-            "/api/get_sms"=>return Ok(text_response(app.at.page("sms",force).await?)),
+            "/api/get_sms"=>{if !app.forwarding.sms_enabled(){bail!("SMS service disabled")}return Ok(text_response(app.at.page("sms",force).await?))},
             "/api/send_sms"=>{let v=send_sms(app,p.get("number"),p.get("msg")).await?;return Ok(text_response(format!("OK segments={} number={}",v["segments"],parser::text(&v,"number"))))},
             "/api/get_uptime"=>return Ok(text_response(system::uptime(app.config.mock).1)),
             "/api/get_ttl_status"=>{let ttl=system::ttl(&app.config.ttl_file);json!({"isEnabled":ttl>0,"ttl":ttl})},
@@ -343,11 +371,23 @@ pub async fn api(
     }
 }
 async fn run_action(app: &Arc<App>, command: &str) -> Result<Value> {
+    let _sms_guard = if command.to_ascii_uppercase().contains("+CMGD") {
+        Some(app.forwarding.sms_mutation.lock().await)
+    } else {
+        None
+    };
+    if _sms_guard.is_some() && !app.forwarding.sms_enabled() {
+        bail!("SMS service disabled")
+    }
     let response = app.at.run(command).await?;
     app.at.invalidate().await;
     Ok(json!({"ok":parser::ok(&response),"response":response}))
 }
 async fn send_sms(app: &Arc<App>, number: &str, message: &str) -> Result<Value> {
+    let _guard = app.forwarding.sms_mutation.lock().await;
+    if !app.forwarding.sms_enabled() {
+        bail!("SMS service disabled")
+    }
     let message = message.trim();
     if message.is_empty() || message.len() > 65536 {
         bail!("missing or oversized message")

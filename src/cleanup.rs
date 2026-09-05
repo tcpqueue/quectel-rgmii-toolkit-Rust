@@ -1,0 +1,247 @@
+use crate::{at::At, forwarding::identity, parser, persistence::Store, sms};
+use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Part {
+    pub index: u16,
+    pub fingerprint: [u8; 16],
+}
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Receipt {
+    pub id: String,
+    pub delivered: i64,
+    pub parts: Vec<Part>,
+}
+struct State {
+    receipts: Vec<Receipt>,
+    generation: u64,
+    saved: u64,
+    error: String,
+}
+pub struct Cleanup {
+    state: Mutex<State>,
+    path: PathBuf,
+    store: Arc<Store>,
+}
+impl Cleanup {
+    pub fn new(path: PathBuf, store: Arc<Store>) -> Self {
+        let loaded = (|| -> Result<Vec<Receipt>> {
+            match std::fs::metadata(&path) {
+                Ok(m) if m.len() > 65536 => bail!("receipt file too large"),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+                Err(e) => return Err(e.into()),
+                _ => {}
+            }
+            let receipts: Vec<Receipt> = serde_json::from_slice(&std::fs::read(&path)?)?;
+            if receipts.len() > 64
+                || receipts.iter().map(|r| r.parts.len()).sum::<usize>() > 512
+                || receipts
+                    .iter()
+                    .any(|r| r.parts.is_empty() || r.delivered <= 0 || r.id.len() > 64)
+            {
+                bail!("invalid receipts")
+            }
+            Ok(receipts)
+        })();
+        let (receipts, error) = match loaded {
+            Ok(r) => (r, String::new()),
+            Err(_) => (Vec::new(), "cannot read deletion receipts".into()),
+        };
+        Self {
+            state: Mutex::new(State {
+                receipts,
+                generation: 0,
+                saved: 0,
+                error,
+            }),
+            path,
+            store,
+        }
+    }
+    pub fn status(&self) -> Value {
+        let s = self.state.lock().unwrap();
+        serde_json::json!({"pending":s.receipts.len(),"error":s.error})
+    }
+    pub fn schedule(&self, receipt: Receipt) {
+        let mut s = self.state.lock().unwrap();
+        if s.receipts.iter().any(|r| r.id == receipt.id) {
+            return;
+        }
+        if s.receipts.len() >= 64
+            || s.receipts.iter().map(|r| r.parts.len()).sum::<usize>() + receipt.parts.len() > 512
+            || receipt.parts.is_empty()
+        {
+            s.error = "deletion receipt capacity exceeded".into();
+            return;
+        }
+        s.receipts.push(receipt);
+        s.generation += 1;
+    }
+    pub fn cancel(&self) {
+        let mut s = self.state.lock().unwrap();
+        if !s.receipts.is_empty() {
+            s.receipts.clear();
+            s.generation += 1;
+        }
+    }
+    pub async fn flush(&self) {
+        let snapshot = {
+            let s = self.state.lock().unwrap();
+            if s.generation == s.saved {
+                return;
+            }
+            (s.generation, serde_json::to_vec(&s.receipts).unwrap())
+        };
+        let store = self.store.clone();
+        let path = self.path.clone();
+        let bytes = snapshot.1;
+        let result = tokio::task::spawn_blocking(move || store.write(&path, &bytes, 0o600)).await;
+        let mut s = self.state.lock().unwrap();
+        match result {
+            Ok(Ok(())) => {
+                s.saved = snapshot.0;
+                s.error.clear();
+            }
+            _ => s.error = "cannot save deletion receipts".into(),
+        }
+    }
+    pub async fn delete_due(&self, at: &At, now: i64) -> Result<()> {
+        // Only receipts already committed to disk may authorize deletion.
+        let due = {
+            let s = self.state.lock().unwrap();
+            if s.saved != s.generation {
+                return Ok(());
+            }
+            s.receipts
+                .iter()
+                .filter(|r| now.saturating_sub(r.delivered) >= 86400)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        if due.is_empty() {
+            return Ok(());
+        }
+        let raw = at.page("sms", true).await?;
+        if !parser::ok(&raw) {
+            bail!("SMS read failed")
+        }
+        let entries = sms::received(&raw);
+        for receipt in due {
+            let mut remaining = receipt.parts.clone();
+            let verified = receipt.parts.iter().all(|part| {
+                entries.iter().any(|v| {
+                    v["indices"][0].as_u64() == Some(part.index as u64)
+                        && identity(v) == part.fingerprint
+                })
+            });
+            let mut failed = false;
+            if verified {
+                for part in &receipt.parts {
+                    let raw = at.run(&format!("AT+CMGD={}", part.index)).await?;
+                    if !parser::ok(&raw) {
+                        failed = true;
+                        break;
+                    }
+                    remaining.retain(|p| p.index != part.index);
+                }
+                at.invalidate().await;
+            } else {
+                remaining.clear();
+            }
+            let mut s = self.state.lock().unwrap();
+            if let Some(index) = s.receipts.iter().position(|r| r.id == receipt.id) {
+                if remaining.is_empty() {
+                    s.receipts.remove(index);
+                } else {
+                    s.receipts[index].parts = remaining;
+                }
+                s.generation += 1;
+            }
+            if failed {
+                s.error = "SMS deletion failed".into();
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn receipt(raw: &str) -> Receipt {
+        let v = &sms::received(raw)[0];
+        Receipt {
+            id: "test".into(),
+            delivered: 1000,
+            parts: vec![Part {
+                index: 1,
+                fingerprint: identity(v),
+            }],
+        }
+    }
+    #[tokio::test]
+    async fn receipts_survive_restart_and_require_24_hours() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::new(true));
+        let path = dir.path().join("receipts.json");
+        let c = Cleanup::new(path.clone(), store.clone());
+        let raw = "+CMGL: 1,\"REC READ\",\"10086\",,\"26/09/06,12:00:00+32\"\nTest\nOK";
+        c.schedule(receipt(raw));
+        c.flush().await;
+        let c = Cleanup::new(path.clone(), store);
+        let at = At::start(true, vec![]).unwrap();
+        at.overrides
+            .lock()
+            .unwrap()
+            .insert("sms".into(), raw.into());
+        c.delete_due(&at, 87399).await.unwrap();
+        assert_eq!(c.status()["pending"], 1);
+        assert!(at.trace.lock().unwrap().is_empty());
+        c.delete_due(&at, 87400).await.unwrap();
+        assert_eq!(c.status()["pending"], 0);
+        assert_eq!(
+            at.trace
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|s| s.starts_with("AT+CMGD="))
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec!["AT+CMGD=1"]
+        );
+        c.flush().await;
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "[]");
+    }
+    #[tokio::test]
+    async fn reused_indices_cancel_deletion_and_disabled_option_clears_receipts() {
+        let dir = tempfile::tempdir().unwrap();
+        let c = Cleanup::new(dir.path().join("receipts.json"), Arc::new(Store::new(true)));
+        let raw = "+CMGL: 1,\"REC READ\",\"10086\",,\"26/09/06,12:00:00+32\"\nOriginal\nOK";
+        let at = At::start(true, vec![]).unwrap();
+        at.overrides
+            .lock()
+            .unwrap()
+            .insert("sms".into(), raw.replace("Original", "Replacement"));
+        c.schedule(receipt(raw));
+        c.flush().await;
+        c.delete_due(&at, 87400).await.unwrap();
+        assert_eq!(c.status()["pending"], 0);
+        assert!(at.overrides.lock().unwrap()["sms"].contains("Replacement"));
+        assert!(
+            !at.trace
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|s| s.contains("+CMGD") || s.contains("+CMGS"))
+        );
+        c.schedule(receipt(raw));
+        c.cancel();
+        assert_eq!(c.status()["pending"], 0);
+    }
+}
