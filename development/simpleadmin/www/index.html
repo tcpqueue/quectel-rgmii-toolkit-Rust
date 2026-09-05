@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+
+<html data-bs-theme="light" lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>获取中...</title>
+<script>
+      (function () {
+        try {
+          if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+          }
+          document.documentElement.scrollTop = 0;
+          if (document.body) document.body.scrollTop = 0;
+        } catch (e) {}
+        try {
+          var theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-bs-theme', theme);
+          document.documentElement.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {
+          document.documentElement.setAttribute('data-bs-theme', 'light');
+          document.documentElement.classList.add('theme-light');
+          document.documentElement.style.colorScheme = 'light';
+        }
+      })();
+      window.SimpleAdminSpaMode = true;
+      window.SimpleAdmin = window.SimpleAdmin || {};
+      window.SimpleAdmin.Pages = window.SimpleAdmin.Pages || {};
+    </script>
+<style>
+      html[data-bs-theme="dark"], html[data-bs-theme="dark"] body { background-color: #141922; color-scheme: dark; }
+      html[data-bs-theme="light"], html[data-bs-theme="light"] body { background-color: #fff; color-scheme: light; }
+      body { background-color: var(--sa-bg, #fff); }
+      [v-cloak] { display: none !important; }
+    </style>
+<link href="css/bootstrap.min.css" rel="stylesheet"/>
+<link href="css/Poppins.css?v=2.94" rel="stylesheet"/>
+<link href="css/styles.css?v=2.94" rel="stylesheet"/>
+<link href="css/art-device.css?v=3.3" rel="stylesheet"/>
+<link href="favicon.ico" rel="icon"/>
+<script src="js/band_map.js?v=2.94"></script>
+<script defer="" src="js/bootstrap.bundle.min.js"></script>
+<script src="js/vue.global.prod.js"></script>
+<script src="js/locales.js?v=3.3"></script>
+<script src="js/simpleadmin-core.js?v=3.3"></script>
+<script src="js/vue-app.js?v=2.94"></script>
+</head>
+<body>
+<div class="sa-shell">
+<aside aria-label="主导航" class="sa-sidebar" id="simpleadminSidebar">
+<div class="sa-brand">
+<div class="sa-brand-mark" data-simpleadmin-brand-mark="1">--</div>
+<div class="sa-brand-title" data-simpleadmin-brand-title="1">获取中...</div>
+</div>
+<nav class="sa-menu">
+<a aria-current="page" class="sa-menu-link active" data-page-link="dashboard" href="#dashboard">
+<i data-lucide="layout-dashboard" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="总览">总览</span>
+</a>
+<a class="sa-menu-link" data-page-link="network" href="#network">
+<i data-lucide="radio" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="网络与小区">网络与小区</span>
+</a>
+<a class="sa-menu-link" data-page-link="settings" href="#settings">
+<i data-lucide="settings" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="系统设置">系统设置</span>
+</a>
+<a class="sa-menu-link" data-page-link="sms" href="#sms">
+<i data-lucide="message-square" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="短信服务">短信服务</span>
+</a>
+<a class="sa-menu-link" data-page-link="deviceinfo" href="#deviceinfo">
+<i data-lucide="info" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="设备信息">设备信息</span>
+</a>
+<a class="sa-menu-link" data-page-link="console" href="#console">
+<i data-lucide="terminal" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="控制台">控制台</span>
+</a>
+<a class="sa-menu-link" data-logout-link="1" href="/api/logout">
+<i data-lucide="log-out" aria-hidden="true"></i>
+<span data-simpleadmin-i18n-key="退出登录">退出登录</span>
+</a>
+</nav>
+</aside>
+<button aria-label="关闭菜单" class="art-backdrop" hidden id="artSidebarBackdrop" type="button"></button>
+<div class="sa-main">
+<header class="art-header">
+<div class="art-header-left">
+<button aria-label="展开或收起菜单" title="展开或收起菜单" class="art-icon-button" id="artMenuButton" type="button"><i data-lucide="menu" aria-hidden="true"></i></button>
+<button aria-label="刷新页面" title="刷新页面" class="art-icon-button" id="artRefreshButton" type="button"><i data-lucide="rotate-cw" aria-hidden="true"></i></button>
+<span class="art-breadcrumb">设备管理 <i data-lucide="chevron-right" aria-hidden="true"></i> <strong id="artCurrentPage">总览</strong></span>
+</div>
+<div class="art-header-right">
+<button aria-label="切换明暗主题" title="切换明暗主题" class="art-icon-button" id="artThemeButton" type="button"><i data-lucide="moon" aria-hidden="true"></i></button>
+<button aria-label="全屏" title="全屏" class="art-icon-button" id="artFullscreenButton" type="button"><i data-lucide="maximize" aria-hidden="true"></i></button>
+<select id="headerLanguage" class="art-language" aria-label="语言" data-no-i18n dir="ltr"><option value="zh-CN">中文</option><option value="en">English</option><option value="ru">Русский</option><option value="ar">العربية</option></select>
+<a class="art-account" data-page-link="settings" href="#settings" title="账户设置"><span class="art-avatar">A</span><span>管理员</span></a>
+</div>
+</header>
+<main class="sa-content">
+<section aria-labelledby="page-title-dashboard" class="sa-page active" data-page="dashboard" id="page-dashboard">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="总览" id="page-title-dashboard">总览</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column art-device-overview" id="dashboardApp" v-cloak="">
+<div class="art-overview-heading"><h2>设备状态</h2><span v-text="uptime"></span></div>
+<div class="art-health-grid">
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon blue"><i data-lucide="cpu" aria-hidden="true"></i></span><span>CPU 使用率</span></div><strong v-text="formatPercent(cpuUsagePercent)"></strong><div class="art-resource-track" role="progressbar" aria-label="CPU 使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(cpuUsagePercent)"><span :style="{width: clampPercent(cpuUsagePercent) + '%'}"></span></div></article>
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon green"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span>内存使用率</span></div><strong v-text="formatPercent(ramUsagePercent)"></strong><small v-text="formatRamUsage()"></small><div class="art-resource-track green" role="progressbar" aria-label="内存使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(ramUsagePercent)"><span :style="{width: clampPercent(ramUsagePercent) + '%'}"></span></div></article>
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon amber"><i data-lucide="radio" aria-hidden="true"></i></span><span>信号质量</span></div><strong>{{ signalPercentage }}<small>%</small></strong><small v-text="signalAssessment"></small></article>
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon coral"><i data-lucide="wifi" aria-hidden="true"></i></span><span>互联网</span></div><strong class="art-connection-value" v-text="internetConnection"></strong><small v-text="network_mode"></small></article>
+</div>
+<div id="monitorSummary"></div>
+<section class="art-radio-readings" aria-labelledby="artRadioTitle">
+<div class="art-overview-heading"><h2 id="artRadioTitle">实时信号</h2><span v-text="bands"></span></div>
+<div class="art-radio-table" role="table" aria-label="4G 与 5G 实时信号">
+<div class="art-radio-row art-radio-labels" role="row"><span role="columnheader">制式</span><span role="columnheader">RSRP <small>dBm</small></span><span role="columnheader">RSRQ <small>dB</small></span><span role="columnheader">SINR <small>dB</small></span></div>
+<div class="art-radio-row" role="row" v-for="radio in ['LTE', 'NR'].filter(hasRadioSignal)" :key="radio"><span role="rowheader" class="art-radio-name"><span class="art-radio-dot" :class="{nr: radio === 'NR'}"></span>{{ radio === 'NR' ? '5G NR' : '4G LTE' }}</span><strong role="cell">{{ $data['rsrp' + radio] === '-' ? '--' : $data['rsrp' + radio] }}</strong><strong role="cell">{{ $data['rsrq' + radio] === '-' ? '--' : $data['rsrq' + radio] }}</strong><strong role="cell">{{ $data['sinr' + radio] === '-' ? '--' : $data['sinr' + radio] }}</strong></div>
+</div>
+</section>
+<section class="art-network-section" aria-labelledby="artNetworkTitle">
+<div class="art-network-heading"><div><h2 id="artNetworkTitle">网络信息</h2><span v-text="network_provider"></span></div><div class="art-network-tools">
+<div class="art-segmented" role="group" aria-label="信息详略"><button type="button" :class="{active: compactNetworkInfo}" :aria-pressed="compactNetworkInfo" @click="!compactNetworkInfo && toggleNetworkCompact()">概览</button><button type="button" :class="{active: !compactNetworkInfo}" :aria-pressed="!compactNetworkInfo" @click="compactNetworkInfo && toggleNetworkCompact()">详情</button></div>
+<button :aria-label="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" :title="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" @click="toggleSensitiveVisible()" class="art-icon-button" type="button"><span v-show="!sensitiveVisible"><i data-lucide="eye-off" aria-hidden="true"></i></span><span v-show="sensitiveVisible"><i data-lucide="eye" aria-hidden="true"></i></span></button>
+</div></div>
+<div class="art-network-groups">
+<section class="art-detail-group"><h3><i data-lucide="radio" aria-hidden="true"></i>接入网络</h3><dl>
+<div><dt>激活 SIM</dt><dd v-text="formatActiveSimStatus()"></dd></div>
+<div><dt>运营商</dt><dd v-text="network_provider"></dd></div>
+<div v-if="!compactNetworkInfo"><dt>MCC / MNC</dt><dd v-text="mccmnc"></dd></div>
+<div><dt>APN</dt><dd v-text="apn"></dd></div>
+<div><dt>网络模式</dt><dd v-text="network_mode"></dd></div>
+<div><dt>频段</dt><dd v-text="bands"></dd></div>
+<div><dt>带宽</dt><dd v-text="bandwidth"></dd></div>
+</dl></section>
+<section class="art-detail-group"><h3><i data-lucide="activity" aria-hidden="true"></i>地址与流量</h3><dl>
+<div><dt>IPv4</dt><dd v-text="formatSensitiveValue(ipv4, 'ipv4')"></dd></div>
+<div><dt>IPv6</dt><dd v-text="formatSensitiveValue(ipv6, 'ipv6')"></dd></div>
+<div><dt>下载速率</dt><dd v-text="nr_dl_speed"></dd></div>
+<div><dt>上传速率</dt><dd v-text="nr_ul_speed"></dd></div>
+<div><dt>累计下载</dt><dd v-text="nr_rx_human"></dd></div>
+<div><dt>累计上传</dt><dd v-text="nr_tx_human"></dd></div>
+<div><dt>在线时长</dt><dd v-text="uptime"></dd></div>
+</dl></section>
+<section class="art-detail-group art-cell-details"><h3><i data-lucide="info" aria-hidden="true"></i>小区参数</h3><dl>
+<div><dt>PCI</dt><dd>{{ scc_pci !== '-' ? pcc_pci + ' / ' + scc_pci : pcc_pci }}</dd></div>
+<div><dt>E / ARFCN</dt><dd v-text="earfcns"></dd></div>
+<div v-if="!compactNetworkInfo"><dt>CELL ID</dt><dd v-text="formatSensitiveValue(cellID, 'id')"></dd></div>
+<div v-if="!compactNetworkInfo"><dt>eNB ID</dt><dd v-text="formatSensitiveValue(eNBID, 'id')"></dd></div>
+<div v-if="!compactNetworkInfo"><dt>TAC</dt><dd v-text="formatSensitiveValue(tac, 'id')"></dd></div>
+<div class="art-antenna-row"><dt>RSRP 天线 <small>dBm</small></dt><dd class="art-antenna-values"><span v-for="(value, index) in [prxqrsrp, drxqrsrp, rx2qrsrp, rx3qrsrp]" :key="index"><small>{{ ['PRX','DRX','RX2','RX3'][index] }}</small>{{ value === '-' ? '--' : value }}</span></dd></div>
+</dl></section>
+</div>
+<footer class="art-network-footer"><div class="art-update-label"><span></span>更新时间 <b v-text="lastUpdate"></b></div><div class="art-refresh-control"><label for="overviewRefresh">刷新间隔</label><input id="overviewRefresh" :placeholder="refreshRate" class="form-control" max="60" min="2" type="number" v-model="newRefreshRate" aria-label="刷新间隔（秒）"/><span>秒</span><button @click="updateRefreshRate()" class="art-icon-button" type="button" title="保存刷新间隔" aria-label="保存刷新间隔"><i data-lucide="check" aria-hidden="true"></i></button></div></footer>
+</section>
+</div>
+<div id="monitorApp" class="art-monitor" v-cloak>
+<div class="art-monitor-heading"><span class="art-live-state" :class="{ 'is-error': error || (latestPing && latestPing.status !== 'ok') }"><span></span>{{ error ? '读取失败' : statusLabel(latestPing ? latestPing.status : 'pending') }}</span><span class="art-sample-meta">最近 5 分钟</span><span v-if="snapshot.mock" class="art-mock-badge">模拟数据</span></div>
+<teleport to="#monitorSummary">
+<div class="art-stats">
+<article class="art-stat"><div><span>当前延迟</span><strong>{{ number(latestPing && latestPing.rtt) }} <small>ms</small></strong><p>{{ snapshot.target }}</p></div><span class="art-stat-icon blue"><i data-lucide="wifi" aria-hidden="true"></i></span></article>
+<article class="art-stat"><div><span>平均抖动</span><strong>{{ number(snapshot.summary.jitter) }} <small>ms</small></strong><p>相邻 RTT 绝对差</p></div><span class="art-stat-icon green"><i data-lucide="activity" aria-hidden="true"></i></span></article>
+<article class="art-stat"><div><span>丢包率</span><strong>{{ number(snapshot.summary.loss) }} <small>%</small></strong><p>{{ snapshot.summary.received || 0 }} / {{ snapshot.summary.sent || 0 }} 应答</p></div><span class="art-stat-icon amber"><i data-lucide="radio" aria-hidden="true"></i></span></article>
+<article class="art-stat"><div><span>模块温度</span><strong>{{ number(latestSignal && latestSignal.temperature) }} <small>°C</small></strong><p>{{ signalTime }}</p></div><span class="art-stat-icon coral"><i data-lucide="thermometer" aria-hidden="true"></i></span></article>
+</div>
+</teleport>
+<div class="art-signal-layout">
+<section class="art-chart-section" aria-labelledby="signalChartTitle">
+<div class="art-section-heading"><div><h2 id="signalChartTitle">无线信号</h2><span>5 秒采样</span></div><span class="art-radio-mode-label" v-if="availableRadios.length === 1">{{ availableRadios[0] === 'NR' ? '5G NR' : '4G LTE' }}</span><div v-if="availableRadios.length > 1" class="art-segmented" role="group" aria-label="无线制式"><button :aria-pressed="radio === 'NR'" :class="{ active: radio === 'NR' }" @click="setRadio('NR')" type="button">5G NR</button><button :aria-pressed="radio === 'LTE'" :class="{ active: radio === 'LTE' }" @click="setRadio('LTE')" type="button">4G LTE</button></div></div>
+<div class="art-chart-wrap"><div id="signalChart" class="art-chart" role="img" :aria-label="radio + ' RSRP 和 SINR 最近五分钟走势图'"></div><div class="art-chart-empty" v-if="!hasSignal">等待 {{ radio }} 信号数据</div></div>
+</section>
+<section class="art-chart-section" aria-labelledby="temperatureChartTitle">
+<div class="art-section-heading"><div><h2 id="temperatureChartTitle">温度趋势</h2><span>°C · 5 秒采样</span></div><i data-lucide="thermometer" aria-hidden="true"></i></div>
+<div class="art-chart-wrap"><div id="temperatureChart" class="art-chart" role="img" aria-label="模块温度最近五分钟走势图"></div><div class="art-chart-empty" v-if="!hasTemperature">等待温度数据</div></div>
+</section>
+</div>
+<section class="art-chart-section art-ping-section" aria-labelledby="pingChartTitle">
+<div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>ICMP · 1 秒采样</span></div><form class="art-target-form" @submit.prevent="saveTarget"><label class="visually-hidden" for="pingTarget">Ping 目标</label><input id="pingTarget" :disabled="saving" v-model="targetInput" @input="targetDirty = true" class="form-control" placeholder="www.baidu.com" maxlength="253" required autocomplete="off" spellcheck="false"/><button class="btn btn-primary" :disabled="saving || !targetDirty" type="submit">{{ saving ? '保存中…' : '应用' }}</button></form></div>
+<p class="art-target-message" role="status" v-if="targetMessage">{{ targetMessage }}</p>
+<p class="art-target-message is-error" role="alert" v-if="error">{{ error }} <button class="art-text-button" @click="refresh" type="button">重试</button></p>
+<div class="art-chart-wrap"><div id="pingChart" class="art-chart art-ping-chart" role="img" aria-label="最近五分钟延迟、抖动和失败采样走势图"></div><div class="art-chart-empty" v-if="!snapshot.ping.length">等待首次采样</div></div>
+<div class="art-chart-footer"><span>平均 <b>{{ number(snapshot.summary.average) }}</b> ms</span><span>最低 <b>{{ number(snapshot.summary.minimum) }}</b> ms</span><span>最高 <b>{{ number(snapshot.summary.maximum) }}</b> ms</span><span class="art-failure-key">失败 {{ failedSamples }} 次</span><span>{{ latestPing && latestPing.ip ? latestPing.ip : snapshot.target }}</span></div>
+</section>
+</div>
+</section>
+<section aria-labelledby="page-title-network" class="sa-page" data-page="network" id="page-network">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="网络与小区" id="page-title-network">网络与小区</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column" id="networkApp" v-cloak="">
+<div class="sa-section-stack">
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">
+<div class="sa-section-stack">
+<div class="sa-stack-item">频段锁定</div>
+<div class="sa-stack-item sa-band-query-status" v-show="isGettingBands === true">
+                正在查询当前已锁定频段...
+              </div>
+</div>
+</div>
+<div class="sa-panel-body">
+<div class="sa-band-mode-grid">
+<div class="sa-band-mode-panel" data-band-mode="LTE">
+<div class="sa-band-mode-title">LTE</div>
+<form class="sa-band-checkboxes" id="checkboxFormLTE">
+<!-- LTE 复选框将会在这里生成 -->
+</form>
+<div class="sa-inline-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('LTE')" class="btn btn-primary" type="button">
+                    锁定
+                  </button>
+<button @click="toggleBandCheckboxes('LTE')" class="btn btn-info" id="toggleBandsLTE" type="button">
+                    全部选中
+                  </button>
+</div>
+</div>
+<div class="sa-band-mode-panel" data-band-mode="NSA">
+<div class="sa-band-mode-title">NR5G-NSA</div>
+<form class="sa-band-checkboxes" id="checkboxFormNSA">
+<!-- NR5G-NSA 复选框将会在这里生成 -->
+</form>
+<div class="sa-inline-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('NSA')" class="btn btn-primary" type="button">
+                    锁定
+                  </button>
+<button @click="toggleBandCheckboxes('NSA')" class="btn btn-info" id="toggleBandsNSA" type="button">
+                    全部选中
+                  </button>
+</div>
+</div>
+<div class="sa-band-mode-panel" data-band-mode="SA">
+<div class="sa-band-mode-title">NR5G-SA</div>
+<form class="sa-band-checkboxes" id="checkboxFormSA">
+<!-- NR5G-SA 复选框将会在这里生成 -->
+</form>
+<div class="sa-inline-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('SA')" class="btn btn-primary" type="button">
+                    锁定
+                  </button>
+<button @click="toggleBandCheckboxes('SA')" class="btn btn-info" id="toggleBandsSA" type="button">
+                    全部选中
+                  </button>
+</div>
+</div>
+</div>
+</div>
+<div class="sa-panel-footer d-flex sa-band-footer">
+<p v-text="'活动频段: ' + bands"></p>
+<button @click="resetBandLocking" class="btn btn-warning" type="button">
+                恢复全部
+              </button>
+</div>
+</div>
+</div>
+</div>
+<div class="sa-section-stack">
+<div class="sa-stack-item">
+<form>
+<div class="sa-panel">
+<div class="sa-panel-header">网络工具</div>
+<div class="sa-panel-body">
+<div class="sa-network-tools-row">
+<!-- APN -->
+<div class="sa-network-tool-item">
+<label class="form-label" for="APN">APN</label>
+<input :placeholder="apn === '-' ? '获取中...' : apn" aria-describedby="APN" class="form-control" id="APN" type="text" v-model="newApn"/>
+</div>
+<!-- PDP 类型（IP 协议） -->
+<div class="sa-network-tool-item">
+<label class="form-label" for="pdpType">IP 协议类型</label>
+<select aria-label="pdpType" class="form-select" id="pdpType" v-model="newPdpType">
+<option :value="null" disabled="" v-text="pdpType === '-' ? '获取中...' : '当前：' + pdpType"></option>
+<option value="IPV4V6">IPv4v6</option>
+<option value="IP">IPv4</option>
+<option value="IPV6">IPv6</option>
+</select>
+</div>
+<!-- 选择首选网络 -->
+<div class="sa-network-tool-item">
+<label class="form-label" for="prefNetworkMode">选择首选网络</label>
+<select aria-label="prefNetworkMode" class="form-select" id="prefNetworkMode" v-model="prefNetworkMode">
+<option :value="null" disabled="" v-text="prefNetwork === '-' ? '获取中...' : '当前：' + prefNetwork"></option>
+<option value="AUTO">自动</option>
+<option value="LTE">仅LTE</option>
+<option value="LTE:NR5G">NR5G-NSA</option>
+<option value="NR5G">NR5G-SA</option>
+</select>
+</div>
+<!-- NR5G模式控制 -->
+<div class="sa-network-tool-item">
+<label class="form-label" for="nrModeControl">NR5G模式控制</label>
+<select aria-label="nrModeControl" class="form-select" id="nrModeControl" v-model="nrModeControlNew">
+<option :value="null" disabled="" v-text="nrModeControlCurrent === null
+        ? '获取中...'
+        : ('当前：' + (nrModeControlCurrent==='0' ? '启用所有'
+                         : nrModeControlCurrent==='1' ? '禁用NR5G-SA'
+                         : '禁用NR5G-NSA'))">
+</option>
+<option value="0">启用所有</option>
+<option value="2">禁用NR5G-NSA</option>
+<option value="1">禁用NR5G-SA</option>
+</select>
+</div>
+</div>
+</div>
+<div class="sa-panel-footer">
+<button @click="saveChanges()" class="btn btn-primary" type="button">
+                  保存更改
+                </button>
+</div>
+</div>
+</form>
+</div>
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">小区锁定</div>
+<div class="sa-panel-body">
+<div class="sa-panel-text">
+<table class="table">
+<tbody id="cellScanTableBody">
+<!-- 小区行在此 -->
+</tbody>
+</table>
+<div>
+<div class="sa-stack-item">
+<div class="form-group">
+<label for="exampleFormControlSelect1">选择扫描模式</label>
+<select class="form-select" id="cellSelect" v-model="cellScanMode">
+<option disabled="" value="Unspecified">当前：选择扫描模式</option>
+<option value="Full Scan">全面扫描</option>
+<option value="LTE Only">仅LTE</option>
+<option value="NR5G Only">仅NR5G</option>
+</select>
+</div>
+</div>
+<div class="sa-inline-actions sa-cell-scan-actions">
+<button :disabled='isLoading || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'">
+</button>
+<button :disabled="selectedCells.length === 0 || isLoading" @click="lockSelectedCells()" class="btn btn-secondary" type="button">
+                      锁定
+                    </button>
+<button :disabled="isLoading || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">
+                      清除
+                    </button>
+</div>
+</div>
+<div class="form-text" id="cellSelectHelper">
+                  小区扫描需要几分钟完成，请勿离开次页面。
+                </div>
+</div>
+</div>
+<div class="sa-panel-body">
+<select @change="onNetworkModeCellChange($event)" aria-label="LTE" class="form-select" id="networkModeCell" v-model="networkModeCell">
+<option disabled="" v-text="'当前：' + cellLockStatus" value="-"></option>
+<option>LTE</option>
+<option>NR5G-SA</option>
+<option>解锁LTE</option>
+<option>解锁NR5G-SA</option>
+</select>
+<div class="my-3">
+<!-- For LTE -->
+<div id="lteElementsCell" v-show="networkModeCell == 'LTE'">
+<div class="input-group">
+<span class="input-group-text" id="basic-addon1">小区数量</span>
+<input @change="normalizeLteCellCount()" @input="normalizeLteCellCount()" aria-describedby="basic-addon1" aria-label="NumCells" class="form-control" max="10" min="1" placeholder="1-10" type="number" v-model="cellNum"/>
+</div>
+</div>
+<template v-if="hasLteManualCellCount()">
+<div id="freqNumbersContainer">
+<div :key="'lte-manual-cell-' + index" class="input-group" v-for="index in visibleLteCellIndexes()">
+<input :aria-label="'EARFCN ' + index" :placeholder="'EARFCN ' + index" :value="getLteManualValue(index, 'earfcn')" @input="setLteManualValue(index, 'earfcn', $event.target.value)" class="form-control" type="text"/>
+<input :aria-label="'PCI ' + index" :placeholder="'PCI ' + index" :value="getLteManualValue(index, 'pci')" @input="setLteManualValue(index, 'pci', $event.target.value)" class="form-control" type="text"/>
+</div>
+</div>
+</template>
+<!-- For SA -->
+<div id="saElementsCell" v-show="networkModeCell == 'NR5G-SA'">
+<div class="input-group" v-show="networkModeCell == 'NR5G-SA'">
+<input aria-label="EARFCN" class="form-control" placeholder="EARFCN" type="text" v-model="earfcn1"/>
+<input aria-label="PCI" class="form-control" placeholder="PCI" type="text" v-model="pci1"/>
+</div>
+<div class="input-group" v-show="networkModeCell == 'NR5G-SA'">
+<select aria-label="SCS" class="form-select" v-model="scs">
+<option :value="null" disabled="">当前：SCS</option>
+<option>15</option>
+<option>30</option>
+<option>60</option>
+<option>120</option>
+<option>240</option>
+</select>
+<input aria-label="band" class="form-control" placeholder="Band" type="text" v-model="band"/>
+</div>
+</div>
+<button @click="cellLockEnableLTE()" class="btn btn-primary" type="button" v-show="networkModeCell == 'LTE'">
+                  锁定LTE小区
+                </button>
+<button @click="cellLockEnableNR()" class="btn btn-primary" type="button" v-show="networkModeCell == 'NR5G-SA'">
+                  锁定NR5G-SA小区
+                </button>
+<button @click="cellLockDisableLTE()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁LTE'">
+                  解锁LTE小区
+                </button>
+<button @click="cellLockDisableNR()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁NR5G-SA'">
+                  解锁NR5G-SA小区
+                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" v-show="showModal">
+<div class="loading-modal">
+<div class="loader"></div>
+<div class="loading-text" style="display: flex; flex-direction: column">
+<h3>初始化网络...</h3>
+<p style="margin-top: 0.5rem">
+              请等待
+              <span style="font-weight: 500" v-text="countdown"></span>
+              秒。
+            </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section aria-labelledby="page-title-settings" class="sa-page" data-page="settings" id="page-settings">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="系统设置" id="page-title-settings">系统设置</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column" id="settingsApp" v-cloak="">
+<div class="sa-section-stack">
+<section aria-labelledby="accountSecurityHeading" class="sa-stack-item sa-account-security">
+<h2 id="accountSecurityHeading" class="sa-panel-header">账户安全 · Web 登录密码</h2>
+<form @submit.prevent="changeLoginPassword()" class="sa-panel-body">
+<div class="sa-password-fields">
+<div>
+<label class="form-label" for="currentPasswordInput">当前密码</label>
+<input :disabled="isSavingPassword" autocomplete="current-password" class="form-control" id="currentPasswordInput" placeholder="请输入当前登录密码" required type="password" v-model="currentPassword"/>
+</div>
+<div>
+<label class="form-label" for="newPasswordInput">新密码</label>
+<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="newPasswordInput" placeholder="请输入新的登录密码" required type="password" v-model="newPassword"/>
+</div>
+<div>
+<label class="form-label" for="confirmPasswordInput">确认新密码</label>
+<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="confirmPasswordInput" placeholder="请再次输入新的登录密码" required type="password" v-model="confirmPassword"/>
+</div>
+</div>
+<button :disabled="isSavingPassword" class="btn btn-primary" type="submit">修改密码</button>
+<div aria-live="polite" class="form-text" role="status" v-show="passwordSaveMessage" v-text="passwordSaveMessage"></div>
+</form>
+</section>
+<section class="sa-stack-item sa-account-security" aria-labelledby="rootSecurityHeading">
+<h2 id="rootSecurityHeading" class="sa-panel-header">系统 root 密码</h2>
+<form @submit.prevent="changeRootPassword()" class="sa-panel-body">
+<div class="sa-password-fields">
+<div><label class="form-label" for="currentRootPassword">当前 root 密码</label><input id="currentRootPassword" class="form-control" type="password" autocomplete="current-password" required :disabled="isSavingRootPassword" v-model="currentRootPassword"/></div>
+<div><label class="form-label" for="newRootPassword">新 root 密码</label><input id="newRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="newRootPassword"/></div>
+<div><label class="form-label" for="confirmRootPassword">确认新 root 密码</label><input id="confirmRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="confirmRootPassword"/></div>
+</div>
+<button class="btn btn-primary" type="submit" :disabled="isSavingRootPassword">修改 root 密码</button>
+<div class="form-text" role="status" aria-live="polite" v-text="rootPasswordSaveMessage"></div>
+</form>
+</section>
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">AT 终端</div>
+<div class="sa-panel-body">
+<div class="sa-panel-text">
+<div class="form-floating">
+<!-- AT 命令输出 -->
+<textarea class="form-control" id="atOutputBox" readonly="" style="height: 210px" v-model="atCommandResponse"></textarea>
+</div>
+<div>
+<div class="sa-stack-item">
+<label class="form-label" for="exampleInputEmail1">AT 命令</label>
+<input @keydown.enter="sendATCommand()" aria-describedby="atCommandInput" class="form-control" id="atCommandInput" placeholder="ATI" type="text" v-model="atcmd"/>
+<div class="form-text" id="atCommandInputHelper">
+                      用分号（;）分隔多个命令，后端会逐条发送，示例：AT+CFUN?;+CCID
+                    </div>
+</div>
+<div class="sa-inline-actions sa-at-actions">
+<button :disabled="isLoading" @click="sendATCommand()" class="btn btn-primary" type="button">
+                      提交
+                    </button>
+<button :disabled="isClean" @click="clearResponses()" class="btn btn-danger" type="button">
+                      清除
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sa-section-stack sa-settings-two-columns">
+<div class="sa-stack-item">
+<form>
+<div class="sa-panel">
+<div class="sa-panel-header">一键实用工具</div>
+<div class="sa-panel-body">
+<div class="sa-panel-text">
+<div class="table-responsive">
+<table class="table sa-data-table sa-action-table">
+<tbody>
+<tr>
+<th scope="row">IP 透传</th>
+<td>
+<select class="form-select" id="ipPassModeSelect" v-model="ipPassMode">
+<option disabled="" v-text="ipPassStatus ? '当前：已启用' : '当前：未启用'" value="未指定"></option>
+<option value="ETH">ETH</option>
+<option value="USB">USB (ECM/RNDIS)</option>
+</select>
+</td>
+<td>
+<button :disabled="isLoading" @click="ipPassThroughEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="ipPassStatus === false">
+                              启用
+                            </button>
+<button :disabled="isLoading" @click="ipPassThroughDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="ipPassStatus === true">
+                              禁用
+                            </button>
+</td>
+</tr>
+<tr>
+<th scope="row">USB 协议</th>
+<td>
+<select class="form-select" id="usbNetModeSelect" v-model="usbNetMode">
+<option disabled="" v-text="'当前：' + currentUsbNetMode" value="未指定"></option>
+<option value="RMNET">RMNET</option>
+<option value="ECM">ECM (推荐)</option>
+<option value="MBIM">MBIM</option>
+<option value="RNDIS">RNDIS</option>
+</select>
+</td>
+<td>
+<button :disabled="isLoading" @click="usbNetModeChanger()" class="btn btn-primary" style="white-space: nowrap;" type="button">
+                              更改
+                            </button>
+</td>
+</tr>
+<tr>
+<th scope="row">DMZ 设置</th>
+<td>
+<input class="form-control" placeholder="DMZ IP 地址" type="text" v-model="dmzIP"/>
+</td>
+<td>
+<!-- 启用按钮 -->
+<button :disabled="isLoading" @click="setDMZEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="dmzMode === '0'">
+                              启用
+                            </button>
+<!-- 禁用按钮 -->
+<button :disabled="isLoading" @click="setDMZDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="dmzMode === '1'">
+                              禁用
+                            </button>
+</td>
+</tr>
+<tr>
+<th scope="row">LAN IP 设置</th>
+<td>
+<!-- 网关 IP 地址 -->
+<div class="sa-section-stack sa-lan-ip-fields">
+<div class="sa-stack-item">
+<input class="form-control" placeholder="网关 IP 地址" type="text" v-model="lanGwIp"/>
+</div>
+<!-- 起始 IP 地址（只显示最后一位） -->
+<div class="sa-stack-item">
+<input class="form-control" placeholder="起始地址" type="text" v-model="lanIpStart"/>
+</div>
+<!-- 结束 IP 地址（只显示最后一位） -->
+<div class="sa-stack-item">
+<input class="form-control" placeholder="结束地址" type="text" v-model="lanIpEnd"/>
+</div>
+</div>
+</td>
+<td>
+<!-- 设置按钮 -->
+<button :class="['btn', lanIpSaveSuccess ? 'btn-success' : 'btn-primary']" :disabled="isLoading || isSavingLANIP" @click="setLANIP()" style="white-space: nowrap;" type="button">
+                              {{ lanIpSaveSuccess ? '成功' : '保存' }}
+                            </button>
+</td>
+</tr>
+<tr>
+<th scope="row">IMEI 设置</th>
+<td>
+<input @keydown.enter.prevent="openImeiModal()" class="form-control" id="imeiInput" inputmode="numeric" placeholder="请输入新的 IMEI" type="text" v-model.trim="newImei"/>
+</td>
+<td>
+<button :disabled="isLoading || isRebooting" @click="openImeiModal()" class="btn btn-primary" style="white-space: nowrap;" type="button">
+                              更新
+                            </button>
+</td>
+</tr>
+<tr class="sa-combined-action-row sa-dns-row">
+<td colspan="3">
+<div class="sa-inline-actions sa-dns-actions">
+<div class="sa-inline-action-group">
+<button :disabled="isLoading" @click="onBoardDNSV4ProxyEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="DNSV4ProxyStatus === false">
+                              启用 DNS<sup>V4</sup>
+                            </button>
+<button :disabled="isLoading" @click="onBoardDNSV4ProxyDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="DNSV4ProxyStatus === true">
+                              禁用 DNS<sup>V4</sup>
+                            </button>
+</div>
+<div class="sa-inline-action-group">
+<button :disabled="isLoading" @click="onBoardDNSV6ProxyEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="DNSV6ProxyStatus === false">
+                              启用 DNS<sup>V6</sup>
+                            </button>
+<button :disabled="isLoading" @click="onBoardDNSV6ProxyDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="DNSV6ProxyStatus === true">
+                              禁用 DNS<sup>V6</sup>
+                            </button>
+</div>
+<div class="sa-inline-action-group">
+<button :disabled="isLoading" @click="showRebootModal()" class="btn btn-danger" style="white-space: nowrap;" type="button">
+                              重启
+                            </button>
+</div>
+<div class="sa-inline-action-group">
+<button :disabled="isLoading" @click="resetATCommands()" class="btn btn-danger" style="white-space: nowrap;" type="button">
+                              重置 AT&amp;F
+                            </button>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</form>
+</div>
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">其他设置</div>
+<div class="sa-panel-body">
+<div class="sa-settings-account-grid">
+<div class="sa-settings-account-column">
+<div class="sa-settings-account-card sa-panel-text">
+<label class="form-label" for="languageSelect">界面语言</label>
+<div class="input-group sa-inline-control">
+<select class="form-select" id="languageSelect" v-model="language" data-no-i18n dir="ltr">
+<option value="zh-CN">中文</option>
+<option value="en">English</option>
+<option value="ru">Русский</option>
+<option value="ar">العربية</option>
+</select>
+<button :disabled="isSavingLanguage" @click="saveLanguageSetting()" class="btn btn-primary" type="button">
+                      保存
+                    </button>
+</div>
+<div class="form-text" v-show="languageSaveMessage" v-text="languageSaveMessage"></div>
+</div>
+<div class="sa-settings-account-card sa-panel-text sa-ttl-settings-card">
+<label class="form-label" for="ttlInput">TTL 设置</label>
+<div class="sa-ttl-status-row">
+<div class="sa-status-box sa-status-box-primary" v-show="ttlStatus === true">
+                    TTL 已激活
+                  </div>
+<div class="sa-status-box sa-status-box-danger" v-show="ttlStatus === false">
+                    TTL 未激活
+                  </div>
+<div class="sa-status-box sa-status-box-info" v-text="ttlvalue"></div>
+</div>
+<div class="input-group sa-inline-control sa-ttl-control">
+<input class="form-control" id="ttlInput" placeholder="TTL 值" type="text" v-model="newTTL"/>
+<button @click="setTTL()" class="btn btn-primary" type="button">
+                    更新
+                  </button>
+</div>
+<div class="form-text" id="ttlValueHelper">
+                    设置 TTL 值为 0 以禁用。
+                  </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- IMEI 设置确认模态框 -->
+<div class="modal-overlay" v-show="showImeiModal">
+<div class="loading-modal">
+<div class="loading-text" style="display: flex; flex-direction: column">
+<h3>这将修改 IMEI 并重启调制解调器。</h3>
+<p style="margin-top: 0.5rem">继续？</p>
+</div>
+<div class="d-grid">
+<button :disabled="isLoading" @click="updateIMEI()" class="btn btn-primary" type="button">
+                重启
+              </button>
+<button :disabled="isLoading" @click="closeImeiModal()" class="btn btn-danger" type="button">
+                取消
+              </button>
+</div>
+</div>
+</div>
+<!-- 重启加载模态框 -->
+<div class="modal-overlay" v-show="showModal">
+<div class="loading-modal">
+<div class="loading-text" style="display: flex; flex-direction: column">
+<h3>这将重启调制解调器。</h3>
+<p style="margin-top: 0.5rem">继续？</p>
+</div>
+<div class="d-grid">
+<button @click="rebootDevice()" class="btn btn-primary" type="button">
+                重启
+              </button>
+<button @click="closeModal()" class="btn btn-danger" type="button">
+                取消
+              </button>
+</div>
+</div>
+</div>
+<!-- 重启倒计时模态框 -->
+<div class="modal-overlay" v-show="isRebooting">
+<div class="loading-modal">
+<div class="loader"></div>
+<div class="loading-text" style="display: flex; flex-direction: column">
+<h3>重启中...</h3>
+<p style="margin-top: 0.5rem">
+                请等待
+                <span style="font-weight: 500" v-text="countdown"></span>
+                秒。
+              </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section aria-labelledby="page-title-sms" class="sa-page" data-page="sms" id="page-sms">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="短信服务" id="page-title-sms">短信服务</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column" id="smsApp" v-cloak="">
+<div class="sa-section-stack">
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">收件箱</div>
+<div class="sa-panel-body">
+<div class="sa-panel-text">
+<div class="sa-stack-item">
+<div class="sa-sms-inbox-scroll">
+<div v-show="isLoading">
+<h4>读取短信...</h4>
+</div>
+<table class="table table-hover border-success sa-sms-inbox-table" v-show="!isLoading">
+<tbody>
+<!-- 没有消息时显示 -->
+<tr v-if="messages.length === 0 &amp;&amp; !isLoading">
+<td colspan="2">无短信</td>
+</tr>
+<!-- 循环显示短信消息 -->
+<template :key="index" v-for="(message, index) in messages">
+<tr @click="openMessageDetail(index)" @keydown.enter.prevent="openMessageDetail(index)" @keydown.space.prevent="openMessageDetail(index)" class="sa-sms-summary-row" role="button" tabindex="0">
+<td class="sa-sms-select-cell">
+<input :aria-label="'选择短信 ' + (index + 1)" :value="index" @click.stop @keydown.stop class="form-check-input sa-sms-select-checkbox" type="checkbox" v-model="selectedMessages"/>
+</td>
+<td class="sa-sms-summary-cell">
+<div class="sa-sms-summary-line">
+<span class="sa-sms-summary-sender">发件人: <span v-text="senders[index]"></span></span>
+<span class="sa-sms-summary-date" v-text="dates[index]"></span>
+<span class="sa-sms-summary-preview" v-text="getMessagePreview(message)"></span>
+</div>
+</td>
+</tr>
+</template>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- 添加判断，只有当messages数组有内容时才显示全选复选框及其区域 -->
+<div class="sa-panel-body border-top" v-show="messages.length &gt; 0">
+<div class="form-check">
+<input @change="toggleAll($event)" class="form-check-input" id="selectAllCheckbox" type="checkbox"/>
+<label class="form-check-label">全选</label>
+</div>
+</div>
+<div class="sa-panel-footer">
+<div class="sa-sms-inbox-actions">
+<!-- 刷新按钮 -->
+<button @click="init()" class="btn btn-success" type="button">刷新</button>
+<!-- 删除选中短信按钮 -->
+<button @click="deleteSelectedSMS()" class="btn btn-danger" type="button">删除</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sa-section-stack">
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header">发信息</div>
+<div class="sa-panel-body">
+<div>
+<label class="form-label" for="phoneNumber">收件人号码</label>
+<input class="form-control" id="phoneNumber" placeholder="输入收件人号码" type="text" v-model="phoneNumber"/>
+</div>
+<div>
+<label class="form-label" for="messageToSend">短信内容</label>
+<textarea class="form-control" id="messageToSend" placeholder="输入短信内容" rows="3" v-model="messageToSend"></textarea>
+</div>
+<div class="alert" id="notification" style="display: none;"></div>
+<div class="d-flex">
+<button @click="sendSMS()" class="btn btn-primary">发送短信</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<teleport to="body">
+<div class="modal-overlay sa-sms-detail-overlay" @click.self="closeMessageDetail()" v-if="activeMessageIndex !== null &amp;&amp; messages[activeMessageIndex]">
+<div aria-labelledby="smsDetailTitle" aria-modal="true" class="loading-modal sa-sms-detail-modal" role="dialog">
+<div class="sa-sms-detail-header">
+<h3 id="smsDetailTitle">短信详情</h3>
+<button aria-label="关闭" @click="closeMessageDetail()" class="btn-close" type="button"></button>
+</div>
+<div class="sa-sms-detail-meta">
+<span>发件人: <strong v-text="senders[activeMessageIndex]"></strong></span>
+<span v-text="dates[activeMessageIndex]"></span>
+</div>
+<div class="sa-sms-detail-body">
+<p class="sa-sms-message-text" v-if="messages[activeMessageIndex]">
+<template :key="lineIndex" v-for="(line, lineIndex) in messages[activeMessageIndex].lines">
+<span v-text="line"></span><br v-if="lineIndex &lt; messages[activeMessageIndex].lines.length - 1"/>
+</template>
+</p>
+</div>
+</div>
+</div>
+</teleport>
+</div>
+</section>
+<section aria-labelledby="page-title-deviceinfo" class="sa-page" data-page="deviceinfo" id="page-deviceinfo">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="设备信息" id="page-title-deviceinfo">设备信息</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column" id="deviceinfoApp" v-cloak="">
+<div class="sa-section-stack">
+<div class="sa-stack-item">
+<div class="sa-panel">
+<div class="sa-panel-header sa-panel-header-tools">
+<div class="sa-panel-title-tools">
+<span>设备信息</span>
+<button :aria-label="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" :title="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" @click="toggleSensitiveVisible()" class="btn btn-sm sa-eye-toggle" type="button">
+<span :class="['sa-eye-icon', sensitiveVisible ? 'sa-eye-open' : 'sa-eye-closed']" aria-hidden="true"></span>
+</button>
+</div>
+<div class="d-flex align-items-center gap-2">
+<div aria-hidden="true" class="spinner-border spinner-border-sm" role="status" v-show="isLoading"></div>
+<span class="small text-muted" v-show="isLoading">加载中...</span>
+</div>
+</div>
+<div class="sa-panel-body">
+<div class="sa-panel-text">
+<div class="table-responsive">
+<table class="table align-middle sa-data-table sa-luci-info-table">
+<tbody>
+<tr>
+<th scope="row">制造商</th>
+<td v-text="manufacturer"></td>
+</tr>
+<tr>
+<th scope="row">型号名称</th>
+<td v-text="modelName"></td>
+</tr>
+<tr>
+<th scope="row">固件版本</th>
+<td v-text="firmwareVersion"></td>
+</tr>
+<tr>
+<th scope="row">电话号码</th>
+<td v-text="formatSensitiveValue(phoneNumber, 'phone')"></td>
+</tr>
+<tr>
+<th scope="row">IMSI</th>
+<td v-text="formatSensitiveValue(imsi, 'digit')"></td>
+</tr>
+<tr>
+<th scope="row">ICCID</th>
+<td v-text="formatSensitiveValue(iccid, 'digit')"></td>
+</tr>
+<tr>
+<th scope="row">IMEI</th>
+<td v-text="formatSensitiveValue(imei, 'digit')"></td>
+</tr>
+<tr>
+<th scope="row">局域网IP</th>
+<td v-text="lanIp"></td>
+</tr>
+<tr>
+<th scope="row">广域网IPv<sup>4</sup></th>
+<td v-text="formatSensitiveValue(wwanIpv4, 'ipv4')"></td>
+</tr>
+<tr>
+<th scope="row">广域网IPv<sup>6</sup></th>
+<td v-text="formatSensitiveValue(wwanIpv6, 'ipv6')"></td>
+</tr>
+<tr>
+<th scope="row">版本</th>
+<td>SimpleAdmin-Go-snjzb-1.00</td>
+</tr>
+<tr>
+<th>Project Contributors</th>
+<td>
+<button class="btn btn-link link-info link-opacity-50-hover link-offset-2 p-0 align-baseline" data-bs-target="#contributorsModal" data-bs-toggle="modal" type="button">
+                              Show Contributors
+                            </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- 已移除原生命令调试输出 -->
+</div>
+</div>
+<div class="sa-panel-footer">
+                访问
+                <a class="text-reset" href="https://github.com/iamromulan/quectel-rgmii-toolkit/tree/development" rel="noopener" target="_blank">代码库</a>
+                或
+                <a class="text-reset" href="https://github.com/iamromulan/quectel-rgmii-configuration-notes.git" rel="noopener" target="_blank">文档</a>
+                以获取更多信息。版权所有。2024
+              </div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="page-title-console" class="sa-page" data-page="console" id="page-console">
+<div class="sa-page-titlebar">
+<div class="sa-page-title-main">
+<h1 data-simpleadmin-i18n-key="控制台" id="page-title-console">控制台</h1>
+</div>
+<div class="sa-page-title-actions">
+<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
+<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
+</div>
+</div>
+<div class="sa-page-app sa-single-column sa-console-page">
+<div class="sa-panel sa-console-panel">
+<div class="sa-panel-body sa-console-body">
+<iframe class="sa-console-frame" data-console-src="/console" id="consoleFrame" scrolling="no" title="控制台"></iframe>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+
+<div aria-hidden="true" aria-labelledby="contributorsModalLabel" class="modal fade" id="contributorsModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header">
+<h1 class="modal-title fs-5" id="contributorsModalLabel">Contributors</h1>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<table class="table table-borderless sa-data-table mb-0">
+<tbody>
+<tr>
+<th>RGMII Toolkit and Documentation</th>
+<td><a href="https://github.com/iamromulan" rel="noopener" target="_blank">iamromulan</a></td>
+</tr>
+<tr>
+<th>2.0 Interface</th>
+<td><a href="https://github.com/dr-dolomite" rel="noopener" target="_blank">dr-dolomite</a></td>
+</tr>
+<tr>
+<th>SMS Feature</th>
+<td><a href="https://github.com/snjzb" rel="noopener" target="_blank">snjzb</a></td>
+</tr>
+<tr>
+<th>Original Project</th>
+<td><a href="https://github.com/aesthernr" rel="noopener" target="_blank">aesthernr</a></td>
+</tr>
+<tr>
+<th>Original Socat Bridge</th>
+<td><a href="https://github.com/natecarlson" rel="noopener" target="_blank">natecarlson</a></td>
+</tr>
+<tr>
+<th>Original Fixes</th>
+<td><a href="https://github.com/rbflurry/" rel="noopener" target="_blank">rbflurry</a></td>
+</tr>
+<tr>
+<th>SA Parsing Patch</th>
+<td><a href="https://github.com/tarunVreddy" rel="noopener" target="_blank">tarunVreddy</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+</div>
+</div>
+</div>
+</div>
+<script src="js/populate-checkbox.js?v=2.94"></script>
+<script src="js/pages/index.js?v=3.3"></script>
+<script src="js/pages/network.js?v=2.94"></script>
+<script src="js/pages/settings.js?v=3.3"></script>
+<script src="js/pages/sms.js?v=2.94"></script>
+<script src="js/pages/deviceinfo.js?v=2.94"></script>
+<script src="js/simpleadmin-spa.js?v=2.94"></script>
+<script src="js/dark-mode.js?v=2.94"></script>
+<script src="js/monitor-vendor.js?v=3.2"></script>
+<script src="js/monitor.js?v=3.4"></script>
+<script src="js/art-device.js?v=3.3"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+*.rs text eol=lf
+*.exe binary
+*.dll binary
+*.armv7 binary
+*.png binary
+*.ico binary
+*.woff2 binary

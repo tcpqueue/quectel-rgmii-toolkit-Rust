@@ -1,0 +1,7 @@
+/target/
+/work/
+/packages/
+*.auth
+*.key
+monitor.json
+/windows-test/state/

@@ -1,0 +1,267 @@
+<!doctype html>
+<html data-bs-theme="light" lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>获取中... 登录</title>
+<script src="js/locales.js?v=3.3"></script>
+<script>
+(function () {
+  try {
+    var theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    document.documentElement.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
+    document.documentElement.style.colorScheme = theme;
+  } catch (e) {
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    document.documentElement.classList.add('theme-light');
+    document.documentElement.style.colorScheme = 'light';
+  }
+})();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fafbfc;
+  --panel: #ffffff;
+  --text: #111827;
+  --muted: #667085;
+  --line: #d8dee9;
+  --field: #ffffff;
+  --primary: #5278ec;
+  --primary-hover: #174bd0;
+  --danger: #b42318;
+  --shadow: 0 4px 24px rgba(32, 32, 40, .04);
+}
+html[data-bs-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111113;
+  --panel: #19191d;
+  --text: #f4f7fb;
+  --muted: #aeb8c8;
+  --line: #2d2d35;
+  --field: #202025;
+  --primary: #8ca6ff;
+  --primary-hover: #a6c7ff;
+  --danger: #ffb4ab;
+  --shadow: 0 18px 60px rgba(9, 13, 20, .36);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.login-actions {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+.theme-toggle {
+  width: auto;
+  min-width: 88px;
+  height: 34px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.theme-toggle:hover { background: var(--field); }
+.login-shell {
+  width: min(100%, 420px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+.login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.login-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.login-title { font-size: 22px; font-weight: 800; line-height: 1.1; }
+.login-subtitle { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.form-row { display: grid; gap: 8px; margin-top: 14px; }
+.language-select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: var(--field); font: inherit; }
+.login-title { overflow-wrap: anywhere; }
+html[dir="rtl"] .login-actions { right: auto; left: 16px; }
+#username, #password, .login-title, .login-mark { direction: ltr; }
+label { font-size: 13px; font-weight: 700; color: var(--text); }
+input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--text);
+  outline: none;
+  padding: 0 14px;
+  font: inherit;
+}
+input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+button {
+  width: 100%;
+  height: 44px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+button:hover { background: var(--primary-hover); }
+button:disabled { opacity: .65; cursor: wait; }
+.message { min-height: 22px; margin-top: 14px; color: var(--danger); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="login-actions"><button class="theme-toggle" id="themeToggle" type="button">暗夜模式</button></div>
+  <main class="login-shell" aria-label="登录">
+    <div class="login-brand">
+      <div class="login-mark" data-simpleadmin-brand-mark="1">--</div>
+      <div>
+        <div class="login-title" data-simpleadmin-brand-title="1">获取中...</div>
+        <div class="login-subtitle">请输入账号和密码</div>
+      </div>
+    </div>
+    <form id="loginForm" autocomplete="on">
+      <div class="form-row">
+        <label for="loginLanguage">语言</label>
+        <select id="loginLanguage" class="language-select" data-no-i18n dir="ltr"><option value="zh-CN">中文</option><option value="en">English</option><option value="ru">Русский</option><option value="ar">العربية</option></select>
+      </div>
+      <div class="form-row">
+        <label for="username">用户名</label>
+        <input id="username" name="username" autocomplete="username" required>
+      </div>
+      <div class="form-row">
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button id="loginButton" type="submit">登录</button>
+      <div id="loginMessage" class="message" role="alert"></div>
+    </form>
+  </main>
+<script>
+(function () {
+  'use strict';
+  const form = document.getElementById('loginForm');
+  const button = document.getElementById('loginButton');
+  const message = document.getElementById('loginMessage');
+  const themeToggle = document.getElementById('themeToggle');
+  const lang = window.SimpleAdmin.Lang;
+  const languageSelect = document.getElementById('loginLanguage');
+  languageSelect.value = lang.getCurrentLanguage();
+  languageSelect.addEventListener('change', () => lang.setLanguage(languageSelect.value));
+  window.addEventListener('simpleadmin:language-changed', () => {
+    document.title = (document.querySelector('[data-simpleadmin-brand-title]').textContent || 'SimpleAdmin') + ' · ' + lang.t('登录');
+  });
+  function applyTheme(theme) {
+    const normalized = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-bs-theme', normalized);
+    document.documentElement.classList.toggle('theme-dark', normalized === 'dark');
+    document.documentElement.classList.toggle('theme-light', normalized === 'light');
+    document.documentElement.style.colorScheme = normalized;
+    try { localStorage.setItem('theme', normalized); } catch (e) {}
+    if (themeToggle) themeToggle.textContent = normalized === 'dark' ? '浅色模式' : '暗夜模式';
+  }
+  function normalizeModel(value) {
+    var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    if (!text || text === '-' || text === '未知' || text === '获取中...') return '';
+    return text;
+  }
+  function modelMark(value) {
+    var model = normalizeModel(value);
+    var chars = model.replace(/[^0-9A-Za-z\u4e00-\u9fa5]/g, '').split('');
+    return chars.length ? chars.slice(0, 2).join('').toUpperCase() : '--';
+  }
+  function applyBrandModel(value) {
+    var model = normalizeModel(value) || 'SimpleAdmin';
+    document.querySelectorAll('[data-simpleadmin-brand-title]').forEach(function (element) {
+      element.textContent = model;
+    });
+    document.querySelectorAll('[data-simpleadmin-brand-mark]').forEach(function (element) {
+      element.textContent = modelMark(model);
+    });
+    document.title = model + ' · ' + lang.t('登录');
+    try { localStorage.setItem('simpleadmin.moduleModelName', model); } catch (e) {}
+  }
+  function initBrandModel() {
+    try {
+      var cached = normalizeModel(localStorage.getItem('simpleadmin.moduleModelName'));
+      if (cached) applyBrandModel(cached);
+    } catch (e) {}
+    fetch('/api/module_model?force=1', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('model status ' + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        if (data && normalizeModel(data.model)) applyBrandModel(data.model);
+      })
+      .catch(function () {
+        if (!normalizeModel(document.querySelector('[data-simpleadmin-brand-title]') && document.querySelector('[data-simpleadmin-brand-title]').textContent)) {
+          applyBrandModel('SimpleAdmin');
+        }
+      });
+  }
+  applyTheme((function () { try { return localStorage.getItem('theme'); } catch (e) { return null; } })() || document.documentElement.getAttribute('data-bs-theme') || 'light');
+  initBrandModel();
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function () {
+      applyTheme(document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark');
+    });
+  }
+  function nextURL() {
+    const params = new URLSearchParams(window.location.search || '');
+    const value = params.get('next') || '/';
+    return value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  }
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    message.textContent = '';
+    button.disabled = true;
+    button.textContent = '登录中...';
+    fetch('/api/login', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: new URLSearchParams(new FormData(form))
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        if (!response.ok || !data.ok) throw new Error(data.error || 'login failed');
+        window.location.replace(nextURL());
+      });
+    }).catch(function () {
+      message.textContent = '用户名或密码错误';
+    }).finally(function () {
+      button.disabled = false;
+      button.textContent = '登录';
+    });
+  });
+})();
+</script>
+</body>
+</html>
