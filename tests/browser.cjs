@@ -26,7 +26,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       if (docs && language==='zh-CN') await page.screenshot({path:path.join(docs,'login.png')});
       await page.locator('#username').fill('admin'); await page.locator('#password').fill('admin');
       await page.locator('#loginButton').click(); await page.waitForURL(base + '/');
-      await page.waitForFunction(() => document.querySelectorAll('#monitorApp canvas').length === 3);
+      await page.waitForFunction(() => document.querySelectorAll('#monitorApp canvas').length === 4);
       await page.waitForTimeout(1500);
       assert.equal(await page.locator('html').getAttribute('lang'), language);
       assert.equal(await page.locator('html').getAttribute('dir'), language === 'ar' ? 'rtl' : 'ltr');
@@ -54,9 +54,19 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       const history = await page.evaluate(async () => (await fetch('/api/telemetry')).json());
       assert(history.ping.at(-1).time > api['/api/telemetry'].data.ping.at(-1).time);
       assert(history.ping.length <= 300 && history.signal.length <= 60);
-      for (const width of [1440,390,320]) {
+      assert(history.traffic.length <= 60 && history.traffic.some(p=>p.download!==null));
+      if (history.trafficSummary.downloadShare !== null) assert.equal(Math.round((history.trafficSummary.downloadShare+history.trafficSummary.uploadShare)*10),1000);
+      for (const width of [1440,1024,390,320]) {
         await page.setViewportSize({width,height:1100});
         await page.waitForTimeout(350);
+        const trafficBox = await page.locator('.art-traffic-section').boundingBox();
+        const pingBox = await page.locator('.art-ping-section').boundingBox();
+        if (width >= 992) {
+          assert(Math.abs(trafficBox.y-pingBox.y)<2, 'traffic and ping charts must share a row');
+          assert(Math.abs(trafficBox.width-pingBox.width)<2, 'traffic and ping charts must have equal widths');
+        } else {
+          assert(pingBox.y>=trafficBox.y+trafficBox.height, 'mobile charts must stack');
+        }
         if (width < 992) {
           const sidebar = await page.locator('.sa-sidebar').boundingBox();
           assert(sidebar.x+sidebar.width<=1 || sidebar.x>=width-1, `${language}: mobile sidebar must be offscreen`);
@@ -82,7 +92,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       }
       assert.deepEqual(errors,[]);
       await context.close();
-      console.log(JSON.stringify({language,api:'passed',navigation:'passed',viewports:[1440,390,320]}));
+      console.log(JSON.stringify({language,api:'passed',navigation:'passed',viewports:[1440,1024,390,320]}));
     }
     console.log(JSON.stringify({screenshots:temporary,logs}));
   } finally {

@@ -1,8 +1,4 @@
-use crate::{
-    at::{At, SIGNAL},
-    parser,
-    persistence::Store,
-};
+use crate::{at::At, parser, persistence::Store};
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use std::{
@@ -38,6 +34,61 @@ struct Signal {
     time: u64,
     values: [i16; 5],
 }
+#[derive(Clone, Copy, Default)]
+struct Traffic {
+    time: u64,
+    received: u64,
+    sent: u64,
+    elapsed_ms: u32,
+}
+impl Traffic {
+    fn rates(&self) -> (Option<f64>, Option<f64>) {
+        if self.elapsed_ms == 0 {
+            return (None, None);
+        }
+        let seconds = self.elapsed_ms as f64 / 1000.0;
+        (
+            Some(self.received as f64 / seconds),
+            Some(self.sent as f64 / seconds),
+        )
+    }
+}
+#[derive(Default)]
+struct TrafficSampler {
+    last: Option<Instant>,
+    previous: Option<(Instant, u64, u64)>,
+}
+impl TrafficSampler {
+    fn sample(
+        &mut self,
+        stamp: Option<Instant>,
+        time: u64,
+        counters: Option<(u64, u64)>,
+    ) -> Option<Traffic> {
+        let stamp = stamp?;
+        if self.last.is_some_and(|last| stamp <= last) {
+            return None;
+        }
+        self.last = Some(stamp);
+        let mut point = Traffic {
+            time,
+            ..Traffic::default()
+        };
+        let previous = self.previous.take();
+        if let Some((rx, tx)) = counters {
+            if let Some((old, old_rx, old_tx)) = previous {
+                let elapsed = stamp.duration_since(old).as_millis();
+                if (1..=15000).contains(&elapsed) && rx >= old_rx && tx >= old_tx {
+                    point.received = rx - old_rx;
+                    point.sent = tx - old_tx;
+                    point.elapsed_ms = elapsed as u32;
+                }
+            }
+            self.previous = Some((stamp, rx, tx));
+        }
+        Some(point)
+    }
+}
 struct Ring<T: Copy, const N: usize> {
     values: [T; N],
     next: usize,
@@ -72,6 +123,8 @@ struct History {
     generation: u64,
     ping: Ring<Ping, 300>,
     signal: Ring<Signal, 60>,
+    traffic: Ring<Traffic, 60>,
+    traffic_sampler: TrafficSampler,
     ip: String,
 }
 pub struct Monitor {
@@ -140,6 +193,8 @@ impl Monitor {
                     values: [i16::MIN; 5],
                 }),
                 ip: String::new(),
+                traffic: Ring::new(Traffic::default()),
+                traffic_sampler: TrafficSampler::default(),
             }),
             mock,
             path,
@@ -156,10 +211,16 @@ impl Monitor {
                 tick.tick().await;
                 let time = now();
                 let mut values = [i16::MIN; 5];
-                if let Ok(raw) = at.fetch(SIGNAL, false).await
-                    && !raw.contains("ERROR")
-                {
+                let mut counters = None;
+                let mut stamp = None;
+                if let Ok((raw, sampled)) = at.dashboard_sample().await {
+                    stamp = sampled;
                     let data = parser::dashboard(&raw);
+                    if !raw.contains("ERROR") && parser::text(&data, "nr_rx_human") != "-" {
+                        counters = data["nr_rx_bytes"]
+                            .as_u64()
+                            .zip(data["nr_tx_bytes"].as_u64());
+                    }
                     for (i, (key, min, max)) in [
                         ("rsrpLTE", -160.0, -20.0),
                         ("rsrpNR", -160.0, -20.0),
@@ -179,11 +240,11 @@ impl Monitor {
                         }
                     }
                 }
-                this.history
-                    .lock()
-                    .unwrap()
-                    .signal
-                    .add(Signal { time, values });
+                let mut history = this.history.lock().unwrap();
+                history.signal.add(Signal { time, values });
+                if let Some(point) = history.traffic_sampler.sample(stamp, now(), counters) {
+                    history.traffic.add(point);
+                }
             }
         });
         let this = self.clone();
@@ -321,6 +382,19 @@ impl Monitor {
             .last()
             .is_some_and(|p| p.status == 0 && now().saturating_sub(p.time) < 5000)
     }
+    pub fn traffic_rates(&self) -> Value {
+        let history = self.history.lock().unwrap();
+        let last = history
+            .traffic
+            .last()
+            .filter(|p| now().saturating_sub(p.time) <= 15000);
+        let (download, upload) = last.map(Traffic::rates).unwrap_or((None, None));
+        let format = |rate: Option<f64>| {
+            rate.map(|n| format!("{}/s", parser::human_bytes(n)))
+                .unwrap_or_else(|| "-".into())
+        };
+        json!({"traffic_rates":true,"trafficSampleTime":last.map(|p|p.time),"nr_dl_speed":format(download),"nr_ul_speed":format(upload)})
+    }
     pub async fn set_target(&self, raw: &str) -> Result<()> {
         let target = normalize(raw)?;
         let _guard = self.change.lock().await;
@@ -392,7 +466,28 @@ impl Monitor {
             let mut value=json!({"time":p.time,"status":if p.values.iter().any(|v|*v!=i16::MIN){"ok"}else{"unavailable"}});
             for(i,key)in ["rsrpLTE","rsrpNR","sinrLTE","sinrNR","temperature"].iter().enumerate(){value[key]=json!((p.values[i]!=i16::MIN).then_some(p.values[i]as f64/10.0))}value
         }).collect();
-        json!({"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"summary":{
+        let traffic: Vec<_> = h
+            .traffic
+            .iter()
+            .filter(|p| p.time > cutoff)
+            .map(|p| {
+                let (download, upload) = p.rates();
+                json!({"time":p.time,"download":download,"upload":upload})
+            })
+            .collect();
+        let (mut received_bytes, mut sent_bytes) = (0u64, 0u64);
+        for p in h
+            .traffic
+            .iter()
+            .filter(|p| p.elapsed_ms > 0 && p.time.saturating_sub(p.elapsed_ms as u64) > cutoff)
+        {
+            received_bytes = received_bytes.saturating_add(p.received);
+            sent_bytes = sent_bytes.saturating_add(p.sent);
+        }
+        let total = received_bytes as f64 + sent_bytes as f64;
+        let download_share = (total > 0.0).then(|| round(100.0 * received_bytes as f64 / total));
+        let traffic_summary = json!({"downloadBytes":received_bytes,"uploadBytes":sent_bytes,"downloadShare":download_share,"uploadShare":download_share.map(|p|round(100.0-p))});
+        json!({"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"traffic":traffic,"trafficSummary":traffic_summary,"summary":{
             "sent":sent,"received":received,"errors":errors,"loss":(sent>0).then(||round(100.0*(sent-received)as f64/sent as f64)),
             "average":(received>0).then(||round(sum/received as f64)),"minimum":(received>0).then_some(min),"maximum":(received>0).then_some(max),"jitter":(count>0).then(||round(jitter/count as f64))
         }})
@@ -401,6 +496,87 @@ impl Monitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn traffic_ignores_duplicate_samples_and_preserves_real_zero() {
+        let start = Instant::now();
+        let mut sampler = TrafficSampler::default();
+        let sample = |seconds| Some(start + Duration::from_secs(seconds));
+        assert_eq!(
+            sampler
+                .sample(sample(0), 0, Some((100, 200)))
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(5), 5000, Some((600, 450)))
+                .unwrap()
+                .rates(),
+            (Some(100.0), Some(50.0))
+        );
+        assert!(sampler.sample(sample(5), 7000, Some((600, 450))).is_none());
+        assert!(sampler.sample(sample(3), 8000, Some((400, 300))).is_none());
+        assert_eq!(
+            sampler
+                .sample(sample(10), 10000, Some((600, 450)))
+                .unwrap()
+                .rates(),
+            (Some(0.0), Some(0.0))
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(15), 15000, Some((5, 10)))
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler.sample(sample(20), 20000, None).unwrap().rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(25), 25000, Some((500, 600)))
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(50), 50000, Some((9000, 9000)))
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+    }
+    #[test]
+    fn traffic_window_is_bounded_and_share_uses_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let monitor = Monitor::new(
+            dir.path().join("monitor.json"),
+            true,
+            Arc::new(Store::new(true)),
+        );
+        let time = now();
+        assert!(monitor.snapshot()["trafficSummary"]["downloadShare"].is_null());
+        let mut h = monitor.history.lock().unwrap();
+        for i in 0..75 {
+            h.traffic.add(Traffic {
+                time: time - (74 - i) * 5000,
+                received: 3000,
+                sent: 1000,
+                elapsed_ms: 5000,
+            });
+        }
+        drop(h);
+        let snapshot = monitor.snapshot();
+        assert_eq!(snapshot["traffic"].as_array().unwrap().len(), 60);
+        assert_eq!(snapshot["trafficSummary"]["downloadShare"], 75.0);
+        assert_eq!(snapshot["trafficSummary"]["uploadShare"], 25.0);
+        assert_eq!(snapshot["traffic"][59]["download"], 600.0);
+        assert_eq!(monitor.traffic_rates()["nr_dl_speed"], "600 B/s");
+    }
     #[test]
     fn jitter_uses_adjacent_packets_inside_five_minute_window() {
         let dir = tempfile::tempdir().unwrap();
@@ -441,7 +617,12 @@ mod tests {
     }
     #[test]
     fn fixed_history_bound() {
-        assert!(std::mem::size_of::<[Ping; 300]>() + std::mem::size_of::<[Signal; 60]>() <= 6240);
+        assert!(
+            std::mem::size_of::<[Ping; 300]>()
+                + std::mem::size_of::<[Signal; 60]>()
+                + std::mem::size_of::<[Traffic; 60]>()
+                <= 8160
+        );
         let mut h = Ring::<u16, 300>::new(0);
         for i in 0..700 {
             h.add(i)

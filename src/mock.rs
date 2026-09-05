@@ -62,6 +62,24 @@ pub fn response(
             value = lines.join("\n");
         }
     }
+    if source == DASHBOARD {
+        static START: std::sync::LazyLock<std::time::Instant> =
+            std::sync::LazyLock::new(std::time::Instant::now);
+        let seconds = START.elapsed().as_secs_f64();
+        let rx = 536870912.0 + 2097152.0 * seconds + 8388608.0 * (1.0 - (seconds / 12.0).cos());
+        let tx = 67108864.0 + 262144.0 * seconds + 1048576.0 * (1.0 - (seconds / 10.0).cos());
+        value = value
+            .lines()
+            .map(|line| {
+                if line.trim().starts_with("+QGDNRCNT:") {
+                    format!("+QGDNRCNT: {},{}", rx as u64, tx as u64)
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
     envelope(command, &value)
 }
 fn envelope(command: &str, raw: &str) -> String {

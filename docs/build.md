@@ -70,7 +70,7 @@ cargo test --locked
 
 ```sh
 bash scripts/package.sh
-unzip -t packages/quectel-rgmii-toolkit-Rust-0.1.0-offline.zip
+unzip -t packages/quectel-rgmii-toolkit-Rust-0.1.1-offline.zip
 ```
 
 安装包包含 ADB、安装/卸载入口、设备程序、离线前端、Windows 预览程序、README、验证记录与校验文件。`packages/`、开发缓存及运行状态不提交到 Git。发布的 ZIP 作为 GitHub Release 附件提供。
