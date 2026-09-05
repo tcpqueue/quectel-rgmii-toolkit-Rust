@@ -1,0 +1,45 @@
+[package]
+name = "simpleadmin-httpd"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+description = "Quectel RGMII device administration server"
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.8", features = ["ws", "form", "json"] }
+tokio = { version = "1", features = ["rt", "macros", "net", "sync", "time", "process", "io-util", "signal", "fs"] }
+tower-http = { version = "0.6", features = ["fs", "limit", "timeout"] }
+tower = { version = "0.5", features = ["util", "limit", "load-shed"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+futures-util = "0.3"
+regex = "1"
+csv = "1"
+libc = "0.2"
+rand = "0.8"
+hex = "0.4"
+subtle = "2"
+sha-crypt = "0.5"
+surge-ping = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls-pemfile = "2"
+rcgen = { version = "0.13", features = ["pem", "x509-parser"] }
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio", "service", "server-auto"] }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

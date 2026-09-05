@@ -1,0 +1,5018 @@
+[
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": ""
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 1,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 10,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 2,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 3,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 5,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 6,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/20,23:39:18+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 7,\"REC READ\",\"10001\",,\"26/05/21,00:14:06+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+CMGL: 9,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "1",
+      "apn": "WEB2",
+      "bands": "B3 / B1 / N77",
+      "bandwidth": "20MHz / 20MHz / 100MHz",
+      "cellID": "01(1), 29E5B01(43932417)",
+      "csq": "28",
+      "drxqrsrp": "-88/-98",
+      "eNBID": "29E5B",
+      "earfcns": "1850 / 300 / 660768",
+      "ipv4": "10.219.172.53",
+      "ipv6": "2a02:9b0:4070:fb:25a7:ccee:35bc:8062",
+      "mccmnc": "42003",
+      "network_mode": "NR5G-NSA",
+      "network_provider": "mobily",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 1961485,
+      "nr_rx_human": "1.9 MB",
+      "nr_tx_bytes": 17217894,
+      "nr_tx_human": "16 MB",
+      "nr_ul_speed": "-",
+      "pcc_pci": "445",
+      "prxqrsrp": "-91/-120",
+      "rsrpLTE": "-88",
+      "rsrpLTEPercentage": 80,
+      "rsrpNR": "-98",
+      "rsrpNRPercentage": 55,
+      "rsrqLTE": "-7",
+      "rsrqLTEPercentage": 100,
+      "rsrqNR": "-10",
+      "rsrqNRPercentage": 83,
+      "rssi": "-61",
+      "rx2qrsrp": "-140/-110",
+      "rx3qrsrp": "-140/-106",
+      "scc_pci": "445 + 542",
+      "signalAssessment": "优秀",
+      "signalPercentage": 88,
+      "sim": "已激活",
+      "sinrLTE": "15",
+      "sinrLTEPercentage": 75,
+      "sinrNR": "18",
+      "sinrNRPercentage": 90,
+      "tac": "439E (17310)",
+      "temperature": "34"
+    },
+    "kind": "dashboard",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.219.172.53",
+      "wwanIpv6": "2a02:9b0:4070:fb:25a7:ccee:35bc:8062"
+    },
+    "kind": "device",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "apn": "WEB2",
+      "bands": "LTE BAND 3 / LTE BAND 1 / NR5G BAND 77",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "1"
+    },
+    "kind": "network",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "\n+QSIMSTAT: 0,1\n\n+CSQ: 28,99\n\n+QTEMP:\"modem-lte-sub6-pa1\",\"31\"\n+QTEMP:\"aoss-0-usr\",\"35\"\n+QTEMP:\"cpuss-0-usr\",\"35\"\n+QTEMP:\"mdmq6-0-usr\",\"35\"\n+QTEMP:\"mdmss-0-usr\",\"36\"\n+QTEMP:\"modem-ambient-usr\",\"31\"\n\n+QUIMSLOT: 1\n\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n\n+QGDNRCNT: 1961485,17217894\n\n+QGDCNT: 1979589,17236170\n\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\", \"254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1\",\"86.51.34.24\"\n\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "%s",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CMGL: 1,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "%s",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CMGL: 2,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "%s",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CMGL: 3,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "%s",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CMGL: 4,0,,%d\r\n%s\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,20:17:07+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 0,\"REC READ\",\"10001\",,\"26/05/20,23:46:24+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/20,23:39:17+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 4,\"REC READ\",\"10001\",,\"26/05/21,00:14:05+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+CSCA: \"+8613334262200\",145\n+CMGL: 8,\"REC READ\",\"10001\",,\"26/05/21,00:04:01+32\"\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "B3 / B1 / N77",
+      "bandwidth": "20MHz / 20MHz / 100MHz",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "1850 / 300 / 660768",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "445",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "445 + 542",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "LTE BAND 3 / LTE BAND 1 / NR5G BAND 77",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "01(1), 29E5B01(43932417)",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "29E5B",
+      "earfcns": "1850 / 660768",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "NR5G-NSA",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "542",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-88",
+      "rsrpLTEPercentage": 80,
+      "rsrpNR": "-98",
+      "rsrpNRPercentage": 55,
+      "rsrqLTE": "-7",
+      "rsrqLTEPercentage": 100,
+      "rsrqNR": "-10",
+      "rsrqNRPercentage": 83,
+      "rssi": "-61",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "优秀",
+      "signalPercentage": 88,
+      "sim": "未激活",
+      "sinrLTE": "15",
+      "sinrLTEPercentage": 75,
+      "sinrNR": "18",
+      "sinrNRPercentage": 90,
+      "tac": "439E (17310)",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": true,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QMAP: \"MPDN_rule\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"\n+QMAP: \"MPDN_rule\",1,0,0,0,0\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "10.47.28.216",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "RG520NEBDGR03A03M4G",
+      "iccid": "89861123456789012345",
+      "imei": "867123456789012",
+      "imsi": "460111234567890",
+      "lanIp": "192.168.225.1",
+      "manufacturer": "Quectel",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.47.28.216",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "867123456789012",
+      "ipPassStatus": false,
+      "lanGwIp": "192.168.225.1",
+      "lanIpEnd": "100",
+      "lanIpStart": "1"
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\n867123456789012\nRG520NEBDGR03A03M4G\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "10.47.28.216",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "RG520NEBDGR03A03M4G",
+      "iccid": "89861123456789012345",
+      "imei": "867123456789012",
+      "imsi": "460111234567890",
+      "lanIp": "192.168.225.1",
+      "manufacturer": "Quectel",
+      "modelName": "RG520N",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.47.28.216",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "867123456789012",
+      "ipPassStatus": false,
+      "lanGwIp": "192.168.225.1",
+      "lanIpEnd": "100",
+      "lanIpStart": "1"
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+CPIN: READY\nQuectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "N78 / N1",
+      "bandwidth": "100MHz / 20MHz",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "633984 / 428910",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "919",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "143",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "NR5G BAND 78 / NR5G BAND 1",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+QCAINFO: \"PCC\",633984,12,\"NR5G BAND 78\",919\n+QCAINFO: \"SCC\",428910,3,\"NR5G BAND 1\",1,143,0,-,-\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "05(5), 94203C105(39762247941)",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "94203C1",
+      "earfcns": "627264",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "NR5G-SA TDD",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "543",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-90",
+      "rsrpNRPercentage": 75,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-11",
+      "rsrqNRPercentage": 75,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "良好",
+      "signalPercentage": 71,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "12",
+      "sinrNRPercentage": 60,
+      "tac": "8EB001 (9351169)",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "N78",
+      "bandwidth": "100MHz",
+      "cellID": "05(5), 94203C105(39762247941)",
+      "csq": "-",
+      "drxqrsrp": "-89",
+      "eNBID": "94203C1",
+      "earfcns": "627264",
+      "ipv4": "10.47.28.216",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "NR5G-SA TDD",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "543",
+      "prxqrsrp": "-99",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-90",
+      "rsrpNRPercentage": 75,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-11",
+      "rsrqNRPercentage": 75,
+      "rssi": "-",
+      "rx2qrsrp": "-107",
+      "rx3qrsrp": "-93",
+      "scc_pci": "-",
+      "signalAssessment": "良好",
+      "signalPercentage": 71,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "12",
+      "sinrNRPercentage": 60,
+      "tac": "8EB001 (9351169)",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.47.28.216",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "NR5G BAND 78",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "N78",
+      "bandwidth": "100MHz",
+      "cellID": "05(5), 94203C105(39762247941)",
+      "csq": "-",
+      "drxqrsrp": "-89",
+      "eNBID": "94203C1",
+      "earfcns": "627264",
+      "ipv4": "10.47.28.216",
+      "ipv6": "-",
+      "mccmnc": "46011",
+      "network_mode": "NR5G-SA TDD",
+      "network_provider": "中国电信",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "543",
+      "prxqrsrp": "-99",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-90",
+      "rsrpNRPercentage": 75,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-11",
+      "rsrqNRPercentage": 75,
+      "rssi": "-",
+      "rx2qrsrp": "-107",
+      "rx3qrsrp": "-93",
+      "scc_pci": "-",
+      "signalAssessment": "良好",
+      "signalPercentage": 71,
+      "sim": "已激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "12",
+      "sinrNRPercentage": 60,
+      "tac": "8EB001 (9351169)",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.47.28.216",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "NR5G BAND 78",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",\"4E2D56FD75354FE1\",1,\"46011\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n+QCAINFO: \"PCC\",627264,12,\"NR5G BAND 78\",543\n+QRSRP: -99,-89,-107,-93,NR5G\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "WEB2",
+      "bands": "B3 / B1 / B41 / B41 / N77",
+      "bandwidth": "20MHz / 20MHz / 20MHz / 20MHz / 100MHz",
+      "cellID": "01(1), 29E5B01(43932417)",
+      "csq": "28",
+      "drxqrsrp": "-88/-98",
+      "eNBID": "29E5B",
+      "earfcns": "1850 / 300 / 40590 / 40392 / 660768",
+      "ipv4": "10.219.172.53",
+      "ipv6": "2a02:9b0:4070:fb:25a7:ccee:35bc:8062",
+      "mccmnc": "42003",
+      "network_mode": "NR5G-NSA",
+      "network_provider": "mobily",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 1961485,
+      "nr_rx_human": "1.9 MB",
+      "nr_tx_bytes": 17217894,
+      "nr_tx_human": "16 MB",
+      "nr_ul_speed": "-",
+      "pcc_pci": "445",
+      "prxqrsrp": "-91/-120",
+      "rsrpLTE": "-88",
+      "rsrpLTEPercentage": 80,
+      "rsrpNR": "-98",
+      "rsrpNRPercentage": 55,
+      "rsrqLTE": "-7",
+      "rsrqLTEPercentage": 100,
+      "rsrqNR": "-10",
+      "rsrqNRPercentage": 83,
+      "rssi": "-61",
+      "rx2qrsrp": "-140/-110",
+      "rx3qrsrp": "-140/-106",
+      "scc_pci": "445 + 418 + 418 + 542",
+      "signalAssessment": "优秀",
+      "signalPercentage": 88,
+      "sim": "已激活",
+      "sinrLTE": "15",
+      "sinrLTEPercentage": 75,
+      "sinrNR": "18",
+      "sinrNRPercentage": 90,
+      "tac": "439E (17310)",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "无本机号码",
+      "simInserted": true,
+      "simStatus": "已插卡",
+      "wwanIpv4": "10.219.172.53",
+      "wwanIpv6": "2a02:9b0:4070:fb:25a7:ccee:35bc:8062"
+    },
+    "kind": "device",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "apn": "WEB2",
+      "bands": "LTE BAND 3 / LTE BAND 1 / LTE BAND 41 / LTE BAND 41 / NR5G BAND 77",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSIMSTAT: 0,1\n+QSPN: \"mobily\",\"mobily\",\"mobily\",0,\"42003\"\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.219.172.53\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"2a02:9b0:4070:fb:25a7:ccee:35bc:8062\"\n+QENG: \"servingcell\",\"NOCONN\"\n+QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\n+QENG: \"NR5G-NSA\",420,03,542,-98,18,-10,660768,77,12,1\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\n+QCAINFO: \"SCC\",300,100,\"LTE BAND 1\",1,445,-96,-12,-74,6,0,-,-\n+QCAINFO: \"SCC\",40590,100,\"LTE BAND 41\",1,418,-107,-15,-83,0,0,-,-\n+QCAINFO: \"SCC\",40392,100,\"LTE BAND 41\",1,418,-105,-11,-84,1,0,-,-\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 77\",542\n+QRSRP: -91,-88,-140,-140,LTE\n+QRSRP: -120,-98,-110,-106,NR5G\n+CGCONTRDP: 1,5,\"WEB2\",\"10.219.172.53\",\"42.2.9.176.64.112.0.251.24.115.78.183.236.93.220.56\"\n+QGDNRCNT: 1961485,17217894\n+QGDCNT: 1979589,17236170\n+CSQ: 28,99\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "+QSPN: \"LOOKUP\"\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+CGMM\r\n+CGMM: \"RG520N-EB\"\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+CGMM\r\n+CGMM: RG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "RG520N-EB",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+CGMM\r\nRG520N-EB\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "867123456789012",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": true,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "867123456789012",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+QMAP=\"DHCPV4DNS\";+CGSN\r\n+QMAP: \"DHCPV4DNS\",\"enable\"\r\n867123456789012\r\n\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "192.168.225.1",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": true,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "ECM",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "192.168.225.1",
+      "lanIpEnd": "170",
+      "lanIpStart": "20"
+    },
+    "kind": "settings",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"LANIP\";+QMAP=\"DHCPV4DNS\"\n\n+QMAP: \"MPDN_rule\",0,0,0,0,0\n+QMAP: \"MPDN_rule\",1,0,0,0,0\n+QMAP: \"MPDN_rule\",2,0,0,0,0\n+QMAP: \"MPDN_rule\",3,0,0,0,0\n\n+QMAP: \"DHCPV6DNS\",\"disable\"\n\n+QCFG: \"usbnet\",1\n\n+QMAP: \"DMZ\",0,4\n+QMAP: \"DMZ\",0,6\n\n+QMAP: \"LANIP\",192.168.225.20,192.168.225.170,192.168.225.1\n\n+QMAP: \"DHCPV4DNS\",\"enable\"\n\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "None",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "-",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "None",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "None",
+      "rx3qrsrp": "None",
+      "scc_pci": "-",
+      "signalAssessment": "-",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "-",
+      "simInserted": false,
+      "simStatus": "未知",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+QMAPWAC=1\r\nOK\r\n"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "-",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "未插卡",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "-",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "-",
+      "rx3qrsrp": "-",
+      "scc_pci": "-",
+      "signalAssessment": "未知",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "-",
+      "iccid": "-",
+      "imei": "-",
+      "imsi": "-",
+      "lanIp": "-",
+      "manufacturer": "-",
+      "modelName": "-",
+      "phoneNumber": "未插卡",
+      "simInserted": false,
+      "simStatus": "未插卡",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "apn": "ctnet",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "-",
+      "ipPassStatus": false,
+      "lanGwIp": "",
+      "lanIpEnd": "",
+      "lanIpStart": ""
+    },
+    "kind": "settings",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "AT+QSIMSTAT?;+CSQ;+QMAP=\"WWAN\";+QENG=\"servingcell\";+CGCONTRDP=1\n\n+QSIMSTAT: 0,0\n\n+CSQ: 99,99\n\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n+QMAP: \"WWAN\",1,1,\"IPV6\",\"240e:45d:820:43e6:a098:a1e9:3b2b:e417\"\n\n+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,94203C105,543,8EB001,627264,78,12,-90,-11,12,1,-\n\n+CGCONTRDP: 1,0,\"ctnet\",\"10.47.28.216\",\"36.14.4.93.8.32.67.230.24.177.68.18.213.197.193.145\"\n\nOK"
+  },
+  {
+    "expected": {
+      "active_sim": "-",
+      "apn": "-",
+      "bands": "-",
+      "bandwidth": "-",
+      "cellID": "-",
+      "csq": "-",
+      "drxqrsrp": "-",
+      "eNBID": "-",
+      "earfcns": "-",
+      "ipv4": "-",
+      "ipv6": "-",
+      "mccmnc": "-",
+      "network_mode": "未插卡",
+      "network_provider": "-",
+      "nr_dl_speed": "-",
+      "nr_rx_bytes": 0,
+      "nr_rx_human": "-",
+      "nr_tx_bytes": 0,
+      "nr_tx_human": "-",
+      "nr_ul_speed": "-",
+      "pcc_pci": "-",
+      "prxqrsrp": "-",
+      "rsrpLTE": "-",
+      "rsrpLTEPercentage": 0,
+      "rsrpNR": "-",
+      "rsrpNRPercentage": 0,
+      "rsrqLTE": "-",
+      "rsrqLTEPercentage": 0,
+      "rsrqNR": "-",
+      "rsrqNRPercentage": 0,
+      "rssi": "-",
+      "rx2qrsrp": "-",
+      "rx3qrsrp": "-",
+      "scc_pci": "-",
+      "signalAssessment": "未知",
+      "signalPercentage": 0,
+      "sim": "未激活",
+      "sinrLTE": "-",
+      "sinrLTEPercentage": 0,
+      "sinrNR": "-",
+      "sinrNRPercentage": 0,
+      "tac": "-",
+      "temperature": "N/A"
+    },
+    "kind": "dashboard",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  },
+  {
+    "expected": {
+      "firmwareVersion": "RG520NEBDGR03A03M4G",
+      "iccid": "-",
+      "imei": "867123456789012",
+      "imsi": "-",
+      "lanIp": "192.168.225.1",
+      "manufacturer": "Quectel",
+      "modelName": "RG520N",
+      "phoneNumber": "未插卡",
+      "simInserted": false,
+      "simStatus": "未插卡",
+      "wwanIpv4": "-",
+      "wwanIpv6": "-"
+    },
+    "kind": "device",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  },
+  {
+    "expected": {
+      "apn": "-",
+      "bands": "-",
+      "cellLockStatus": "未锁定",
+      "nrModeControl": "未禁用",
+      "nrModeControlNum": "0",
+      "pdpType": "-",
+      "prefNetwork": "-",
+      "sim": "-"
+    },
+    "kind": "network",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  },
+  {
+    "expected": {
+      "locked_lte_bands": "",
+      "locked_nsa_bands": "",
+      "locked_sa_bands": ""
+    },
+    "kind": "bands",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  },
+  {
+    "expected": {
+      "DNSV4ProxyStatus": false,
+      "DNSV6ProxyStatus": false,
+      "currentUsbNetMode": "未知",
+      "dmzIP": "",
+      "dmzMode": "0",
+      "imei": "867123456789012",
+      "ipPassStatus": false,
+      "lanGwIp": "192.168.225.1",
+      "lanIpEnd": "100",
+      "lanIpStart": "1"
+    },
+    "kind": "settings",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  },
+  {
+    "expected": {
+      "lte_cells_parsed": [],
+      "nr5g_cells_parsed": []
+    },
+    "kind": "scan",
+    "raw": "Quectel\nRG520N\nRG520NEBDGR03A03M4G\n867123456789012\n+QMAP: \"LANIP\",192.168.225.1,192.168.225.100,192.168.225.1\n+QSIMSTAT: 0,0\n+CPIN: NOT INSERTED\n+QMAP: \"WWAN\",1,1,\"IPV4\",\"10.47.28.216\"\n460111234567890\n+ICCID: 89861123456789012345\n+CME ERROR: 10\nOK"
+  }
+]

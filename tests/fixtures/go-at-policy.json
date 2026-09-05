@@ -1,0 +1,788 @@
+[
+  {
+    "action": false,
+    "command": "AT command is running in background; cached data is not ready yet.",
+    "maxAge": 3000,
+    "timeout": 2000
+  },
+  {
+    "action": false,
+    "command": "AT 缓存启动保护: 系统刚开机，%.0f 秒后再执行读类 AT 指令",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT 后台缓存更新失败: command=%q error=%v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM",
+    "maxAge": 600000,
+    "timeout": 6000
+  },
+  {
+    "action": true,
+    "command": "AT\u0026F",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CSMS=1;+CSDH=0;+CNMI=2,1,0,0,0;+CMGF=0;+CPMS=\"ME\",\"ME\",\"ME\";+CMGL=4",
+    "maxAge": 5000,
+    "timeout": 6000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT 设备列表，多个路径用逗号分隔；默认直接使用 /dev/smd11",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT 客户端设备配置文件，每行一个设备路径",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT debug logging: %v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT client device candidates: %s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT APIs use direct /dev/smd11 access",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT device candidates, separated by comma or space",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT device candidates file",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT command timeout in milliseconds",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT CLI debug logging: %v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT CLI candidates: %s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0",
+    "maxAge": 0,
+    "timeout": 10000
+  },
+  {
+    "action": false,
+    "command": "AT payload start: %s timeout=%s tokens=%v candidates=%s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CIMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0",
+    "maxAge": 0,
+    "timeout": 10000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0",
+    "maxAge": 0,
+    "timeout": 10000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM",
+    "maxAge": 600000,
+    "timeout": 6000
+  },
+  {
+    "action": false,
+    "command": "AT+QSIMSTAT?;+CPIN?;+QMAP=\"WWAN\"",
+    "maxAge": 3000,
+    "timeout": 3000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"DHCPV4DNS\"",
+    "maxAge": 60000,
+    "timeout": 5000
+  },
+  {
+    "action": false,
+    "command": "AT+CGSN",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM should bypass startup read delay",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGSN",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGSN should not bypass startup read delay",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+GMM",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT channel: /dev/smd11 is used by ",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT 设备 %s termios 初始化失败，继续尝试原始读写: %v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT drain select err=%v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT drain chunk n=%d err=%v",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT read non-temporary err=%v current=%s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT session is not open",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT session writer is not open",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT session write timed out after %d/%d bytes",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT write chunk device=%s n=%d err=%v progress=%d/%d",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT session is not open",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT session reader is not open",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT read select err=%v current=%s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT read chunk: %s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT read non-temporary err=%v current=%s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CSQ",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CSQ",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+CFUN=1,1",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CSQ",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+TEST%d?",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CIMI 未返回有效 IMSI，无法自动添加国家/地区代码",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CIMI 返回的 MCC %s 未配置国家/地区代码",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QSIMSTAT?;+CSQ;+QTEMP;+QUIMSLOT?;+QSPN;+QMAP=\"WWAN\";+QENG=\"servingcell\";+QCAINFO;+QGDNRCNT?;+QGDCNT?;+CGCONTRDP=1;+QRSRP",
+    "maxAge": 3000,
+    "timeout": 12000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM",
+    "maxAge": 600000,
+    "timeout": 6000
+  },
+  {
+    "action": false,
+    "command": "AT+QSIMSTAT?;+CPIN?;+QMAP=\"WWAN\"",
+    "maxAge": 3000,
+    "timeout": 3000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QNWPREFCFG=\"lte_band\";+QNWPREFCFG= \"nsa_nr5g_band\";+QNWPREFCFG= \"nr5g_band\"",
+    "maxAge": 60000,
+    "timeout": 3000
+  },
+  {
+    "action": false,
+    "command": "AT+QUIMSLOT?;+QNWPREFCFG=\"mode_pref\";+QNWPREFCFG=\"nr5g_disable_mode\";+CGDCONT?;+CGCONTRDP=1;+QNWLOCK=\"common/4g\";+QNWLOCK=\"common/5g\"",
+    "maxAge": 30000,
+    "timeout": 7000
+  },
+  {
+    "action": false,
+    "command": "AT+QCAINFO",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"MPDN_RULE\";+QMAP=\"DHCPV6DNS\";+QCFG=\"usbnet\";+QMAP=\"DMZ\";+QMAP=\"DHCPV4DNS\"",
+    "maxAge": 60000,
+    "timeout": 5000
+  },
+  {
+    "action": false,
+    "command": "AT+CGSN",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"LANIP\"",
+    "maxAge": 60000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CGMM",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CPIN?",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+CIMI",
+    "maxAge": 600000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+EGMR=1,7,\"%s\";+CFUN=1,1",
+    "maxAge": 0,
+    "timeout": 2000
+  },
+  {
+    "action": false,
+    "command": "AT+QNWPREFCFG=\"%s\",%s",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWPREFCFG=\"lte_band\",%s;+QNWPREFCFG= \"nsa_nr5g_band\",%s;+QNWPREFCFG= \"nr5g_band\",%s",
+    "maxAge": 0,
+    "timeout": 3000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/5g\",%s,%s,%s,%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/4g\",0",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/5g\",0",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "ATI",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+EGMR=1,7,\"%s\";+CFUN=1,1",
+    "maxAge": 0,
+    "timeout": 2000
+  },
+  {
+    "action": true,
+    "command": "AT+CFUN=1,1",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT\u0026F",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0",
+    "maxAge": 0,
+    "timeout": 10000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAPWAC=1",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+CFUN=1,1",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"MPDN_RULE\",0,1,0,3,1,\"FF:FF:FF:FF:FF:FF\"",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QMAP=\"DHCPV%sDNS\",\"%s\"",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QCFG=\"usbnet\",%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"DMZ\",0",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"DMZ\",1,4,%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QMAP=\"LANIP\",%s,%s,%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+CMGD=,4",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+CMGD=",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+CMGF=0;+CMGS=%d",
+    "maxAge": 0,
+    "timeout": 2000
+  },
+  {
+    "action": false,
+    "command": "AT+QNWPREFCFG=\"lte_band\"",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QNWPREFCFG=\"nsa_nr5g_band\"",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QNWPREFCFG=\"nr5g_band\"",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QSCAN=3,1",
+    "maxAge": 0,
+    "timeout": 120000
+  },
+  {
+    "action": true,
+    "command": "AT+QSCAN=1,1",
+    "maxAge": 0,
+    "timeout": 120000
+  },
+  {
+    "action": true,
+    "command": "AT+QSCAN=2,1",
+    "maxAge": 0,
+    "timeout": 120000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/5g\",%s,%s,%s,%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/4g\",",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": true,
+    "command": "AT+QNWLOCK=\"common/4g\",%s,%s",
+    "maxAge": 0,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+",
+    "maxAge": 3000,
+    "timeout": 1000
+  },
+  {
+    "action": false,
+    "command": "AT+QTEMP;+QENG=\"servingcell\"",
+    "maxAge": 3000,
+    "timeout": 2000
+  }
+]
