@@ -5,6 +5,13 @@
   const statusNames = { ok: '链路正常', timeout: '应答超时', dns_error: 'DNS 解析失败', permission_error: 'ICMP 权限不足', unavailable: '网络不可达', pending: '等待采样' };
   const number = value => value === null || value === undefined || !Number.isFinite(Number(value)) ? '--' : Number(value).toFixed(1);
   const clock = value => new Date(value).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const bytes = value => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '--';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
+    return (index ? value.toFixed(1) : Math.round(value)) + ' ' + units[index];
+  };
 
   function chartOptions(snapshot, radio, colors, compact) {
     const axis = { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: colors.muted, fontSize: 11 }, splitLine: { lineStyle: { color: colors.border, type: 'dashed' } } };
@@ -40,7 +47,7 @@
       series: [{ ...line(t('温度'), points('temperature'), '#ef9063'), areaStyle: { color: '#ef9063', opacity: 0.07 } }]
     };
     const ping = {
-      ...base(), grid: { top: 50, bottom: 32, left: 48, right: 24 },
+      ...base(), grid: { top: 54, bottom: 32, left: 48, right: 24 },
       yAxis: { ...axis, type: 'value', name: 'ms', min: 0 },
       series: [
         line(t('延迟'), snapshot.ping.map(sample => [sample.time, sample.rtt]), '#5d87ff'),
@@ -48,7 +55,19 @@
         { name: t('失败'), type: 'scatter', symbolSize: 7, itemStyle: { color: '#e95766' }, data: snapshot.ping.filter(sample => sample.status !== 'ok').map(sample => [sample.time, 0, sample.status]) }
       ]
     };
-    return { signal, temperature, ping };
+    const trafficPoints = snapshot.traffic || [];
+    const peak = Math.max(0, ...trafficPoints.flatMap(p => [p.download || 0, p.upload || 0]));
+    const divisor = peak >= 1048576 ? 1048576 : peak >= 1024 ? 1024 : 1;
+    const unit = divisor === 1048576 ? 'MB/s' : divisor === 1024 ? 'KB/s' : 'B/s';
+    const traffic = {
+      ...base(), grid: { top: 54, bottom: 32, left: 58, right: 24 },
+      yAxis: { ...axis, type: 'value', name: unit, min: 0, max: value => Math.max(Math.ceil(value.max * 1.15), 1) },
+      series: [
+        line(t('下载'), trafficPoints.map(p => [p.time, p.download === null ? null : p.download / divisor]), '#5d87ff'),
+        line(t('上传'), trafficPoints.map(p => [p.time, p.upload === null ? null : p.upload / divisor]), '#13b99a')
+      ]
+    };
+    return { signal, temperature, ping, traffic };
   }
 
   function availableRadioModes(snapshot) {
@@ -79,8 +98,8 @@
     };
     const render = () => {
       if (!active()) return;
-      const options = chartOptions(app.snapshot, app.radio, colors(), element.clientWidth < 600);
-      for (const key of ['signal', 'temperature', 'ping']) {
+      const options = chartOptions(app.snapshot, app.radio, colors(), document.getElementById('trafficChart').clientWidth < 600);
+      for (const key of ['signal', 'temperature', 'ping', 'traffic']) {
         if (!charts[key]) charts[key] = global.SimpleAdminCharts.init(document.getElementById(key + 'Chart'));
         charts[key].resize();
         charts[key].setOption(options[key], { notMerge: true });
@@ -94,11 +113,14 @@
       app.$nextTick(render);
     };
     app = global.Vue.createApp({
-      data: () => ({ snapshot: { target: 'www.baidu.com', generation: 0, serverTime: Date.now(), ping: [], signal: [], summary: {}, mock: false }, radio: 'NR', targetInput: 'www.baidu.com', targetDirty: false, targetMessage: '', saving: false, error: '' }),
+      data: () => ({ snapshot: { target: 'www.baidu.com', generation: 0, serverTime: Date.now(), ping: [], signal: [], traffic: [], trafficSummary: {}, summary: {}, mock: false }, radio: 'NR', targetInput: 'www.baidu.com', targetDirty: false, targetMessage: '', saving: false, error: '' }),
       computed: {
         availableRadios() { return availableRadioModes(this.snapshot); },
         latestPing() { return this.snapshot.ping[this.snapshot.ping.length - 1] || null; },
         latestSignal() { return this.snapshot.signal[this.snapshot.signal.length - 1] || null; },
+        hasTraffic() { return (this.snapshot.traffic || []).some(p => p.download !== null); },
+        trafficSummary() { return this.snapshot.trafficSummary || {}; },
+        trafficShareLabel() { return t('下载') + ' ' + number(this.trafficSummary.downloadShare) + '%, ' + t('上传') + ' ' + number(this.trafficSummary.uploadShare) + '%'; },
         signalTime() { return this.latestSignal ? clock(this.latestSignal.time) : '等待采样'; },
         hasSignal() { return this.snapshot.signal.some(sample => sample['rsrp' + this.radio] !== null || sample['sinr' + this.radio] !== null); },
         hasTemperature() { return this.snapshot.signal.some(sample => sample.temperature !== null); },
@@ -106,6 +128,7 @@
       },
       methods: {
         number,
+        bytes,
         statusLabel(status) { return statusNames[status] || '等待采样'; },
         setRadio(radio) { this.radio = radio; render(); },
         async refresh() {

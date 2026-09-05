@@ -291,6 +291,14 @@ impl At {
         }
         Ok(responses.join("\n"))
     }
+    pub async fn dashboard_sample(&self) -> Result<(String, Option<Instant>)> {
+        self.fetch(DASHBOARD, true).await?;
+        let cache = self.cache.lock().unwrap();
+        let entry = cache
+            .get(DASHBOARD)
+            .context("dashboard sample unavailable")?;
+        Ok((entry.response.to_string(), entry.updated))
+    }
     pub async fn invalidate(&self) {
         for entry in self.cache.lock().unwrap().values_mut() {
             entry.updated = None;
@@ -310,7 +318,8 @@ impl At {
                     .unwrap()
                     .iter()
                     .filter(|(c, e)| {
-                        !policy::immediate(c)
+                        c.as_str() != DASHBOARD
+                            && !policy::immediate(c)
                             && !policy::sms(c)
                             && e.running.is_none()
                             && e.updated.is_none_or(|t| t.elapsed() >= policy::max_age(c))

@@ -197,6 +197,14 @@ function getStaticNetworkInfo() {
     },
 
     updateTraffic(data) {
+      if (data.traffic_rates === true) {
+        this.nr_dl_speed = data.nr_dl_speed || '-';
+        this.nr_ul_speed = data.nr_ul_speed || '-';
+        this.nr_rx_bytes = data.nr_rx_bytes;
+        this.nr_tx_bytes = data.nr_tx_bytes;
+        this._prev_nr_rx = this._prev_nr_tx = this._prev_nr_t = null;
+        return;
+      }
       const rx = Number(data.nr_rx_bytes);
       const tx = Number(data.nr_tx_bytes);
       if (!Number.isFinite(rx) || !Number.isFinite(tx)) return;

@@ -183,6 +183,16 @@
 <div class="art-chart-wrap"><div id="temperatureChart" class="art-chart" role="img" aria-label="模块温度最近五分钟走势图"></div><div class="art-chart-empty" v-if="!hasTemperature">等待温度数据</div></div>
 </section>
 </div>
+<div class="art-network-charts">
+<section class="art-chart-section art-traffic-section" aria-labelledby="trafficChartTitle">
+<div class="art-section-heading"><div><h2 id="trafficChartTitle">下载与上传</h2><span>5 秒采样</span></div><i data-lucide="arrow-down-up" aria-hidden="true"></i></div>
+<div class="art-chart-wrap"><div id="trafficChart" class="art-chart" role="img" aria-label="最近五分钟下载和上传速率走势图"></div><div class="art-chart-empty" v-if="!hasTraffic">等待流量采样</div></div>
+<div class="art-traffic-share">
+<div class="art-share-title">近 5 分钟流量占比</div>
+<div class="art-share-meter" role="img" :aria-label="trafficShareLabel"><span class="art-share-download" :style="{ width: (trafficSummary.downloadShare || 0) + '%' }"></span><span class="art-share-upload" :style="{ width: (trafficSummary.uploadShare || 0) + '%' }"></span></div>
+<div class="art-share-values"><div><span class="art-download-key">下载</span><strong>{{ bytes(trafficSummary.downloadBytes) }}</strong><span>{{ number(trafficSummary.downloadShare) }}%</span></div><div><span class="art-upload-key">上传</span><strong>{{ bytes(trafficSummary.uploadBytes) }}</strong><span>{{ number(trafficSummary.uploadShare) }}%</span></div></div>
+</div>
+</section>
 <section class="art-chart-section art-ping-section" aria-labelledby="pingChartTitle">
 <div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>ICMP · 1 秒采样</span></div><form class="art-target-form" @submit.prevent="saveTarget"><label class="visually-hidden" for="pingTarget">Ping 目标</label><input id="pingTarget" :disabled="saving" v-model="targetInput" @input="targetDirty = true" class="form-control" placeholder="www.baidu.com" maxlength="253" required autocomplete="off" spellcheck="false"/><button class="btn btn-primary" :disabled="saving || !targetDirty" type="submit">{{ saving ? '保存中…' : '应用' }}</button></form></div>
 <p class="art-target-message" role="status" v-if="targetMessage">{{ targetMessage }}</p>
@@ -190,6 +200,7 @@
 <div class="art-chart-wrap"><div id="pingChart" class="art-chart art-ping-chart" role="img" aria-label="最近五分钟延迟、抖动和失败采样走势图"></div><div class="art-chart-empty" v-if="!snapshot.ping.length">等待首次采样</div></div>
 <div class="art-chart-footer"><span>平均 <b>{{ number(snapshot.summary.average) }}</b> ms</span><span>最低 <b>{{ number(snapshot.summary.minimum) }}</b> ms</span><span>最高 <b>{{ number(snapshot.summary.maximum) }}</b> ms</span><span class="art-failure-key">失败 {{ failedSamples }} 次</span><span>{{ latestPing && latestPing.ip ? latestPing.ip : snapshot.target }}</span></div>
 </section>
+</div>
 </div>
 </section>
 <section aria-labelledby="page-title-network" class="sa-page" data-page="network" id="page-network">

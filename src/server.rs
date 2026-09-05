@@ -299,7 +299,7 @@ pub async fn api(
             "/api/dashboard_data"=>{
                 let raw=app.at.page("dashboard",force).await?;let mut data=parser::dashboard(&raw);if p.flag("debug",false){data["raw"]=json!(raw)}
                 data["internetConnection"]=json!(if app.monitor.connected(){"已连接"}else{"未连接"});data["uptimeParts"]=system::uptime(app.config.mock).0;
-                data.as_object_mut().unwrap().extend(app.metrics.read(app.config.mock).as_object().unwrap().clone());data["lastUpdate"]=json!(chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string());data
+                data.as_object_mut().unwrap().extend(app.metrics.read(app.config.mock).as_object().unwrap().clone());data.as_object_mut().unwrap().extend(app.monitor.traffic_rates().as_object().unwrap().clone());data["lastUpdate"]=json!(chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string());data
             },
             "/api/device_info_data"=>match action{""|"get"=>{let raw=app.at.page("device",force).await?;let mut data=parser::device(&raw);let model=app.at.page("model",force).await?;let name=parser::model(&model);if name!="-"{data["modelName"]=json!(name)}data["pending"]=json!(raw.contains(crate::at_policy::PENDING)||model.contains(crate::at_policy::PENDING));data},"set_imei"=>run_action(app,&actions::imei(&p)?).await?,_=>bail!("unsupported action")},
             "/api/network_data"=>match action {
