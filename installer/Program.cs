@@ -76,7 +76,6 @@ namespace SimpleAdminSetup
             Find<Button>("OpenWeb").Click += async (s, e) => await Run("web");
             Find<Button>("Report").Click += (s, e) => OpenReport();
             devices.SelectionChanged += (s, e) => UpdateActions();
-            Find<Expander>("Details").Expanded += (s, e) => { window.Height = Math.Max(window.Height, Math.Min(920, SystemParameters.WorkArea.Height)); };
             window.Closing += (s, e) => {
                 if (busy && !preview) {
                     e.Cancel = true;
@@ -104,7 +103,7 @@ namespace SimpleAdminSetup
             if (busy) return;
             if (!preview && !PackageAvailable()) {
                 Text("DeviceBadge", "安装包不完整");
-                Text("DeviceHint", "请完整解压安装包，将设备助手与 adb.exe、toolkit.ps1 放在同一目录。");
+                Text("DeviceHint", "内置安装资源不完整，请重新下载单文件设备助手。");
             } else if (device == null) {
                 Text("DeviceBadge", devices.Items.Count > 0 ? "请选择设备" : "未连接");
                 Text("DeviceHint", devices.Items.Count > 0 ? "检测到多个设备，请明确选择本次操作的模块。" : "未发现设备，请检查 USB 连接和 ADB 驱动，然后点击刷新。");
@@ -188,8 +187,14 @@ namespace SimpleAdminSetup
 
         void Append(string line)
         {
+            if (String.IsNullOrWhiteSpace(line)) return;
             if (log.Text.Length > 90000) log.Text = log.Text.Substring(log.Text.Length - 60000);
-            log.AppendText(line + Environment.NewLine); log.ScrollToEnd();
+            log.AppendText("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + line + Environment.NewLine);
+            if (Find<CheckBox>("FollowLog").IsChecked == true) log.ScrollToEnd();
+#if GUI_TEST_HARNESS
+            if (line == "STREAMING_PROBE" && busy && Find<Expander>("Details").IsExpanded && log.IsVisible)
+                File.WriteAllText(Path.Combine(root, "streaming-observed"), "visible before process exit");
+#endif
         }
 
         void Stage(string stage)
@@ -238,6 +243,9 @@ namespace SimpleAdminSetup
             Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(23, 35, 57));
             Find<Button>("Report").IsEnabled = false;
             log.Clear(); timer.Stop(); UpdateActions();
+            Find<Expander>("Details").IsExpanded = true;
+            Append(operation == "install" ? "开始安装 / 升级，正在连接设备…" : "开始检查设备…");
+            await window.Dispatcher.InvokeAsync(() => log.BringIntoView(), DispatcherPriority.Loaded);
             Text("Step1", "① 检查连接");
             Text("Step2", operation == "install" ? "② 上传文件" : operation == "diagnose" ? "② 收集状态" : "② 建立通道");
             Text("Step3", operation == "install" ? "③ 安装程序" : operation == "diagnose" ? "③ 生成报告" : "③ 检查连接");
@@ -273,7 +281,7 @@ namespace SimpleAdminSetup
             } catch (Exception e) {
                 Append(e.ToString()); progress.IsIndeterminate = false; progress.Value = 0;
                 Text("StatusTitle", "操作未能完成"); Text("ProgressLabel", "需要处理");
-                Text("StatusDetail", "请完整解压安装包后重试。展开运行详情可以查看错误信息。");
+                Text("StatusDetail", "请查看下方实时日志中的错误信息，必要时重新下载设备助手。");
             } finally {
                 busy = false; completed = true;
                 Find<Button>("Report").IsEnabled = report != null && File.Exists(report);

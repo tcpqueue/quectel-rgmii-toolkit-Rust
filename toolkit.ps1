@@ -17,7 +17,8 @@ function Event([string]$Kind, [string]$Value) {
 }
 
 function Log([string]$Message) {
-    Write-Host $Message
+    [Console]::WriteLine($Message)
+    [Console]::Out.Flush()
     Add-Content -LiteralPath $report -Value $Message -Encoding UTF8
 }
 

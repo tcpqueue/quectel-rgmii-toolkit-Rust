@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SimpleAdmin · 设备助手" Width="1040" Height="780" MinWidth="920" MinHeight="700"
+        Title="SimpleAdmin · 设备助手" Width="1040" Height="880" MinWidth="920" MinHeight="700"
         WindowStartupLocation="CenterScreen" Background="#F5F7FB" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="13"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
   <Window.Resources>
@@ -122,8 +122,11 @@
           <Button x:Name="Diagnose" Content="故障诊断" ToolTip="收集只读诊断报告，不重新安装或修改设置。"/>
           <Button x:Name="OpenWeb" Grid.Column="2" Content="打开管理页面" ToolTip="检查网页后，通过 USB / ADB 打开设备后台。"/>
         </Grid>
-        <Expander x:Name="Details" Grid.Row="1" Header="查看运行详情" Foreground="#64748B" FontSize="12">
-          <TextBox x:Name="Log" IsReadOnly="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="#EFF3F8" BorderThickness="0" Padding="10" FontFamily="Consolas, Microsoft YaHei UI" FontSize="11" MinHeight="50" MaxHeight="145" AutomationProperties.Name="运行日志"/>
+        <Expander x:Name="Details" Grid.Row="1" Header="实时运行日志" IsExpanded="True" Foreground="#64748B" FontSize="12">
+          <StackPanel>
+            <CheckBox x:Name="FollowLog" Content="自动滚动到最新日志" IsChecked="True" Margin="0,8,0,8"/>
+            <TextBox x:Name="Log" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#EFF3F8" BorderThickness="0" Padding="10" FontFamily="Consolas, Microsoft YaHei UI" FontSize="12" Height="160" AutomationProperties.Name="实时运行日志"/>
+          </StackPanel>
         </Expander>
       </Grid>
       <Grid Grid.Row="5" Margin="0,12,0,0"><TextBlock x:Name="Footer" Text="诊断不会读取短信或执行 AT 指令" Foreground="#8592A5" FontSize="11" VerticalAlignment="Center"/>

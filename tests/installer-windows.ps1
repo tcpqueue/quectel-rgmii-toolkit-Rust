@@ -55,6 +55,11 @@ public class FakeAdb {
         } else if (call.Contains("push ") && modeName == "push-failed") {
             Console.Error.WriteLine("simulated push failure"); return 1;
         } else if (call.Contains("shell bash /tmp/development/install_simpleadmin_rust.sh")) {
+            if (modeName == "streaming") {
+                Console.WriteLine("STREAMING_PROBE"); Console.Out.Flush();
+                for (int i = 0; i < 100 && !File.Exists(Path.Combine(dir, "streaming-observed")); i++) System.Threading.Thread.Sleep(50);
+                if (!File.Exists(Path.Combine(dir, "streaming-observed"))) return 1;
+            }
             if (modeName == "install-failed") { Console.Error.WriteLine("simulated installation failure"); return 1; }
             Console.WriteLine("simulated installation");
         } else if (call.Contains("cat /tmp/simpleadmin-install-result.env")) {
@@ -95,7 +100,7 @@ public class FakeAdb {
     }
     Write-Host "$count Windows installer checks passed"
     if ($GuiTest) {
-        foreach ($case in @('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose')) {
+        foreach ($case in @('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'streaming')) {
             $env:SIMPLEADMIN_TEST_CASE = $case
             Set-Content -LiteralPath (Join-Path $scratch 'http-mode') -Value $(if ($case -eq 'wrong-app') { 'wrong-app' } else { 'ok' })
             Set-Content -LiteralPath (Join-Path $scratch 'calls') -Value ''
@@ -109,7 +114,7 @@ public class FakeAdb {
             if ($case -in @('none', 'unauthorized', 'multiple')) {
                 if ($state -notmatch 'INSTALL=False' -or $calls -match 'shell|push') { throw "GUI unsafe device selection: $case" }
             } else {
-                $expected = if ($case -in @('success','diagnose')) { 0 } else { 1 }
+                $expected = if ($case -in @('success','diagnose','streaming')) { 0 } else { 1 }
                 if ($state -notmatch "RESULT=$expected" -or $state -notmatch 'REPORT=True' -or $state -notmatch 'BUSY=False' -or $state -notmatch 'INSTALL=True') { throw "GUI incorrect completion state: $case`n$state" }
             }
             Write-Host "PASS GUI workflow: $case"
