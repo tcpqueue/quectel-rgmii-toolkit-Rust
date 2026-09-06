@@ -34,7 +34,7 @@
 
 **安装后打不开网页：** 在设备助手中点击“故障诊断”，然后“查看报告”。也可诊断旧版本，不重新安装、不重启、不执行 AT 指令、不读取短信或密码。报告包含设备序列号和网络地址，分享前可自行遮盖。参见 [安装排查](docs/install-troubleshooting.md)。
 
-默认安装不再修改 bridge0 MAC 或 QCMAP 网络配置，也不自动重启设备。仅有明确需求时，才在设备上使用 `SIMPLEADMIN_FIX_BRIDGE0_MAC=1 bash /tmp/development/install_simpleadmin_rust.sh` 启用原有 MAC 修复步骤。
+默认安装会读取当前 bridge0 MAC，并保存到固件支持的 QCMAP 配置，让下次启动沿用当前地址。不会生成新 MAC、切换当前地址、重启 QCMAP 或要求重启设备；相同配置不重复写入。读取失败或固件字段不支持时会显示警告并跳过。维护时可设置 `SIMPLEADMIN_FIX_BRIDGE0_MAC=0` 禁用此步骤。
 
 **升级已有 Go 版：** 直接运行安装工具。脚本停止旧进程、替换程序和页面，保留有效的 Web 登录凭据、TTL、监测目标和 root 密码初始化标记；无需先卸载。首次安装将系统 root 密码初始化为 `admin`，已有初始化标记时不重置密码。
 
