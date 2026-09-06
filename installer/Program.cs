@@ -58,6 +58,8 @@ namespace SimpleAdminSetup
         string webUrl;
         string mode;
         string resultEvent;
+        string failureReason;
+        string currentStage;
         readonly Brush blue = new SolidColorBrush(Color.FromRgb(37, 99, 235));
         readonly Brush gray = new SolidColorBrush(Color.FromRgb(113, 128, 150));
 
@@ -109,7 +111,7 @@ namespace SimpleAdminSetup
                 Text("DeviceHint", devices.Items.Count > 0 ? "检测到多个设备，请明确选择本次操作的模块。" : "未发现设备，请检查 USB 连接和 ADB 驱动，然后点击刷新。");
             } else {
                 Text("DeviceBadge", device.State == "device" ? "● 已连接" : "需要处理");
-                Text("DeviceHint", device.State == "device" ? "已锁定所选设备，操作不会发送到其他模块。" : device.State == "unauthorized" ? "设备尚未授权 ADB，请完成设备端授权后刷新。" : "设备处于离线状态，请重新连接 USB 后刷新。");
+                Text("DeviceHint", device.State == "device" ? "ADB 已连接；操作前会检查是否为兼容模块，请勿选择手机或模拟器。" : device.State == "unauthorized" ? "设备尚未授权 ADB，请完成设备端授权后刷新。" : "设备处于离线状态，请重新连接 USB 后刷新。");
             }
             if (!completed) {
                 Text("StatusTitle", ready ? "可以开始安装" : "等待连接设备");
@@ -199,6 +201,7 @@ namespace SimpleAdminSetup
 
         void Stage(string stage)
         {
+            currentStage = stage;
             int active = 0;
             switch (stage) {
                 case "device": active = 1; Text("StatusTitle", "正在检查设备连接"); break;
@@ -229,6 +232,7 @@ namespace SimpleAdminSetup
                     break;
                 case "reboot": reboot = true; break;
                 case "failure": failedEvent = true; break;
+                case "error": failureReason = parts[2]; break;
                 case "result": resultEvent = parts[2]; break;
             }
         }
@@ -240,6 +244,7 @@ namespace SimpleAdminSetup
             if (preview) return;
             busy = true; mode = operation; completed = false; reboot = false; failedEvent = false;
             report = null; webUrl = null; resultEvent = null;
+            failureReason = null; currentStage = "device";
             Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(23, 35, 57));
             Find<Button>("Report").IsEnabled = false;
             log.Clear(); timer.Stop(); UpdateActions();
@@ -273,9 +278,9 @@ namespace SimpleAdminSetup
                         catch (Exception e) { Append(e.Message); Text("StatusDetail", "浏览器未能自动打开，请复制此地址访问：" + webUrl); }
                     }
                 } else {
-                    Text("StatusTitle", operation == "install" ? "安装未通过检查" : "网页检查未通过");
+                    Text("StatusTitle", currentStage == "device" ? "设备检查未通过" : currentStage == "verify" ? "网页检查未通过" : operation == "install" ? "安装未通过检查" : "诊断未完成");
                     Text("ProgressLabel", "需要处理");
-                    Text("StatusDetail", "请检查 USB 连接，并点击“查看报告”了解原因。可以把报告发给维护者，报告不包含短信或密码。");
+                    Text("StatusDetail", String.IsNullOrEmpty(failureReason) ? "请查看实时日志或点击“查看报告”了解失败原因。" : failureReason);
                     Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));
                 }
             } catch (Exception e) {
