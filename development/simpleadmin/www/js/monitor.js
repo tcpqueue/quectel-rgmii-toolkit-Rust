@@ -128,6 +128,10 @@
       },
       methods: {
         number,
+        metricTone(value, warning, danger, available = true) {
+          if (!available || value === null || value === undefined || !Number.isFinite(Number(value))) return 'metric-neutral';
+          return Number(value) >= danger ? 'metric-bad' : Number(value) >= warning ? 'metric-warn' : 'metric-good';
+        },
         bytes,
         statusLabel(status) { return statusNames[status] || '等待采样'; },
         setRadio(radio) { this.radio = radio; render(); },

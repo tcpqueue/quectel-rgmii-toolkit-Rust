@@ -80,6 +80,11 @@ function getStaticNetworkInfo() {
     _dashboardActive: false,
     _dashboardPageChangeHandler: null,
 
+    signalTone() {
+      if (!this.hasRadioSignal('NR') && !this.hasRadioSignal('LTE')) return 'metric-neutral';
+      return this.signalPercentage >= 70 ? 'metric-good' : this.signalPercentage >= 40 ? 'metric-warn' : 'metric-bad';
+    },
+
     hasRadioSignal(radio) {
       return ['rsrp', 'rsrq', 'sinr'].some(key => {
         const value = this[key + radio];
@@ -120,6 +125,11 @@ function getStaticNetworkInfo() {
       if (value >= 60) return 'progress-bar bg-success';
       if (value >= 40) return 'progress-bar bg-warning';
       return 'progress-bar bg-danger';
+    },
+
+    resourceTone(value, warning, danger) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return 'metric-neutral';
+      return Number(value) >= danger ? 'metric-bad' : Number(value) >= warning ? 'metric-warn' : 'metric-good';
     },
 
     clampPercent(value) {

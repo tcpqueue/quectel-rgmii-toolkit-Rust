@@ -1,0 +1,138 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SimpleAdmin · 设备助手" Width="1040" Height="880" MinWidth="920" MinHeight="700"
+        WindowStartupLocation="CenterScreen" Background="#F5F7FB" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Ink" Color="#172339"/>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource Ink}"/></Style>
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="#334155"/>
+      <Setter Property="BorderBrush" Value="#DCE3EE"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="18,11"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="Chrome" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border><ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.8"/></Trigger>
+          <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.65"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#2563EB"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Card" TargetType="Border"><Setter Property="Background" Value="White"/><Setter Property="CornerRadius" Value="12"/><Setter Property="BorderBrush" Value="#E5EAF2"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="22"/></Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Background" Value="#F8FAFD"/><Setter Property="BorderBrush" Value="#DCE3EE"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+        <Grid>
+          <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press">
+            <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+              <Border Background="#F8FAFD" BorderBrush="#DCE3EE" BorderThickness="1" CornerRadius="7">
+                <TextBlock Text="⌄" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,3" Foreground="#64748B"/>
+              </Border>
+            </ControlTemplate></ToggleButton.Template>
+          </ToggleButton>
+          <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="12,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+            <Border Background="White" BorderBrush="#DCE3EE" BorderThickness="1" CornerRadius="7" MinWidth="{TemplateBinding ActualWidth}" Padding="4" Margin="0,4,0,0">
+              <ScrollViewer MaxHeight="220"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+        <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem"><Setter Property="Padding" Value="9,9"/></Style>
+  </Window.Resources>
+  <Grid Background="#F5F7FB">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="214"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Background="#EEF2F9" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0">
+      <Grid Margin="22,30,20,24">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel>
+          <Border Width="42" Height="42" Background="#2563EB" CornerRadius="12" HorizontalAlignment="Left" Margin="0,0,0,14">
+            <TextBlock Text="S" Foreground="White" FontSize="27" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <TextBlock Text="SimpleAdmin" FontSize="21" FontWeight="SemiBold"/>
+          <TextBlock Text="设备助手" Foreground="#64748B" Margin="0,4,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Margin="0,36,0,0">
+          <Border CornerRadius="8" Background="#DFE9FF" Padding="12,12"><TextBlock Foreground="#1D4ED8" FontWeight="SemiBold"><Run Text="&#xE950;" FontFamily="Segoe MDL2 Assets"/><Run Text="   安装与维护"/></TextBlock></Border>
+          <TextBlock Text="连接 · 安装 · 检查" Foreground="#718096" Margin="12,12,0,0" FontSize="12"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3">
+          <Border Background="#E3EAF5" CornerRadius="8" Padding="12" Margin="0,0,0,18">
+            <TextBlock Text="离线安装包&#xA;无需下载额外组件" Foreground="#607089" FontSize="12" LineHeight="22"/>
+          </Border>
+          <TextBlock Text="Quectel RGMII Toolkit" FontSize="11" Foreground="#7B899D"/>
+          <TextBlock Text="Windows 10 / 11 · 中文" FontSize="11" Foreground="#7B899D" Margin="0,5,0,0"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <ScrollViewer Grid.Column="1" Margin="30,27,30,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/><RowDefinition Height="*" MinHeight="95"/><RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <StackPanel Margin="0,0,0,22">
+        <TextBlock Text="让设备准备就绪" FontSize="27" FontWeight="SemiBold"/>
+        <TextBlock Text="连接模块，一站完成安装、检查与管理。" Foreground="#69788D" Margin="0,8,0,0"/>
+      </StackPanel>
+      <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,16">
+        <StackPanel>
+          <Grid Margin="0,0,0,14"><TextBlock Text="连接设备" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock x:Name="DeviceBadge" Text="正在检测" HorizontalAlignment="Right" Foreground="#64748B" VerticalAlignment="Center"/>
+          </Grid>
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="Devices" Height="40" VerticalContentAlignment="Center" Padding="10,4" FontSize="13" AutomationProperties.Name="选择 ADB 设备"/>
+            <Button x:Name="Refresh" Grid.Column="1" Content="刷新" Margin="10,0,0,0"/>
+          </Grid>
+          <TextBlock x:Name="DeviceHint" Text="使用 USB 连接模块，设备会自动出现在这里。" TextWrapping="Wrap" Foreground="#718096" FontSize="12" Margin="0,11,0,0"/>
+        </StackPanel>
+      </Border>
+      <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,16">
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <StackPanel Margin="0,0,16,0"><TextBlock Text="安装或升级" FontSize="17" FontWeight="SemiBold"/>
+            <TextBlock Text="安装完整程序与网页，升级保留有效配置和密码。" Foreground="#69788D" TextWrapping="Wrap" Margin="0,7,0,0"/>
+            <TextBlock Text="首次安装默认账号密码：admin / admin" FontSize="12" Foreground="#8592A5" Margin="0,9,0,0"/>
+          </StackPanel>
+          <Button x:Name="Install" Grid.Column="1" Content="安装 / 升级" Background="#2563EB" BorderBrush="#2563EB" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="120"/>
+        </Grid>
+      </Border>
+      <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,14" Padding="22,18">
+        <StackPanel>
+          <Grid><TextBlock x:Name="StatusTitle" Text="等待连接设备" FontSize="15" FontWeight="SemiBold"/>
+            <TextBlock x:Name="ProgressLabel" Text="准备就绪后即可开始" HorizontalAlignment="Right" Foreground="#8592A5" FontSize="12" VerticalAlignment="Center"/>
+          </Grid>
+          <ProgressBar x:Name="Progress" Height="5" Margin="0,15,0,12" Minimum="0" Maximum="100" Value="0" Foreground="#2563EB" Background="#EAF0F8" BorderThickness="0"/>
+          <UniformGrid Columns="4" Margin="0,0,0,12">
+            <TextBlock x:Name="Step1" Text="① 检查连接" Foreground="#718096" FontSize="12"/>
+            <TextBlock x:Name="Step2" Text="② 上传文件" Foreground="#718096" FontSize="12"/>
+            <TextBlock x:Name="Step3" Text="③ 安装程序" Foreground="#718096" FontSize="12"/>
+            <TextBlock x:Name="Step4" Text="④ 验证网页" Foreground="#718096" FontSize="12"/>
+          </UniformGrid>
+          <TextBlock x:Name="StatusDetail" Text="操作进度和结果会显示在这里。" TextWrapping="Wrap" Foreground="#69788D" FontSize="12" LineHeight="20"/>
+        </StackPanel>
+      </Border>
+      <Grid Grid.Row="4">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+          <Button x:Name="Diagnose" Content="故障诊断" ToolTip="收集只读诊断报告，不重新安装或修改设置。"/>
+          <Button x:Name="OpenWeb" Grid.Column="2" Content="打开管理页面" ToolTip="检查网页后，通过 USB / ADB 打开设备后台。"/>
+        </Grid>
+        <Expander x:Name="Details" Grid.Row="1" Header="实时运行日志" IsExpanded="True" Foreground="#64748B" FontSize="12">
+          <StackPanel>
+            <CheckBox x:Name="FollowLog" Content="自动滚动到最新日志" IsChecked="True" Margin="0,8,0,8"/>
+            <TextBox x:Name="Log" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#EFF3F8" BorderThickness="0" Padding="10" FontFamily="Consolas, Microsoft YaHei UI" FontSize="12" Height="160" AutomationProperties.Name="实时运行日志"/>
+          </StackPanel>
+        </Expander>
+      </Grid>
+      <Grid Grid.Row="5" Margin="0,12,0,0"><TextBlock x:Name="Footer" Text="诊断不会读取短信或执行 AT 指令" Foreground="#8592A5" FontSize="11" VerticalAlignment="Center"/>
+        <Button x:Name="Report" Content="查看报告 ↗" HorizontalAlignment="Right" Padding="10,6" Background="Transparent" BorderThickness="0" FontSize="12" IsEnabled="False"/>
+      </Grid>
+    </Grid>
+    </ScrollViewer>
+  </Grid>
+</Window>

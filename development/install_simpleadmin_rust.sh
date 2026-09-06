@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -u
+set -Eeuo pipefail
 
 PKG_DIR="/tmp/development"
 SIMPLEADMIN_SRC="$PKG_DIR/simpleadmin"
@@ -16,13 +16,12 @@ FALLBACK_PID_FILE="/tmp/simpleadmin-httpd.pid"
 FALLBACK_START_SCRIPT="$SIMPLEADMIN_DIR/start_simpleadmin.sh"
 FALLBACK_STOP_SCRIPT="$SIMPLEADMIN_DIR/stop_simpleadmin.sh"
 PORT_PREPARE_SCRIPT="$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh"
-FALLBACK_LOG_FILE="/dev/null"
 POST_BOOT_FILE="/etc/init.post_boot.sh"
 POST_BOOT_LOG_FILE="/dev/null"
 REBOOT_MARKER_FILE="/tmp/simpleadmin-reboot-required"
 INSTALL_RESULT_FILE="/tmp/simpleadmin-install-result.env"
-POST_BOOT_BEGIN="# BEGIN SIMPLEADMIN GO AUTOSTART"
-POST_BOOT_END="# END SIMPLEADMIN GO AUTOSTART"
+POST_BOOT_BEGIN="# BEGIN SIMPLEADMIN RUST AUTOSTART"
+POST_BOOT_END="# END SIMPLEADMIN RUST AUTOSTART"
 ROOT_BIN="/usrdata/root/bin"
 MOBILEAP_HELPER_SRC="$SIMPLEADMIN_SRC/mobileap_bridge0_mac.sh"
 MOBILEAP_HELPER_SCRIPT="$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"
@@ -63,8 +62,39 @@ fail() {
     exit 1
 }
 
+trap 'fail "安装命令失败（第 $LINENO 行），请查看诊断报告"' ERR
+
+preflight() {
+    [ "$(id -u)" = "0" ] || fail "ADB shell 不是 root，无法安装"
+    require_file "$PKG_DIR/SHA256SUMS"
+    require_file "$SIMPLEADMIN_SRC/www/index.html"
+    require_file "$SIMPLEADMIN_SRC/www/login.html"
+    (cd "$PKG_DIR" && sha256sum -c SHA256SUMS) || fail "安装包校验失败，请重新完整解压并上传"
+    chmod +x "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7"
+    "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" --version || fail "程序不能在此固件执行（架构、内核或执行权限不兼容）"
+    local needed available
+    needed="$(du -sk "$SIMPLEADMIN_SRC" | awk '{print $1}')"
+    available="$(df -Pk /usrdata | awk 'END {print $4}')"
+    case "$needed:$available" in *[!0-9:]*|:*|*:) fail "无法检查 /usrdata 剩余空间" ;; esac
+    [ "$available" -gt "$((needed + 2048))" ] || fail "/usrdata 空间不足，需要安装包大小加 2 MiB 余量"
+}
+
+wait_for_web() {
+    local attempt=0
+    while [ "$attempt" -lt 10 ]; do
+        attempt=$((attempt + 1))
+        if bash "$SIMPLEADMIN_DIR/check_web.sh" >/dev/null 2>&1; then
+            sleep 1
+            bash "$SIMPLEADMIN_DIR/check_web.sh" >/dev/null 2>&1 && return 0
+        fi
+        sleep 1
+    done
+    bash "$SIMPLEADMIN_DIR/check_web.sh" || true
+    return 1
+}
+
 remount_rw() {
-    trap 'mount -o remount,ro / || echo "[错误] 根目录恢复只读失败" >&2' EXIT
+    trap 'sync; mount -o remount,ro / || echo "[错误] 根目录恢复只读失败" >&2' EXIT
     trap 'exit 1' INT TERM
     mount -o remount,rw / || fail "根目录切换为读写失败"
 }
@@ -147,6 +177,8 @@ link_unit() {
 remove_post_boot_autostart() {
     [ -f "$POST_BOOT_FILE" ] || return 0
     sed -i "/$POST_BOOT_BEGIN/,/$POST_BOOT_END/d" "$POST_BOOT_FILE" 2>/dev/null || true
+    # Remove the old block on upgrade, without creating it again.
+    sed -i '/# BEGIN SIMPLEADMIN GO AUTOSTART/,/# END SIMPLEADMIN GO AUTOSTART/d' "$POST_BOOT_FILE" 2>/dev/null || true
 }
 
 install_post_boot_autostart() {
@@ -182,6 +214,7 @@ $POST_BOOT_BEGIN
 ) &
 $POST_BOOT_END
 EOF
+    [ "$?" = 0 ] || return 1
     chmod +x "$POST_BOOT_FILE" 2>/dev/null || true
     log "post_boot 自启动已安装: $POST_BOOT_FILE"
 }
@@ -195,49 +228,19 @@ EOF
     chmod 0644 "$AT_DEVICES_FILE"
 }
 
-cleanup_legacy_at_bridges() {
-    ps 2>/dev/null | awk '
-        $0 ~ "cat /dev/ttyIN" { print $1 }
-        $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-        $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-    ' | while read pid; do
-        case "$pid" in
-            ""|*[!0-9]*) continue ;;
-        esac
-        kill "$pid" >/dev/null 2>&1 || true
-        sleep 1
-        kill -9 "$pid" >/dev/null 2>&1 || true
-    done
-    rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-}
-
 stop_existing_simpleadmin_runtime() {
-    local pid=""
-
     log "正在停止旧的 SimpleAdmin 运行实例"
+    log "正在请求 systemd 停止应用服务"
     systemctl stop "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
+    log "正在停用旧服务自启动"
     systemctl disable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
-
-    if [ -x "$FALLBACK_STOP_SCRIPT" ]; then
-        "$FALLBACK_STOP_SCRIPT" >/dev/null 2>&1 || true
-    fi
-
-    if [ -f "$FALLBACK_PID_FILE" ]; then
-        pid="$(cat "$FALLBACK_PID_FILE" 2>/dev/null || true)"
-        case "$pid" in
-            ""|*[!0-9]*) ;;
-            *) kill "$pid" >/dev/null 2>&1 || true ;;
-        esac
-        rm -f "$FALLBACK_PID_FILE"
-    fi
-
-    killall simpleadmin-httpd >/dev/null 2>&1 || true
-    sleep 1
-    if pidof simpleadmin-httpd >/dev/null 2>&1 || ps 2>/dev/null | grep '[s]impleadmin-httpd' >/dev/null 2>&1; then
-        killall -9 simpleadmin-httpd >/dev/null 2>&1 || true
-        sleep 1
-    fi
+    # Never execute an old stop script or trust its stale PID file.
+    . "$SIMPLEADMIN_SRC/runtime_processes.sh"
+    log "正在按可执行文件路径核对残留进程"
+    stop_runtime_kind server
     cleanup_legacy_at_bridges
+    rm -f "$FALLBACK_PID_FILE"
+    log "旧应用进程清理完成"
     remove_systemd_unit_files
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl reset-failed >/dev/null 2>&1 || true
@@ -280,7 +283,7 @@ maybe_install_bridge0_mac_config() {
 
     SIMPLEADMIN_DIR="$SIMPLEADMIN_DIR" \
     MOBILEAP_RESULT_FILE="$MOBILEAP_RESULT_FILE" \
-    SIMPLEADMIN_FIX_BRIDGE0_MAC="${SIMPLEADMIN_FIX_BRIDGE0_MAC:-1}" \
+    SIMPLEADMIN_FIX_BRIDGE0_MAC="${SIMPLEADMIN_FIX_BRIDGE0_MAC:-0}" \
     "$MOBILEAP_HELPER_SCRIPT" || warn "mobileap bridge0 MAC 辅助脚本执行失败"
 
     if [ -f "$MOBILEAP_RESULT_FILE" ]; then
@@ -303,30 +306,33 @@ install_simpleadmin_files() {
 
     mkdir -p "$SIMPLEADMIN_DIR" "$SIMPLEADMIN_DIR/www" "$ROOT_BIN"
 
-    rm -f /tmp/simpleadmin.auth.backup
-    if is_valid_auth_file "$SIMPLEADMIN_DIR/simpleadmin.auth"; then
-        cp -f "$SIMPLEADMIN_DIR/simpleadmin.auth" /tmp/simpleadmin.auth.backup
-    elif [ -f "$SIMPLEADMIN_DIR/simpleadmin.auth" ]; then
+    if [ -f "$SIMPLEADMIN_DIR/simpleadmin.auth" ] && ! is_valid_auth_file "$SIMPLEADMIN_DIR/simpleadmin.auth"; then
         warn "现有认证文件为空或格式无效，已重置为默认 admin/admin"
     fi
 
+    # Finish and verify both copies before stopping the installed service.
+    rm -rf "$SIMPLEADMIN_DIR/www.new"
+    cp -f "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" "$SIMPLEADMIN_DIR/simpleadmin-httpd.new"
+    cp -r "$SIMPLEADMIN_SRC/www" "$SIMPLEADMIN_DIR/www.new"
+    cmp "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" "$SIMPLEADMIN_DIR/simpleadmin-httpd.new"
+    (cd "$SIMPLEADMIN_DIR/www.new" && sed -n 's#  simpleadmin/www/#  #p' "$PKG_DIR/SHA256SUMS" | sha256sum -c -)
+    stop_existing_simpleadmin_runtime
     rm -rf "$SIMPLEADMIN_DIR/www" "$SIMPLEADMIN_DIR/console" "$SIMPLEADMIN_DIR/systemd"
     mkdir -p "$SIMPLEADMIN_DIR/systemd"
 
-    cp -f "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" "$SIMPLEADMIN_DIR/simpleadmin-httpd"
+    mv -f "$SIMPLEADMIN_DIR/simpleadmin-httpd.new" "$SIMPLEADMIN_DIR/simpleadmin-httpd"
     chmod 777 "$SIMPLEADMIN_DIR" "$SIMPLEADMIN_DIR/simpleadmin-httpd"
 
-    cp -rf "$SIMPLEADMIN_SRC/www" "$SIMPLEADMIN_DIR/www"
+    mv "$SIMPLEADMIN_DIR/www.new" "$SIMPLEADMIN_DIR/www"
+    cp -f "$SIMPLEADMIN_SRC/check_web.sh" "$SIMPLEADMIN_SRC/run_simpleadmin.sh" "$SIMPLEADMIN_DIR/"
+    chmod 755 "$SIMPLEADMIN_DIR/check_web.sh" "$SIMPLEADMIN_DIR/run_simpleadmin.sh"
 
     cp -f "$SIMPLEADMIN_SRC/simplepasswd" "$ROOT_BIN/simplepasswd"
     chmod +x "$ROOT_BIN/simplepasswd"
 
     install_mobileap_helper_script
 
-    if [ -f /tmp/simpleadmin.auth.backup ]; then
-        cp -f /tmp/simpleadmin.auth.backup "$SIMPLEADMIN_DIR/simpleadmin.auth"
-        rm -f /tmp/simpleadmin.auth.backup
-    elif ! is_valid_auth_file "$SIMPLEADMIN_DIR/simpleadmin.auth"; then
+    if ! is_valid_auth_file "$SIMPLEADMIN_DIR/simpleadmin.auth"; then
         write_default_auth_file
     fi
     chmod 600 "$SIMPLEADMIN_DIR/simpleadmin.auth"
@@ -337,338 +343,85 @@ install_simpleadmin_files() {
 }
 
 install_fallback_scripts() {
+    cp -f "$SIMPLEADMIN_SRC/runtime_processes.sh" "$SIMPLEADMIN_DIR/runtime_processes.sh"
     cat > "$PORT_PREPARE_SCRIPT" <<'EOF'
 #!/bin/sh
+. /usrdata/simpleadmin/runtime_processes.sh
 
-port80_listener_inodes() {
-    awk 'NR > 1 && $2 ~ /:0050$/ && $4 == "0A" { print $10 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
-}
-
-port80_owner_pids() {
-    local inode fd link pid
-    for inode in $(port80_listener_inodes); do
-        for fd in /proc/[0-9]*/fd/*; do
-            [ -e "$fd" ] || continue
-            link="$(readlink "$fd" 2>/dev/null || true)"
-            [ "$link" = "socket:[$inode]" ] || continue
-            pid="${fd#/proc/}"
-            pid="${pid%%/*}"
-            echo "$pid"
-        done
-    done | sort -u
-}
-
-cmdline_for_pid() {
-    local pid="$1"
-    if [ -r "/proc/$pid/cmdline" ]; then
-        tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null
-    elif [ -r "/proc/$pid/comm" ]; then
-        cat "/proc/$pid/comm" 2>/dev/null
+open_web_port() {
+    if command -v iptables >/dev/null 2>&1; then
+        iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 ||
+            iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT || return 1
     else
-        echo "unknown"
+        echo "[警告] 未找到 iptables，请检查固件防火墙是否允许 TCP 80" >&2
     fi
 }
 
-is_simpleadmin_related_cmd() {
-    case "$1" in
-        *simpleadmin*|*SimpleAdmin*|*ZBIMS*|*zbims*) return 0 ;;
-    esac
-    return 1
+port80_listener_inodes() {
+    awk 'FNR > 1 && $2 ~ /:0050$/ && $4 == "0A" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
 }
-
-is_factory_lighttpd_cmd() {
-    case "$1" in
-        *"lighttpd"*"/data/lighttpd.conf"*) return 0 ;;
-    esac
-    return 1
+port80_owner_pids() {
+    for inode in $(port80_listener_inodes); do
+        for fd in /proc/[0-9]*/fd/*; do
+            [ "$(readlink "$fd" 2>/dev/null)" = "socket:[$inode]" ] || continue
+            pid="${fd#/proc/}"; echo "${pid%%/*}"
+        done
+    done | sort -u
 }
-
-stop_pid_soft_then_hard() {
-    local pid="$1"
-    case "$pid" in
-        ""|*[!0-9]*) return 0 ;;
-    esac
-    kill "$pid" >/dev/null 2>&1 || true
-}
-
 stop_known_web_conflicts() {
-    local pid cmd
-
-    for pid in $(pidof lighttpd 2>/dev/null || true); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_factory_lighttpd_cmd "$cmd"; then
-            echo "[信息] 正在停止原厂 lighttpd Web 服务以释放 80 端口: pid=$pid"
-            stop_pid_soft_then_hard "$pid"
-        fi
-    done
-
     for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd" || is_factory_lighttpd_cmd "$cmd"; then
-            stop_pid_soft_then_hard "$pid"
-        fi
-    done
-
-    sleep 1
-
-    for pid in $(pidof lighttpd 2>/dev/null || true); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_factory_lighttpd_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd" || is_factory_lighttpd_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
+        if [ "$(runtime_kind "$pid")" = server ]; then
+            stop_runtime_kind server
+        elif [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = /usr/sbin/lighttpd ] ||
+             [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = /usr/bin/lighttpd ]; then
+            if tr '\000' '\n' < "/proc/$pid/cmdline" | grep -qx /data/lighttpd.conf; then
+                kill "$pid" 2>/dev/null || true
+            fi
         fi
     done
 }
-
 describe_port80_owners() {
-    local pid cmd
     for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        echo "pid=$pid cmd=$cmd"
+        echo "pid=$pid executable=$(readlink "/proc/$pid/exe" 2>/dev/null)"
     done
 }
-
 wait_for_port80_free() {
-    local attempt owners
     for attempt in 1 2 3 4 5; do
-        owners="$(port80_owner_pids)"
-        [ -z "$owners" ] && return 0
+        [ -z "$(port80_listener_inodes)" ] && return 0
         stop_known_web_conflicts
         sleep 1
     done
-
-    owners="$(port80_owner_pids)"
-    [ -z "$owners" ] && return 0
-
+    [ -z "$(port80_listener_inodes)" ] && return 0
     echo "[错误] 80 端口仍被占用，SimpleAdmin Rust 无法绑定 :80" >&2
     describe_port80_owners >&2
     return 1
 }
-
+open_web_port || exit 1
 stop_known_web_conflicts
 wait_for_port80_free
 EOF
-
     cat > "$FALLBACK_START_SCRIPT" <<'EOF'
 #!/bin/sh
-SIMPLEADMIN_DIR="/usrdata/simpleadmin"
-PID_FILE="/tmp/simpleadmin-httpd.pid"
-LOG_FILE="/dev/null"
-export SIMPLEADMIN_MANAGE_ROOTFS=1
-BIN="$SIMPLEADMIN_DIR/simpleadmin-httpd"
-PORT_PREPARE_SCRIPT="$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh"
-
-save_runtime_pid() {
-    if [ "$(stat -f -c %T /tmp 2>/dev/null)" = "tmpfs" ]; then
-        printf '%s\n' "$1" > "$PID_FILE"
-    fi
-}
-
-open_simpleadmin_port() {
-    if command -v iptables >/dev/null 2>&1; then
-        iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || iptables -I INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || true
-    fi
-}
-
-cleanup_legacy_at_bridges() {
-    ps 2>/dev/null | awk '
-        $0 ~ "cat /dev/ttyIN" { print $1 }
-        $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-        $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-    ' | while read pid; do
-        case "$pid" in
-            ""|*[!0-9]*) continue ;;
-        esac
-        kill "$pid" >/dev/null 2>&1 || true
-        sleep 1
-        kill -9 "$pid" >/dev/null 2>&1 || true
-    done
-    rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-}
-
-if [ ! -x "$BIN" ]; then
-    echo "[错误] simpleadmin-httpd 缺失或不可执行: $BIN" >&2
-    exit 1
+SIMPLEADMIN_DIR=/usrdata/simpleadmin
+. "$SIMPLEADMIN_DIR/runtime_processes.sh"
+if [ -n "$(runtime_pids server)" ]; then
+    bash "$SIMPLEADMIN_DIR/check_web.sh"
+    exit "$?"
 fi
-
-if [ -f "$PID_FILE" ]; then
-    OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        echo "[OK] simpleadmin-httpd already running: $OLD_PID"
-        exit 0
-    fi
-fi
-
-RUNNING_PID="$(pidof simpleadmin-httpd 2>/dev/null | awk '{print $1}' || true)"
-if [ -z "$RUNNING_PID" ]; then
-    RUNNING_PID="$(ps 2>/dev/null | grep '[s]impleadmin-httpd' | awk '{print $1; exit}' || true)"
-fi
-if [ -n "$RUNNING_PID" ]; then
-    save_runtime_pid "$RUNNING_PID"
-    echo "[OK] simpleadmin-httpd already running: $RUNNING_PID"
-    exit 0
-fi
-
-port80_listener_inodes() {
-    awk 'NR > 1 && $2 ~ /:0050$/ && $4 == "0A" { print $10 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
-}
-
-port80_owner_pids() {
-    local inode fd link pid
-    for inode in $(port80_listener_inodes); do
-        for fd in /proc/[0-9]*/fd/*; do
-            [ -e "$fd" ] || continue
-            link="$(readlink "$fd" 2>/dev/null || true)"
-            [ "$link" = "socket:[$inode]" ] || continue
-            pid="${fd#/proc/}"
-            pid="${pid%%/*}"
-            echo "$pid"
-        done
-    done | sort -u
-}
-
-cmdline_for_pid() {
-    local pid="$1"
-    if [ -r "/proc/$pid/cmdline" ]; then
-        tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null
-    elif [ -r "/proc/$pid/comm" ]; then
-        cat "/proc/$pid/comm" 2>/dev/null
-    else
-        echo "unknown"
-    fi
-}
-
-is_simpleadmin_related_cmd() {
-    case "$1" in
-        *simpleadmin*|*SimpleAdmin*|*ZBIMS*|*zbims*) return 0 ;;
-    esac
-    return 1
-}
-
-stop_simpleadmin_port80_conflicts() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd"; then
-            kill "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-}
-
-force_stop_simpleadmin_port80_conflicts() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-}
-
-describe_port80_owners() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        echo "pid=$pid cmd=$cmd"
-    done
-}
-
-wait_for_port80_free() {
-    local owners=""
-    local attempt=""
-
-    for attempt in 1 2 3 4 5; do
-        owners="$(port80_owner_pids)"
-        [ -z "$owners" ] && return 0
-        stop_simpleadmin_port80_conflicts
-        sleep 1
-    done
-
-    owners="$(port80_owner_pids)"
-    if [ -n "$owners" ]; then
-        force_stop_simpleadmin_port80_conflicts
-        sleep 1
-    fi
-
-    owners="$(port80_owner_pids)"
-    if [ -z "$owners" ]; then
-        return 0
-    fi
-
-    echo "[错误] 80 端口已被占用，SimpleAdmin Rust 无法绑定 :80" >&2
-    describe_port80_owners >&2
-    return 1
-}
-
-if [ -x "$PORT_PREPARE_SCRIPT" ]; then
-    "$PORT_PREPARE_SCRIPT" || exit 1
-fi
-killall simpleadmin-httpd >/dev/null 2>&1 || true
+"$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh" || exit 1
 cleanup_legacy_at_bridges
-open_simpleadmin_port
-if ! wait_for_port80_free; then
-    exit 1
-fi
-: > "$LOG_FILE"
-nohup "$BIN" \
-    -http :80 \
-    -static "$SIMPLEADMIN_DIR/www" \
-    -auth-file "$SIMPLEADMIN_DIR/simpleadmin.auth" \
-    -at-devices-file "$SIMPLEADMIN_DIR/at_devices.conf" \
-    >> "$LOG_FILE" 2>&1 &
-PID=$!
-save_runtime_pid "$PID"
-sleep 1
-if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-    echo "[OK] simpleadmin-httpd started by nohup: $PID"
-    exit 0
-fi
-
-echo "[错误] simpleadmin-httpd 后台启动失败，可在终端前台运行程序查看错误。" >&2
-exit 1
+nohup "$SIMPLEADMIN_DIR/run_simpleadmin.sh" >/dev/null 2>&1 < /dev/null &
+sleep 2
+bash "$SIMPLEADMIN_DIR/check_web.sh"
 EOF
-
     cat > "$FALLBACK_STOP_SCRIPT" <<'EOF'
 #!/bin/sh
-SIMPLEADMIN_DIR="/usrdata/simpleadmin"
-PID_FILE="/tmp/simpleadmin-httpd.pid"
-
-if [ -f "$PID_FILE" ]; then
-    PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-    if [ -n "$PID" ]; then
-        kill "$PID" >/dev/null 2>&1 || true
-    fi
-    rm -f "$PID_FILE"
-fi
-killall simpleadmin-httpd >/dev/null 2>&1 || true
-sleep 1
-if pidof simpleadmin-httpd >/dev/null 2>&1 || ps 2>/dev/null | grep '[s]impleadmin-httpd' >/dev/null 2>&1; then
-    killall -9 simpleadmin-httpd >/dev/null 2>&1 || true
-    sleep 1
-fi
-ps 2>/dev/null | awk '
-    $0 ~ "cat /dev/ttyIN" { print $1 }
-    $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-    $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-' | while read pid; do
-    case "$pid" in
-        ""|*[!0-9]*) continue ;;
-    esac
-    kill "$pid" >/dev/null 2>&1 || true
-    sleep 1
-    kill -9 "$pid" >/dev/null 2>&1 || true
-done
-rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-exit 0
+. /usrdata/simpleadmin/runtime_processes.sh
+stop_runtime_kind server
+cleanup_legacy_at_bridges
+rm -f /tmp/simpleadmin-httpd.pid
 EOF
-
-    chmod +x "$FALLBACK_START_SCRIPT" "$FALLBACK_STOP_SCRIPT" "$PORT_PREPARE_SCRIPT"
+    chmod 755 "$FALLBACK_START_SCRIPT" "$FALLBACK_STOP_SCRIPT" "$PORT_PREPARE_SCRIPT" "$SIMPLEADMIN_DIR/runtime_processes.sh"
 }
 
 install_systemd_unit() {
@@ -707,8 +460,9 @@ restart_services() {
         systemctl daemon-reload >/dev/null 2>&1 || true
         systemctl enable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
         systemctl restart "$SYSTEMD_UNIT" >/dev/null 2>&1 || warn "服务启动失败或当前设备不支持: $SYSTEMD_UNIT"
-        if systemctl is-active "$SYSTEMD_UNIT" >/dev/null 2>&1; then
+        if wait_for_web && systemctl is-active "$SYSTEMD_UNIT" >/dev/null 2>&1; then
             echo "[成功] $SYSTEMD_UNIT 已启动"
+            remove_post_boot_autostart
             return 0
         fi
         warn "$SYSTEMD_UNIT 未处于 active 状态，改用 post_boot 自启动"
@@ -721,10 +475,10 @@ restart_services() {
     systemctl disable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
     remove_systemd_unit_files
     systemctl daemon-reload >/dev/null 2>&1 || true
-    install_post_boot_autostart || warn "post_boot 自启动未安装；如果 systemd 自启动不可用，重启后需要手动启动"
+    install_post_boot_autostart || fail "无法安装开机自启动，请检查固件的 systemd/post_boot 支持"
     start_fallback_service
     log "正在检查服务启动状态:"
-    if ps | grep '[s]impleadmin-httpd' >/dev/null 2>&1; then
+    if wait_for_web; then
         echo "[成功] simpleadmin-httpd 进程已运行"
     else
         fail "simpleadmin-httpd 启动失败"
@@ -755,8 +509,8 @@ main() {
     [ -d "$SIMPLEADMIN_SRC" ] || fail "安装包不完整: $SIMPLEADMIN_SRC"
     log "开始安装 SimpleAdmin Rust 和 Rust 原生 SMD AT 服务"
     reset_install_runtime_markers
+    preflight
     remount_rw
-    stop_existing_simpleadmin_runtime
     install_simpleadmin_files
     install_at_device_config
     install_ttl_state
@@ -766,7 +520,9 @@ main() {
     remount_ro
     write_reboot_marker_if_mobileap_cfg_touched
     write_install_success_result
-    log "安装完成。默认登录账号: admin / admin"
+    log "安装完成。首次安装默认 admin / admin；升级保留原 Web 登录密码"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
