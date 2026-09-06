@@ -283,7 +283,7 @@ maybe_install_bridge0_mac_config() {
 
     SIMPLEADMIN_DIR="$SIMPLEADMIN_DIR" \
     MOBILEAP_RESULT_FILE="$MOBILEAP_RESULT_FILE" \
-    SIMPLEADMIN_FIX_BRIDGE0_MAC="${SIMPLEADMIN_FIX_BRIDGE0_MAC:-0}" \
+    SIMPLEADMIN_FIX_BRIDGE0_MAC="${SIMPLEADMIN_FIX_BRIDGE0_MAC:-1}" \
     "$MOBILEAP_HELPER_SCRIPT" || warn "mobileap bridge0 MAC 辅助脚本执行失败"
 
     if [ -f "$MOBILEAP_RESULT_FILE" ]; then
@@ -491,18 +491,8 @@ reset_install_runtime_markers() {
 
 write_reboot_marker_if_mobileap_cfg_touched() {
     rm -f "$REBOOT_MARKER_FILE" "$INSTALL_RESULT_FILE" 2>/dev/null || true
-    if [ "${MOBILEAP_CFG_TOUCHED:-0}" != "1" ]; then
-        echo "REBOOT_REQUIRED=0" > "$INSTALL_RESULT_FILE" 2>/dev/null || true
-        return 0
-    fi
-
-    log "QCMAP mobileap 配置已处理，安装完成后需要重启"
-    echo "mobileap_cfg" > "$REBOOT_MARKER_FILE" 2>/dev/null || warn "写入重启标记失败: $REBOOT_MARKER_FILE"
-    {
-        echo "REBOOT_REQUIRED=1"
-        echo "REBOOT_REASON=mobileap_cfg"
-    } > "$INSTALL_RESULT_FILE" 2>/dev/null || warn "写入安装结果失败: $INSTALL_RESULT_FILE"
-    sync
+    # Persisting the live bridge MAC needs no runtime network changes.
+    echo "REBOOT_REQUIRED=0" > "$INSTALL_RESULT_FILE" 2>/dev/null || true
 }
 
 main() {
