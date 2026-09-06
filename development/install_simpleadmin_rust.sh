@@ -20,8 +20,8 @@ POST_BOOT_FILE="/etc/init.post_boot.sh"
 POST_BOOT_LOG_FILE="/dev/null"
 REBOOT_MARKER_FILE="/tmp/simpleadmin-reboot-required"
 INSTALL_RESULT_FILE="/tmp/simpleadmin-install-result.env"
-POST_BOOT_BEGIN="# BEGIN SIMPLEADMIN GO AUTOSTART"
-POST_BOOT_END="# END SIMPLEADMIN GO AUTOSTART"
+POST_BOOT_BEGIN="# BEGIN SIMPLEADMIN RUST AUTOSTART"
+POST_BOOT_END="# END SIMPLEADMIN RUST AUTOSTART"
 ROOT_BIN="/usrdata/root/bin"
 MOBILEAP_HELPER_SRC="$SIMPLEADMIN_SRC/mobileap_bridge0_mac.sh"
 MOBILEAP_HELPER_SCRIPT="$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"
@@ -177,6 +177,8 @@ link_unit() {
 remove_post_boot_autostart() {
     [ -f "$POST_BOOT_FILE" ] || return 0
     sed -i "/$POST_BOOT_BEGIN/,/$POST_BOOT_END/d" "$POST_BOOT_FILE" 2>/dev/null || true
+    # Remove the old block on upgrade, without creating it again.
+    sed -i '/# BEGIN SIMPLEADMIN GO AUTOSTART/,/# END SIMPLEADMIN GO AUTOSTART/d' "$POST_BOOT_FILE" 2>/dev/null || true
 }
 
 install_post_boot_autostart() {

@@ -545,6 +545,7 @@ fn reader_lock() -> Result<std::fs::File> {
 #[cfg(unix)]
 fn global_lock() -> Result<std::fs::File> {
     use std::os::{fd::AsRawFd, unix::fs::OpenOptionsExt};
+    // Shared legacy lock name prevents concurrent AT writes during upgrades.
     let path = std::env::var("SIMPLEADMIN_AT_LOCK_FILE")
         .unwrap_or_else(|_| "/tmp/simpleadmin-go-at.lock".into());
     let file = std::fs::OpenOptions::new()

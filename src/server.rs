@@ -327,7 +327,7 @@ pub async fn api(
                 data["internetConnection"]=json!(if app.monitor.connected(){"已连接"}else{"未连接"});data["uptimeParts"]=system::uptime(app.config.mock).0;
                 data.as_object_mut().unwrap().extend(app.metrics.read(app.config.mock).as_object().unwrap().clone());data.as_object_mut().unwrap().extend(app.monitor.traffic_rates().as_object().unwrap().clone());data["lastUpdate"]=json!(chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string());data
             },
-            "/api/device_info_data"=>match action{""|"get"=>{let raw=app.at.page("device",force).await?;let mut data=parser::device(&raw);let model=app.at.page("model",force).await?;let name=parser::model(&model);if name!="-"{data["modelName"]=json!(name)}data["pending"]=json!(raw.contains(crate::at_policy::PENDING)||model.contains(crate::at_policy::PENDING));data},"set_imei"=>run_action(app,&actions::imei(&p)?).await?,_=>bail!("unsupported action")},
+"/api/device_info_data"=>match action{""|"get"=>{let raw=app.at.page("device",force).await?;let mut data=parser::device(&raw);data["appVersion"]=json!(concat!("SimpleAdmin Rust v", env!("CARGO_PKG_VERSION")));let model=app.at.page("model",force).await?;let name=parser::model(&model);if name!="-"{data["modelName"]=json!(name)}data["pending"]=json!(raw.contains(crate::at_policy::PENDING)||model.contains(crate::at_policy::PENDING));data},"set_imei"=>run_action(app,&actions::imei(&p)?).await?,_=>bail!("unsupported action")},
             "/api/network_data"=>match action {
                 ""|"settings"=>parser::network(&app.at.page("network",force).await?),
                 "model"=>{let raw=app.at.page("model",force).await?;json!({"model":parser::model(&raw),"pending":raw.contains(crate::at_policy::PENDING)})},

@@ -2,7 +2,7 @@
 
 ## 环境
 
-使用 Linux 或 WSL 的 Linux 原生目录。需要 Git、Rustup、ARM GNU 交叉编译器、MinGW-w64、Zip。仅在重新生成 Go 对照样本时需要 Go。
+使用 Linux 或 WSL 的 Linux 原生目录。需要 Git、Rustup、ARM GNU 交叉编译器、MinGW-w64、Zip。不需要 Go 工具链。
 
 ```sh
 sudo apt-get update
@@ -55,16 +55,11 @@ node tests/tls.cjs
 
 Windows 上运行 `powershell -ExecutionPolicy Bypass -File scripts/test-windows.ps1` 可检查预览程序、登录和模拟环境的密码持久化。
 
-## 重新生成 Go 对照样本
+## 兼容性回归样本
 
 对照版本为 Go 仓库提交 `a207171c4a62353610688e025fbcbbf92970a884`，包含已完成的 UI、密码、监测和导航修复。样本由 Go 原函数生成，而非手写 Rust 预期值。
 
-```sh
-bash scripts/export-go-fixtures.sh /path/to/quectel-rgmii-toolkit-Go
-cargo test --locked
-```
-
-脚本在临时 Linux 目录复制 Go 源码，在短信解析入口加入测试采样，运行原短信测试及样本导出，不改动输入仓库。脚本与 Go 导出器均保存在本仓库。
+样本已固定保存在 `tests/fixtures/`，Rust 测试直接读取 JSON，不执行 Go。迁移阶段使用的 Go 导出器和双后端设备比较脚本已移除；需要追溯样本生成过程时可查看 Git 历史。保留文件中的来源命名，以便核对历史验证记录。
 
 ## 打包
 
