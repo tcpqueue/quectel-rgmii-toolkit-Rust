@@ -725,6 +725,7 @@ impl Forwarder {
     ) -> std::result::Result<(), (String, bool)> {
         if self.client.get().is_none() {
             let client = reqwest::Client::builder()
+                .dns_resolver(Arc::new(crate::resolver::HttpResolver::default()))
                 .connect_timeout(Duration::from_secs(5))
                 .timeout(Duration::from_secs(15))
                 .redirect(reqwest::redirect::Policy::none())
