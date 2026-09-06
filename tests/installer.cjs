@@ -65,6 +65,13 @@ function run(dir, script) {
 }
 function check(name, fn) { fn(); passed++; console.log(`PASS ${name}`); }
 function status(result, expected) { assert.equal(result.status,expected,result.stdout+'\n'+result.stderr); }
+function portDefinitions(dir) {
+  const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
+  return script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1'))
+    .replace('. /usrdata/simpleadmin/runtime_processes.sh','')
+    .replace('. /usrdata/simpleadmin/web_port.sh',`. "${root}/development/simpleadmin/web_port.sh"`)
+    .replace('$(simpleadmin_read_http_port)',`$(simpleadmin_read_http_port "${dir}/installed/http_port")`);
+}
 
 (async()=>{
   let server;
@@ -76,6 +83,55 @@ function status(result, expected) { assert.equal(result.status,expected,result.s
       assert.equal(fs.readFileSync(path.join(dir,'installed/forwarding.json'),'utf8'),'{"fixture":true}\n');
       assert.equal(fs.readFileSync(path.join(dir,'trace'),'utf8'),'-o remount,rw /\nSTOP\nSTART\n-o remount,ro /\n');
       assert(!fs.existsSync(path.join(dir,'installed/bridge0_mac')),'default install must not change MAC');
+      assert.equal(fs.readFileSync(path.join(dir,'installed/http_port'),'utf8'),'80\n');
+    });
+    check('custom port is persisted, preserved by upgrade, and can be changed',()=>{
+      const dir=fixture('custom-port');
+      status(run(dir,'SIMPLEADMIN_HTTP_PORT=18089; main'),0);
+      const file=path.join(dir,'installed/http_port');
+      assert.equal(fs.readFileSync(file,'utf8'),'18089\n');
+      const before=fs.statSync(file).mtimeMs;
+      status(run(dir,'main'),0);
+      assert.equal(fs.readFileSync(file,'utf8'),'18089\n');
+      assert.equal(fs.statSync(file).mtimeMs,before,'unchanged port must not be rewritten');
+      status(run(dir,'SIMPLEADMIN_HTTP_PORT=18090; main'),0);
+      assert.equal(fs.readFileSync(file,'utf8'),'18090\n');
+    });
+    check('invalid ports fail before remount and service stop',()=>{
+      for(const [i,port] of ['', '0','65536','-1','abc','080','80;touch /tmp/injected','999999999999999999'].entries()) {
+        const dir=fixture('invalid-port-'+i);
+        status(run(dir,`SIMPLEADMIN_HTTP_PORT='${port}'; main`),1);
+        assert(!fs.existsSync(path.join(dir,'trace')));
+      }
+    });
+    check('invalid saved port fails safely and can be repaired explicitly',()=>{
+      const dir=fixture('invalid-saved-port');
+      fs.writeFileSync(path.join(dir,'installed/http_port'),'invalid\n');
+      status(run(dir,'main'),1);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+      status(run(dir,'SIMPLEADMIN_HTTP_PORT=18091; main'),0);
+    });
+    check('port reader supports boundaries and never evaluates shell content',()=>{
+      const file=path.join(scratch,'port-data');
+      for(const port of ['1','65535','$(echo 8080)','80\n8080']) {
+        fs.writeFileSync(file,port);
+        const result=spawnSync('sh',['-c',`. "${root}/development/simpleadmin/web_port.sh"; simpleadmin_read_http_port "${file}"`],{encoding:'utf8'});
+        status(result,['1','65535'].includes(port)?0:1);
+      }
+    });
+    check('service launcher reads the saved port on each start',()=>{
+      const dir=fixture('launcher-port');
+      const installed=path.join(dir,'installed');
+      const helper=fs.readFileSync(path.join(root,'development/simpleadmin/web_port.sh'),'utf8').replaceAll('/usrdata/simpleadmin',installed);
+      fs.writeFileSync(path.join(installed,'web_port.sh'),helper);
+      fs.writeFileSync(path.join(installed,'simpleadmin-httpd'),'#!/bin/sh\nprintf "%s\\n" "$@" > "'+dir+'/args"\n',{mode:0o755});
+      const launcher=fs.readFileSync(path.join(root,'development/simpleadmin/run_simpleadmin.sh'),'utf8')
+        .replaceAll('/usrdata/simpleadmin',installed).replace('/tmp/simpleadmin-startup.log',path.join(dir,'startup.log'));
+      for(const port of ['8080','65535']) {
+        fs.writeFileSync(path.join(installed,'http_port'),port+'\n');
+        status(spawnSync('sh',['-c',launcher],{encoding:'utf8'}),0);
+        assert(fs.readFileSync(path.join(dir,'args'),'utf8').includes('-http\n:'+port+'\n-no-tls\n'));
+      }
     });
     check('missing or corrupt web files fail before stopping the old service',()=>{
       for(const mode of ['missing','corrupt']) {
@@ -111,8 +167,7 @@ function status(result, expected) { assert.equal(result.status,expected,result.s
     });
     check('systemd and fallback share firewall setup; insertion failure is not swallowed',()=>{
       const dir=fixture('firewall'); status(run(dir,'install_fallback_scripts'),0);
-      const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
-      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1')).replace('. /usrdata/simpleadmin/runtime_processes.sh','');
+      const definitions=portDefinitions(dir);
       for(const ok of [true,false]) {
         const result=spawnSync('sh',['-c',definitions+`\niptables() { echo "$*"; case "$1" in -C) return 1;; -I) return ${ok?0:1};; esac; }; open_web_port`],{encoding:'utf8'});
         status(result,ok?0:1);
@@ -121,9 +176,29 @@ function status(result, expected) { assert.equal(result.status,expected,result.s
     });
     check('occupied socket cannot be mistaken for free when PID lookup fails',()=>{
       const dir=fixture('occupied'); status(run(dir,'install_fallback_scripts'),0);
-      const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
-      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1')).replace('. /usrdata/simpleadmin/runtime_processes.sh','');
-      status(spawnSync('sh',['-c',definitions+'\nport80_listener_inodes() { echo 123; }; port80_owner_pids() { :; }; stop_known_web_conflicts() { :; }; sleep() { :; }; wait_for_port80_free'],{encoding:'utf8'}),1);
+      const definitions=portDefinitions(dir);
+      status(spawnSync('sh',['-c',definitions+'\nweb_listener_inodes() { echo 123; }; web_owner_pids() { :; }; stop_known_web_conflicts() { :; }; sleep() { :; }; wait_for_web_port_free'],{encoding:'utf8'}),1);
+    });
+    check('custom port preserves existing cellular HTTP blocking ahead of ACCEPT',()=>{
+      const dir=fixture('cellular-firewall'); status(run(dir,'install_fallback_scripts'),0);
+      fs.writeFileSync(path.join(dir,'installed/http_port'),'8080\n');
+      fs.mkdirSync(path.join(dir,'rmnet_data0'));
+      const definitions=portDefinitions(dir).replace('/sys/class/net/rmnet*',dir+'/rmnet*');
+      const trace=path.join(dir,'firewall-trace');
+      for(const blocked of [true,false]) {
+        fs.writeFileSync(trace,'');
+        const result=spawnSync('sh',['-c',definitions+`\niptables() {
+          echo "$*" >> "${trace}"
+          case "$*" in
+            '-C INPUT -i rmnet_data0 -p tcp --dport 80 -j DROP') return ${blocked?0:1} ;;
+            -C*) return 1 ;;
+          esac
+        }; open_web_port`],{encoding:'utf8'});
+        status(result,0);
+        const calls=fs.readFileSync(trace,'utf8');
+        assert.equal(calls.includes('-I INPUT 1 -i rmnet_data0 -p tcp --dport 8080 -j DROP'),blocked);
+        if(blocked) assert(calls.indexOf('-j ACCEPT')<calls.lastIndexOf('-I INPUT 1 -i rmnet_data0'),'cellular DROP must end up before general ACCEPT');
+      }
     });
     check('process cleanup rejects stale PIDs, adbd and command substring matches',()=>{
       const dir=fixture('process-identity');
@@ -166,6 +241,21 @@ restart_services
       res.end(mode==='wrong-app'?'factory web':pages[req.url]||'missing');
     });
     await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+    check('occupied custom port preserves the running installation',()=>{
+      const dir=fixture('occupied-custom');
+      const result=run(dir,`SIMPLEADMIN_HTTP_PORT=${server.address().port}; main`);
+      status(result,1);
+      assert.match(result.stderr,/已被占用/);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+    });
+    check('startup preparation reads custom port for firewall and live sockets',()=>{
+      const dir=fixture('custom-firewall'); status(run(dir,'install_fallback_scripts'),0);
+      fs.writeFileSync(path.join(dir,'installed/http_port'),String(server.address().port)+'\n');
+      const result=spawnSync('sh',['-c',portDefinitions(dir)+'\niptables() { echo "$*"; [ "$1" != -C ]; }; open_web_port; web_listener_inodes'],{encoding:'utf8'});
+      status(result,0);
+      assert(result.stdout.includes(`--dport ${server.address().port}`));
+      assert.match(result.stdout,/\n[0-9]+\n/,'custom port socket must be detected');
+    });
     for(const item of ['ok','404','wrong-app','missing-js','wrong-redirect','timeout']) {
       mode=item;
       const result=await new Promise(resolve=>{

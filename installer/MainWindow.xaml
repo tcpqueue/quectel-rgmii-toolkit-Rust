@@ -97,6 +97,11 @@
           <StackPanel Margin="0,0,16,0"><TextBlock Text="安装或升级" FontSize="17" FontWeight="SemiBold"/>
             <TextBlock Text="安装完整程序与网页，升级保留有效配置和密码。" Foreground="#69788D" TextWrapping="Wrap" Margin="0,7,0,0"/>
             <TextBlock Text="首次安装默认账号密码：admin / admin" FontSize="12" Foreground="#8592A5" Margin="0,9,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+              <CheckBox x:Name="ChangeHttpPort" Content="修改 HTTP 端口" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <TextBox x:Name="HttpPort" Text="80" Width="82" Padding="9,6" MaxLength="5" VerticalContentAlignment="Center" BorderBrush="#DCE3EE" Background="#F8FAFD" AutomationProperties.Name="HTTP 服务端口"/>
+            </StackPanel>
+            <TextBlock Text="不勾选：首次使用 80，升级保留原端口。可填 1–65535。" TextWrapping="Wrap" FontSize="12" Foreground="#69788D" Margin="0,8,0,0"/>
           </StackPanel>
           <Button x:Name="Install" Grid.Column="1" Content="安装 / 升级" Background="#2563EB" BorderBrush="#2563EB" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="120"/>
         </Grid>
