@@ -74,7 +74,18 @@
     const latest = snapshot.signal[snapshot.signal.length - 1];
     return latest ? ['NR', 'LTE'].filter(radio => ['rsrp', 'sinr'].some(key => latest[key + radio] !== null && latest[key + radio] !== undefined && Number.isFinite(latest[key + radio]))) : [];
   }
-  global.SimpleAdminMonitor = { chartOptions, number, statusNames, availableRadioModes };
+  function mergeSnapshot(previous, data) {
+    if (!data.delta || !previous.cursor || previous.cursor.stream !== data.cursor.stream || previous.generation !== data.generation) return data;
+    const result = { ...data };
+    for (const [key, limit] of [['ping', 300], ['signal', 60], ['traffic', 60]]) {
+      const points = new Map(previous[key].map(point => [point.time, point]));
+      for (const point of data[key]) points.set(point.time, point);
+      result[key] = [...points.values()].filter(point => point.time > data.serverTime - 300000).sort((a, b) => a.time - b.time).slice(-limit);
+    }
+    if (result.ping.length) result.ping[0] = { ...result.ping[0], jitter: null };
+    return result;
+  }
+  global.SimpleAdminMonitor = { chartOptions, number, statusNames, availableRadioModes, mergeSnapshot };
 
   let mounted = false;
   function mount() {
@@ -85,6 +96,7 @@
     mounted = true;
     global.removeEventListener('simpleadmin:vue-mounted', mount);
     const charts = {};
+    const rendered = {};
     let timer = null;
     let controller = null;
     let fetching = false;
@@ -96,21 +108,25 @@
       const style = getComputedStyle(document.documentElement);
       return Object.fromEntries(['muted', 'border', 'text', 'surface'].map(key => [key, style.getPropertyValue('--sa-' + key).trim()]));
     };
-    const render = () => {
+    const render = (force = true) => {
       if (!active()) return;
       const options = chartOptions(app.snapshot, app.radio, colors(), document.getElementById('trafficChart').clientWidth < 600);
       for (const key of ['signal', 'temperature', 'ping', 'traffic']) {
+        const samples = app.snapshot[key === 'temperature' ? 'signal' : key];
+        const stamp = (app.snapshot.cursor ? app.snapshot.cursor.stream : '') + ':' + app.snapshot.generation + ':' + app.radio + ':' + samples.length + ':' + (samples.length ? samples[samples.length - 1].time : 0);
+        if (!force && rendered[key] === stamp) continue;
+        rendered[key] = stamp;
         if (!charts[key]) charts[key] = global.SimpleAdminCharts.init(document.getElementById(key + 'Chart'));
-        charts[key].resize();
+        if (force) charts[key].resize();
         charts[key].setOption(options[key], { notMerge: true });
       }
     };
     const update = data => {
-      app.snapshot = data;
+      app.snapshot = mergeSnapshot(app.snapshot, data);
       if (!app.targetDirty) app.targetInput = data.target;
-      const radios = availableRadioModes(data);
+      const radios = availableRadioModes(app.snapshot);
       if (radios.length && !radios.includes(app.radio)) app.radio = radios[0];
-      app.$nextTick(render);
+      app.$nextTick(() => render(false));
     };
     app = global.Vue.createApp({
       data: () => ({ snapshot: { target: 'www.baidu.com', generation: 0, serverTime: Date.now(), ping: [], signal: [], traffic: [], trafficSummary: {}, summary: {}, mock: false }, radio: 'NR', targetInput: 'www.baidu.com', targetDirty: false, targetMessage: '', saving: false, error: '' }),
@@ -143,7 +159,8 @@
           const epoch = requestEpoch;
           const deadline = setTimeout(() => controller && controller.abort(), 5000);
           try {
-            const response = await fetch('/api/telemetry', { cache: 'no-store', signal: controller.signal });
+            const cursor = this.snapshot.cursor ? '?cursor=' + encodeURIComponent(JSON.stringify(this.snapshot.cursor)) : '';
+            const response = await fetch('/api/telemetry' + cursor, { cache: 'no-store', signal: controller.signal });
             if (response.status === 401) { stop(); global.location.replace('/login.html'); return; }
             if (!response.ok) throw new Error('monitor request failed');
             const data = await response.json();

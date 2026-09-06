@@ -45,6 +45,7 @@ struct Request {
     reply: oneshot::Sender<Result<String>>,
 }
 struct Entry {
+    requested: Instant,
     updated: Option<Instant>,
     response: Arc<str>,
     running: Option<tokio::sync::watch::Receiver<bool>>,
@@ -210,6 +211,9 @@ impl At {
         let delayed = self.ready > Instant::now() && !policy::immediate(command);
         let (mut completion, old) = {
             let mut cache = self.cache.lock().unwrap();
+            if wait && let Some(entry) = cache.get_mut(command) {
+                entry.requested = Instant::now();
+            }
             if let Some(entry) = cache.get(command)
                 && !force
                 && entry
@@ -231,6 +235,7 @@ impl At {
                 cache.insert(
                     command.into(),
                     Entry {
+                        requested: Instant::now(),
                         updated: None,
                         response: Arc::from(policy::PENDING),
                         running: None,
@@ -325,6 +330,7 @@ impl At {
                     .iter()
                     .filter(|(c, e)| {
                         c.as_str() != DASHBOARD
+                            && e.requested.elapsed() < Duration::from_secs(120)
                             && !policy::immediate(c)
                             && !policy::sms(c)
                             && e.running.is_none()
@@ -575,6 +581,18 @@ fn global_lock() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn background_refresh_does_not_extend_page_interest() {
+        let at = At::start(true, vec![]).unwrap();
+        let command = "AT+CGMM";
+        at.fetch(command, false).await.unwrap();
+        let old = Instant::now() - Duration::from_secs(121);
+        at.cache.lock().unwrap().get_mut(command).unwrap().requested = old;
+        at.fetch_wait(command, false, false).await.unwrap();
+        assert_eq!(at.cache.lock().unwrap()[command].requested, old);
+        at.fetch(command, false).await.unwrap();
+        assert!(at.cache.lock().unwrap()[command].requested.elapsed() < Duration::from_secs(1));
+    }
     #[test]
     fn only_known_queries_are_refreshed_and_cache_bytes_are_bounded() {
         assert!(cacheable(DASHBOARD));
@@ -588,6 +606,7 @@ mod tests {
             cache.insert(
                 i.to_string(),
                 Entry {
+                    requested: Instant::now(),
                     updated: Some(Instant::now()),
                     response: Arc::from("x".repeat(512 * 1024)),
                     running: None,

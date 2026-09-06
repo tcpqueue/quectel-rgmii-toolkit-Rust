@@ -128,11 +128,20 @@ struct History {
     ip: String,
 }
 pub struct Monitor {
+    stream: String,
     history: Mutex<History>,
     mock: bool,
     path: PathBuf,
     store: Arc<Store>,
     change: tokio::sync::Mutex<()>,
+}
+#[derive(serde::Deserialize)]
+pub struct Cursor {
+    stream: String,
+    generation: u64,
+    ping: u64,
+    signal: u64,
+    traffic: u64,
 }
 pub fn now() -> u64 {
     std::time::SystemTime::now()
@@ -179,6 +188,7 @@ impl Monitor {
             .and_then(|v| normalize(v["target"].as_str().unwrap_or("")).ok())
             .unwrap_or_else(|| "www.baidu.com".into());
         Arc::new(Self {
+            stream: format!("{:016x}", rand::random::<u64>()),
             history: Mutex::new(History {
                 target,
                 generation: 0,
@@ -251,7 +261,7 @@ impl Monitor {
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            let mut cached: Option<(String, IpAddr, Instant)> = None;
+            let mut resolver = crate::resolver::PingResolver::default();
             let mut client4 = None;
             let mut client6 = None;
             let mut seq = 0u16;
@@ -278,42 +288,8 @@ impl Monitor {
                     sample.status = 0;
                     ip = "192.0.2.1".into();
                 } else {
-                    let address = if let Some((name, ip, until)) = &cached {
-                        if name == &target && *until > Instant::now() {
-                            Some(*ip)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
                     let deadline = tokio::time::Instant::now() + Duration::from_millis(900);
-                    let address = match address {
-                        Some(ip) => Some(ip),
-                        None => {
-                            match tokio::time::timeout_at(
-                                deadline,
-                                tokio::net::lookup_host((target.as_str(), 0)),
-                            )
-                            .await
-                            {
-                                Ok(Ok(addrs)) => {
-                                    let mut addresses = addrs.map(|a| a.ip());
-                                    let first = addresses.next();
-                                    let chosen = addresses.find(IpAddr::is_ipv4).or(first);
-                                    if let Some(ip) = chosen {
-                                        cached = Some((
-                                            target.clone(),
-                                            ip,
-                                            Instant::now() + Duration::from_secs(60),
-                                        ))
-                                    }
-                                    chosen
-                                }
-                                _ => None,
-                            }
-                        }
-                    };
+                    let address = resolver.resolve(&target, deadline).await;
                     if let Some(address) = address {
                         ip = address.to_string();
                         let slot = if address.is_ipv4() {
@@ -418,10 +394,27 @@ impl Monitor {
         Ok(())
     }
     pub fn snapshot(&self) -> Value {
+        self.snapshot_since(None)
+    }
+    pub fn snapshot_since(&self, cursor: Option<&Cursor>) -> Value {
         let time = now();
         let cutoff = time.saturating_sub(300000);
         let h = self.history.lock().unwrap();
+        let ends = (
+            h.ping.last().map_or(0, |p| p.time),
+            h.signal.last().map_or(0, |p| p.time),
+            h.traffic.last().map_or(0, |p| p.time),
+        );
+        let cursor = cursor.filter(|c| {
+            c.stream == self.stream
+                && c.generation == h.generation
+                && c.ping <= ends.0
+                && c.signal <= ends.1
+                && c.traffic <= ends.2
+        });
+        let after = cursor.map_or((0, 0, 0), |c| (c.ping, c.signal, c.traffic));
         let mut ping = Vec::new();
+        let mut first = true;
         let (mut sent, mut received, mut errors, mut sum, mut jitter, mut count) =
             (0, 0, 0, 0.0, 0.0, 0);
         let (mut min, mut max) = (f64::INFINITY, 0.0f64);
@@ -439,11 +432,8 @@ impl Monitor {
                 max = max.max(rtt)
             }
             // The first visible point has no adjacent packet inside this window.
-            let point_jitter = if ping.is_empty() {
-                None
-            } else {
-                metric(p.jitter)
-            };
+            let point_jitter = if first { None } else { metric(p.jitter) };
+            first = false;
             if let Some(v) = point_jitter {
                 jitter += v;
                 count += 1
@@ -454,22 +444,24 @@ impl Monitor {
                 2 => "unavailable",
                 _ => "dns_error",
             };
-            let value = json!({"time":p.time,"rtt":metric(p.rtt),"jitter":point_jitter,"sent":sent_packet,"status":status});
-            ping.push(value);
+            if p.time > after.0 {
+                let value = json!({"time":p.time,"rtt":metric(p.rtt),"jitter":point_jitter,"sent":sent_packet,"status":status});
+                ping.push(value);
+            }
         }
         if !h.ip.is_empty()
             && let Some(last) = ping.last_mut()
         {
             last["ip"] = json!(h.ip);
         }
-        let signal:Vec<_>=h.signal.iter().filter(|p|p.time>cutoff).map(|p|{
+        let signal:Vec<_>=h.signal.iter().filter(|p|p.time>cutoff && p.time>after.1).map(|p|{
             let mut value=json!({"time":p.time,"status":if p.values.iter().any(|v|*v!=i16::MIN){"ok"}else{"unavailable"}});
             for(i,key)in ["rsrpLTE","rsrpNR","sinrLTE","sinrNR","temperature"].iter().enumerate(){value[key]=json!((p.values[i]!=i16::MIN).then_some(p.values[i]as f64/10.0))}value
         }).collect();
         let traffic: Vec<_> = h
             .traffic
             .iter()
-            .filter(|p| p.time > cutoff)
+            .filter(|p| p.time > cutoff && p.time > after.2)
             .map(|p| {
                 let (download, upload) = p.rates();
                 json!({"time":p.time,"download":download,"upload":upload})
@@ -487,7 +479,7 @@ impl Monitor {
         let total = received_bytes as f64 + sent_bytes as f64;
         let download_share = (total > 0.0).then(|| round(100.0 * received_bytes as f64 / total));
         let traffic_summary = json!({"downloadBytes":received_bytes,"uploadBytes":sent_bytes,"downloadShare":download_share,"uploadShare":download_share.map(|p|round(100.0-p))});
-        json!({"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"traffic":traffic,"trafficSummary":traffic_summary,"summary":{
+        json!({"delta":cursor.is_some(),"cursor":{"stream":self.stream,"generation":h.generation,"ping":ends.0,"signal":ends.1,"traffic":ends.2},"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"traffic":traffic,"trafficSummary":traffic_summary,"summary":{
             "sent":sent,"received":received,"errors":errors,"loss":(sent>0).then(||round(100.0*(sent-received)as f64/sent as f64)),
             "average":(received>0).then(||round(sum/received as f64)),"minimum":(received>0).then_some(min),"maximum":(received>0).then_some(max),"jitter":(count>0).then(||round(jitter/count as f64))
         }})
@@ -496,6 +488,67 @@ impl Monitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn delta_cursor_preserves_late_samples_and_full_window_statistics() {
+        let dir = tempfile::tempdir().unwrap();
+        let monitor = Monitor::new(
+            dir.path().join("monitor.json"),
+            true,
+            Arc::new(Store::new(true)),
+        );
+        let base = now() - 300000;
+        {
+            let mut h = monitor.history.lock().unwrap();
+            for n in 1..=299 {
+                h.ping.add(Ping {
+                    time: base + n * 1000,
+                    rtt: 100 + n as u16,
+                    jitter: 1,
+                    status: 0,
+                });
+            }
+            h.signal.add(Signal {
+                time: base,
+                values: [1; 5],
+            });
+        }
+        let full = monitor.snapshot();
+        let cursor: Cursor = serde_json::from_value(full["cursor"].clone()).unwrap();
+        let empty = monitor.snapshot_since(Some(&cursor));
+        assert!(empty["ping"].as_array().unwrap().is_empty());
+        assert_eq!(empty["summary"], full["summary"]);
+        {
+            let mut h = monitor.history.lock().unwrap();
+            // Delayed signal completion predates the prior response's serverTime.
+            h.signal.add(Signal {
+                time: base + 5000,
+                values: [2; 5],
+            });
+            h.ping.add(Ping {
+                time: base + 300000,
+                rtt: 115,
+                jitter: 5,
+                status: 0,
+            });
+        }
+        let delta = monitor.snapshot_since(Some(&cursor));
+        assert_eq!(delta["ping"].as_array().unwrap().len(), 1);
+        assert_eq!(delta["signal"].as_array().unwrap().len(), 1);
+        assert_eq!(delta["summary"], monitor.snapshot()["summary"]);
+        assert_eq!(delta["delta"], true);
+        let full_bytes = monitor.snapshot().to_string().len();
+        let delta_bytes = delta.to_string().len();
+        assert!(delta_bytes * 10 < full_bytes);
+        println!("telemetry fixture: full={full_bytes} bytes, delta={delta_bytes} bytes");
+        let foreign = Cursor {
+            stream: "other-process".into(),
+            ..cursor
+        };
+        assert_eq!(monitor.snapshot_since(Some(&foreign))["delta"], false);
+        let cursor: Cursor = serde_json::from_value(delta["cursor"].clone()).unwrap();
+        monitor.history.lock().unwrap().generation += 1;
+        assert_eq!(monitor.snapshot_since(Some(&cursor))["delta"], false);
+    }
     #[test]
     fn traffic_ignores_duplicate_samples_and_preserves_real_zero() {
         let start = Instant::now();

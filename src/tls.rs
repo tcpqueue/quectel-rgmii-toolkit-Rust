@@ -86,9 +86,9 @@ pub async fn serve(app: Arc<App>) -> Result<()> {
                 ))
             }
         });
-        let _ = axum::serve(redirect, router).await;
+        let _ = crate::http::serve(redirect, router).await;
     });
-    let permits = Arc::new(tokio::sync::Semaphore::new(64));
+    let permits = Arc::new(tokio::sync::Semaphore::new(32));
     loop {
         let (stream, _) = listener.accept().await?;
         let Ok(permit) = permits.clone().try_acquire_owned() else {
@@ -104,11 +104,10 @@ pub async fn serve(app: Arc<App>) -> Result<()> {
             {
                 let io = hyper_util::rt::TokioIo::new(stream);
                 let service = hyper_util::service::TowerToHyperService::new(router);
-                let _ = hyper_util::server::conn::auto::Builder::new(
-                    hyper_util::rt::TokioExecutor::new(),
-                )
-                .serve_connection_with_upgrades(io, service)
-                .await;
+                let _ = crate::http::builder()
+                    .serve_connection(io, service)
+                    .with_upgrades()
+                    .await;
             }
         });
     }

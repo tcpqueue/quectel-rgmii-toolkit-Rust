@@ -14,7 +14,7 @@ function fetchSMS() {
         const response=await SimpleAdmin.Api.request('/api/forwarding');const data=await response.json();
         if (!response.ok) throw new Error(data.error || '读取设置失败');
         this.smsEnabled=data.sms_enabled;this.deleteAfterDay=data.delete_after_day;this.pendingDeletes=data.cleanup.pending;this.smsSettingsLoaded=true;
-        if (data.cleanup.error) this.smsSettingsMessage=data.cleanup.error;
+        this.smsSettingsMessage=data.cleanup.clock_paused ? SimpleAdmin.Lang.t('系统时间异常，自动删除已延后') : (data.cleanup.error || '');
         if (this.smsEnabled) {await this.requestSMS({force:true});this.startSMSAutoRefresh();} else {this.stopSMSAutoRefresh();this.clearData();}
       } catch(error) {this.smsSettingsMessage=error.message;} finally {this.smsSettingsLoading=false;}
     },
