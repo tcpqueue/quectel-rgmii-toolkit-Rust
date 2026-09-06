@@ -112,7 +112,7 @@ function status(result, expected) { assert.equal(result.status,expected,result.s
     check('systemd and fallback share firewall setup; insertion failure is not swallowed',()=>{
       const dir=fixture('firewall'); status(run(dir,'install_fallback_scripts'),0);
       const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
-      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1'));
+      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1')).replace('. /usrdata/simpleadmin/runtime_processes.sh','');
       for(const ok of [true,false]) {
         const result=spawnSync('sh',['-c',definitions+`\niptables() { echo "$*"; case "$1" in -C) return 1;; -I) return ${ok?0:1};; esac; }; open_web_port`],{encoding:'utf8'});
         status(result,ok?0:1);
@@ -122,8 +122,19 @@ function status(result, expected) { assert.equal(result.status,expected,result.s
     check('occupied socket cannot be mistaken for free when PID lookup fails',()=>{
       const dir=fixture('occupied'); status(run(dir,'install_fallback_scripts'),0);
       const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
-      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1'));
+      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1')).replace('. /usrdata/simpleadmin/runtime_processes.sh','');
       status(spawnSync('sh',['-c',definitions+'\nport80_listener_inodes() { echo 123; }; port80_owner_pids() { :; }; stop_known_web_conflicts() { :; }; sleep() { :; }; wait_for_port80_free'],{encoding:'utf8'}),1);
+    });
+    check('process cleanup rejects stale PIDs, adbd and command substring matches',()=>{
+      const dir=fixture('process-identity');
+      const proc=path.join(dir,'proc'); fs.mkdirSync(proc);
+      const entries=[['11','/sbin/adbd','adbd'],['12','/bin/sh','sh -c cat /dev/ttyIN'],['13','/usr/bin/awk','awk cat /dev/ttyIN'],['14','/usrdata/simpleadmin/simpleadmin-httpd','simpleadmin-httpd']];
+      for(const [pid,exe,args] of entries){fs.mkdirSync(path.join(proc,pid));fs.symlinkSync(exe,path.join(proc,pid,'exe'));fs.writeFileSync(path.join(proc,pid,'cmdline'),args.replaceAll(' ','\0'));}
+      const helper=fs.readFileSync(path.join(root,'development/simpleadmin/runtime_processes.sh'),'utf8').replaceAll('/proc/',proc+'/');
+      for(const pid of ['0','1','-1','11','12','13','9999']) {
+        status(spawnSync('sh',['-c',helper+'\nruntime_kind '+pid],{encoding:'utf8'}),1);
+      }
+      const result=spawnSync('sh',['-c',helper+'\nruntime_kind 14'],{encoding:'utf8'});status(result,0);assert.equal(result.stdout.trim(),'server');
     });
     for(const mode of ['healthy','unhealthy','no-autostart']) {
       check(`service readiness ${mode}`,()=>{

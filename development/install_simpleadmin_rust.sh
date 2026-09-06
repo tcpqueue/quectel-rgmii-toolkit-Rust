@@ -226,49 +226,19 @@ EOF
     chmod 0644 "$AT_DEVICES_FILE"
 }
 
-cleanup_legacy_at_bridges() {
-    ps 2>/dev/null | awk '
-        $0 ~ "cat /dev/ttyIN" { print $1 }
-        $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-        $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-    ' | while read pid; do
-        case "$pid" in
-            ""|*[!0-9]*) continue ;;
-        esac
-        kill "$pid" >/dev/null 2>&1 || true
-        sleep 1
-        kill -9 "$pid" >/dev/null 2>&1 || true
-    done
-    rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-}
-
 stop_existing_simpleadmin_runtime() {
-    local pid=""
-
     log "正在停止旧的 SimpleAdmin 运行实例"
+    log "正在请求 systemd 停止应用服务"
     systemctl stop "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
+    log "正在停用旧服务自启动"
     systemctl disable "$SYSTEMD_UNIT" >/dev/null 2>&1 || true
-
-    if [ -x "$FALLBACK_STOP_SCRIPT" ]; then
-        "$FALLBACK_STOP_SCRIPT" >/dev/null 2>&1 || true
-    fi
-
-    if [ -f "$FALLBACK_PID_FILE" ]; then
-        pid="$(cat "$FALLBACK_PID_FILE" 2>/dev/null || true)"
-        case "$pid" in
-            ""|*[!0-9]*) ;;
-            *) kill "$pid" >/dev/null 2>&1 || true ;;
-        esac
-        rm -f "$FALLBACK_PID_FILE"
-    fi
-
-    killall simpleadmin-httpd >/dev/null 2>&1 || true
-    sleep 1
-    if pidof simpleadmin-httpd >/dev/null 2>&1 || ps 2>/dev/null | grep '[s]impleadmin-httpd' >/dev/null 2>&1; then
-        killall -9 simpleadmin-httpd >/dev/null 2>&1 || true
-        sleep 1
-    fi
+    # Never execute an old stop script or trust its stale PID file.
+    . "$SIMPLEADMIN_SRC/runtime_processes.sh"
+    log "正在按可执行文件路径核对残留进程"
+    stop_runtime_kind server
     cleanup_legacy_at_bridges
+    rm -f "$FALLBACK_PID_FILE"
+    log "旧应用进程清理完成"
     remove_systemd_unit_files
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl reset-failed >/dev/null 2>&1 || true
@@ -371,8 +341,10 @@ install_simpleadmin_files() {
 }
 
 install_fallback_scripts() {
+    cp -f "$SIMPLEADMIN_SRC/runtime_processes.sh" "$SIMPLEADMIN_DIR/runtime_processes.sh"
     cat > "$PORT_PREPARE_SCRIPT" <<'EOF'
 #!/bin/sh
+. /usrdata/simpleadmin/runtime_processes.sh
 
 open_web_port() {
     if command -v iptables >/dev/null 2>&1; then
@@ -384,330 +356,70 @@ open_web_port() {
 }
 
 port80_listener_inodes() {
-    awk 'NR > 1 && $2 ~ /:0050$/ && $4 == "0A" { print $10 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
+    awk 'FNR > 1 && $2 ~ /:0050$/ && $4 == "0A" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
 }
-
 port80_owner_pids() {
-    local inode fd link pid
     for inode in $(port80_listener_inodes); do
         for fd in /proc/[0-9]*/fd/*; do
-            [ -e "$fd" ] || continue
-            link="$(readlink "$fd" 2>/dev/null || true)"
-            [ "$link" = "socket:[$inode]" ] || continue
-            pid="${fd#/proc/}"
-            pid="${pid%%/*}"
-            echo "$pid"
+            [ "$(readlink "$fd" 2>/dev/null)" = "socket:[$inode]" ] || continue
+            pid="${fd#/proc/}"; echo "${pid%%/*}"
         done
     done | sort -u
 }
-
-cmdline_for_pid() {
-    local pid="$1"
-    if [ -r "/proc/$pid/cmdline" ]; then
-        tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null
-    elif [ -r "/proc/$pid/comm" ]; then
-        cat "/proc/$pid/comm" 2>/dev/null
-    else
-        echo "unknown"
-    fi
-}
-
-is_simpleadmin_related_cmd() {
-    case "$1" in
-        *simpleadmin*|*SimpleAdmin*|*ZBIMS*|*zbims*) return 0 ;;
-    esac
-    return 1
-}
-
-is_factory_lighttpd_cmd() {
-    case "$1" in
-        *"lighttpd"*"/data/lighttpd.conf"*) return 0 ;;
-    esac
-    return 1
-}
-
-stop_pid_soft_then_hard() {
-    local pid="$1"
-    case "$pid" in
-        ""|*[!0-9]*) return 0 ;;
-    esac
-    kill "$pid" >/dev/null 2>&1 || true
-}
-
 stop_known_web_conflicts() {
-    local pid cmd
-
-    for pid in $(pidof lighttpd 2>/dev/null || true); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_factory_lighttpd_cmd "$cmd"; then
-            echo "[信息] 正在停止原厂 lighttpd Web 服务以释放 80 端口: pid=$pid"
-            stop_pid_soft_then_hard "$pid"
-        fi
-    done
-
     for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd" || is_factory_lighttpd_cmd "$cmd"; then
-            stop_pid_soft_then_hard "$pid"
-        fi
-    done
-
-    sleep 1
-
-    for pid in $(pidof lighttpd 2>/dev/null || true); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_factory_lighttpd_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd" || is_factory_lighttpd_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
+        if [ "$(runtime_kind "$pid")" = server ]; then
+            stop_runtime_kind server
+        elif [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = /usr/sbin/lighttpd ] ||
+             [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = /usr/bin/lighttpd ]; then
+            if tr '\000' '\n' < "/proc/$pid/cmdline" | grep -qx /data/lighttpd.conf; then
+                kill "$pid" 2>/dev/null || true
+            fi
         fi
     done
 }
-
 describe_port80_owners() {
-    local pid cmd
     for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        echo "pid=$pid cmd=$cmd"
+        echo "pid=$pid executable=$(readlink "/proc/$pid/exe" 2>/dev/null)"
     done
 }
-
 wait_for_port80_free() {
-    local attempt owners
     for attempt in 1 2 3 4 5; do
-        owners="$(port80_listener_inodes)"
-        [ -z "$owners" ] && return 0
+        [ -z "$(port80_listener_inodes)" ] && return 0
         stop_known_web_conflicts
         sleep 1
     done
-
-    owners="$(port80_listener_inodes)"
-    [ -z "$owners" ] && return 0
-
+    [ -z "$(port80_listener_inodes)" ] && return 0
     echo "[错误] 80 端口仍被占用，SimpleAdmin Rust 无法绑定 :80" >&2
     describe_port80_owners >&2
     return 1
 }
-
 open_web_port || exit 1
 stop_known_web_conflicts
 wait_for_port80_free
 EOF
-
     cat > "$FALLBACK_START_SCRIPT" <<'EOF'
 #!/bin/sh
-SIMPLEADMIN_DIR="/usrdata/simpleadmin"
-PID_FILE="/tmp/simpleadmin-httpd.pid"
-LOG_FILE="/dev/null"
-export SIMPLEADMIN_MANAGE_ROOTFS=1
-BIN="$SIMPLEADMIN_DIR/simpleadmin-httpd"
-PORT_PREPARE_SCRIPT="$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh"
-
-save_runtime_pid() {
-    if [ "$(stat -f -c %T /tmp 2>/dev/null)" = "tmpfs" ]; then
-        printf '%s\n' "$1" > "$PID_FILE"
-    fi
-}
-
-open_simpleadmin_port() {
-    if command -v iptables >/dev/null 2>&1; then
-        iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || iptables -I INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || true
-    fi
-}
-
-cleanup_legacy_at_bridges() {
-    ps 2>/dev/null | awk '
-        $0 ~ "cat /dev/ttyIN" { print $1 }
-        $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-        $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-    ' | while read pid; do
-        case "$pid" in
-            ""|*[!0-9]*) continue ;;
-        esac
-        kill "$pid" >/dev/null 2>&1 || true
-        sleep 1
-        kill -9 "$pid" >/dev/null 2>&1 || true
-    done
-    rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-}
-
-if [ ! -x "$BIN" ]; then
-    echo "[错误] simpleadmin-httpd 缺失或不可执行: $BIN" >&2
-    exit 1
+SIMPLEADMIN_DIR=/usrdata/simpleadmin
+. "$SIMPLEADMIN_DIR/runtime_processes.sh"
+if [ -n "$(runtime_pids server)" ]; then
+    bash "$SIMPLEADMIN_DIR/check_web.sh"
+    exit "$?"
 fi
-
-if [ -f "$PID_FILE" ]; then
-    OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        echo "[OK] simpleadmin-httpd already running: $OLD_PID"
-        exit 0
-    fi
-fi
-
-RUNNING_PID="$(pidof simpleadmin-httpd 2>/dev/null | awk '{print $1}' || true)"
-if [ -z "$RUNNING_PID" ]; then
-    RUNNING_PID="$(ps 2>/dev/null | grep '[s]impleadmin-httpd' | awk '{print $1; exit}' || true)"
-fi
-if [ -n "$RUNNING_PID" ]; then
-    save_runtime_pid "$RUNNING_PID"
-    echo "[OK] simpleadmin-httpd already running: $RUNNING_PID"
-    exit 0
-fi
-
-port80_listener_inodes() {
-    awk 'NR > 1 && $2 ~ /:0050$/ && $4 == "0A" { print $10 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
-}
-
-port80_owner_pids() {
-    local inode fd link pid
-    for inode in $(port80_listener_inodes); do
-        for fd in /proc/[0-9]*/fd/*; do
-            [ -e "$fd" ] || continue
-            link="$(readlink "$fd" 2>/dev/null || true)"
-            [ "$link" = "socket:[$inode]" ] || continue
-            pid="${fd#/proc/}"
-            pid="${pid%%/*}"
-            echo "$pid"
-        done
-    done | sort -u
-}
-
-cmdline_for_pid() {
-    local pid="$1"
-    if [ -r "/proc/$pid/cmdline" ]; then
-        tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null
-    elif [ -r "/proc/$pid/comm" ]; then
-        cat "/proc/$pid/comm" 2>/dev/null
-    else
-        echo "unknown"
-    fi
-}
-
-is_simpleadmin_related_cmd() {
-    case "$1" in
-        *simpleadmin*|*SimpleAdmin*|*ZBIMS*|*zbims*) return 0 ;;
-    esac
-    return 1
-}
-
-stop_simpleadmin_port80_conflicts() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd"; then
-            kill "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-}
-
-force_stop_simpleadmin_port80_conflicts() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        if is_simpleadmin_related_cmd "$cmd"; then
-            kill -9 "$pid" >/dev/null 2>&1 || true
-        fi
-    done
-}
-
-describe_port80_owners() {
-    local pid cmd
-    for pid in $(port80_owner_pids); do
-        cmd="$(cmdline_for_pid "$pid")"
-        echo "pid=$pid cmd=$cmd"
-    done
-}
-
-wait_for_port80_free() {
-    local owners=""
-    local attempt=""
-
-    for attempt in 1 2 3 4 5; do
-        owners="$(port80_owner_pids)"
-        [ -z "$owners" ] && return 0
-        stop_simpleadmin_port80_conflicts
-        sleep 1
-    done
-
-    owners="$(port80_owner_pids)"
-    if [ -n "$owners" ]; then
-        force_stop_simpleadmin_port80_conflicts
-        sleep 1
-    fi
-
-    owners="$(port80_owner_pids)"
-    if [ -z "$owners" ]; then
-        return 0
-    fi
-
-    echo "[错误] 80 端口已被占用，SimpleAdmin Rust 无法绑定 :80" >&2
-    describe_port80_owners >&2
-    return 1
-}
-
-if [ -x "$PORT_PREPARE_SCRIPT" ]; then
-    "$PORT_PREPARE_SCRIPT" || exit 1
-fi
-killall simpleadmin-httpd >/dev/null 2>&1 || true
+"$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh" || exit 1
 cleanup_legacy_at_bridges
-open_simpleadmin_port
-if ! wait_for_port80_free; then
-    exit 1
-fi
-: > "$LOG_FILE"
-nohup "$SIMPLEADMIN_DIR/run_simpleadmin.sh" >> "$LOG_FILE" 2>&1 < /dev/null &
-PID=$!
-save_runtime_pid "$PID"
-sleep 1
-if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-    echo "[OK] simpleadmin-httpd started by nohup: $PID"
-    exit 0
-fi
-
-echo "[错误] simpleadmin-httpd 后台启动失败，可在终端前台运行程序查看错误。" >&2
-exit 1
+nohup "$SIMPLEADMIN_DIR/run_simpleadmin.sh" >/dev/null 2>&1 < /dev/null &
+sleep 2
+bash "$SIMPLEADMIN_DIR/check_web.sh"
 EOF
-
     cat > "$FALLBACK_STOP_SCRIPT" <<'EOF'
 #!/bin/sh
-SIMPLEADMIN_DIR="/usrdata/simpleadmin"
-PID_FILE="/tmp/simpleadmin-httpd.pid"
-
-if [ -f "$PID_FILE" ]; then
-    PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-    if [ -n "$PID" ]; then
-        kill "$PID" >/dev/null 2>&1 || true
-    fi
-    rm -f "$PID_FILE"
-fi
-killall simpleadmin-httpd >/dev/null 2>&1 || true
-sleep 1
-if pidof simpleadmin-httpd >/dev/null 2>&1 || ps 2>/dev/null | grep '[s]impleadmin-httpd' >/dev/null 2>&1; then
-    killall -9 simpleadmin-httpd >/dev/null 2>&1 || true
-    sleep 1
-fi
-ps 2>/dev/null | awk '
-    $0 ~ "cat /dev/ttyIN" { print $1 }
-    $0 ~ "cat /dev/smd11 > /dev/ttyIN" { print $1 }
-    $0 ~ "socat" && ($0 ~ "link=/dev/ttyIN" || $0 ~ "link=/dev/ttyOUT") { print $1 }
-' | while read pid; do
-    case "$pid" in
-        ""|*[!0-9]*) continue ;;
-    esac
-    kill "$pid" >/dev/null 2>&1 || true
-    sleep 1
-    kill -9 "$pid" >/dev/null 2>&1 || true
-done
-rm -f /dev/ttyIN /dev/ttyOUT 2>/dev/null || true
-exit 0
+. /usrdata/simpleadmin/runtime_processes.sh
+stop_runtime_kind server
+cleanup_legacy_at_bridges
+rm -f /tmp/simpleadmin-httpd.pid
 EOF
-
-    chmod +x "$FALLBACK_START_SCRIPT" "$FALLBACK_STOP_SCRIPT" "$PORT_PREPARE_SCRIPT"
+    chmod 755 "$FALLBACK_START_SCRIPT" "$FALLBACK_STOP_SCRIPT" "$PORT_PREPARE_SCRIPT" "$SIMPLEADMIN_DIR/runtime_processes.sh"
 }
 
 install_systemd_unit() {

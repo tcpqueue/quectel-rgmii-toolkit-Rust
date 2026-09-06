@@ -106,6 +106,7 @@ remove_simpleadmin_go_files() {
     rm -f "$SIMPLEADMIN_DIR/start_simpleadmin.sh"
     rm -f "$SIMPLEADMIN_DIR/stop_simpleadmin.sh"
     rm -f "$SIMPLEADMIN_DIR/check_web.sh" "$SIMPLEADMIN_DIR/run_simpleadmin.sh"
+    rm -f "$SIMPLEADMIN_DIR/runtime_processes.sh"
     rm -f "$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh" "$SIMPLEADMIN_DIR/simpleadmin-httpd.new"
     rm -rf "$SIMPLEADMIN_DIR/www.new"
     rm -rf "$SIMPLEADMIN_DIR/www"

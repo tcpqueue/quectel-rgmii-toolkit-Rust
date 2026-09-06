@@ -18,15 +18,20 @@ check_page() (
     deadline=$((SECONDS + 3))
     while IFS= read -r -t 1 line <&3; do
         [ "$SECONDS" -lt "$deadline" ] || exit 1
-        [[ "${line,,}" == $'location: /login.html\r' ]] && location=1
+        case "$line" in [Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:\ /login.html*) location=1 ;; esac
         [ "$line" = $'\r' ] && break
     done
     if [ "$redirect" = 1 ]; then
         [ "$location" = 1 ]
         exit "$?"
     fi
-    IFS= read -r -N 262144 -t 3 body <&3 || true
-    [[ "$body" == *"$marker"* ]]
+    deadline=$((SECONDS + 5))
+    while IFS= read -r -t 2 line <&3 || [ -n "$line" ]; do
+        body="$body$line"
+        [[ "$body" == *"$marker"* ]] && exit 0
+        [ "${#body}" -le 262144 ] && [ "$SECONDS" -lt "$deadline" ] || exit 1
+    done
+    exit 1
 )
 
 for page in '/:SimpleAdminSpaMode' '/login.html:loginLanguage' '/js/locales.js:root.Lang'; do
