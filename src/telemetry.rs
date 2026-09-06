@@ -251,7 +251,7 @@ impl Monitor {
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            let mut cached: Option<(String, IpAddr, Instant)> = None;
+            let mut resolver = crate::resolver::PingResolver::default();
             let mut client4 = None;
             let mut client6 = None;
             let mut seq = 0u16;
@@ -278,42 +278,8 @@ impl Monitor {
                     sample.status = 0;
                     ip = "192.0.2.1".into();
                 } else {
-                    let address = if let Some((name, ip, until)) = &cached {
-                        if name == &target && *until > Instant::now() {
-                            Some(*ip)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
                     let deadline = tokio::time::Instant::now() + Duration::from_millis(900);
-                    let address = match address {
-                        Some(ip) => Some(ip),
-                        None => {
-                            match tokio::time::timeout_at(
-                                deadline,
-                                tokio::net::lookup_host((target.as_str(), 0)),
-                            )
-                            .await
-                            {
-                                Ok(Ok(addrs)) => {
-                                    let mut addresses = addrs.map(|a| a.ip());
-                                    let first = addresses.next();
-                                    let chosen = addresses.find(IpAddr::is_ipv4).or(first);
-                                    if let Some(ip) = chosen {
-                                        cached = Some((
-                                            target.clone(),
-                                            ip,
-                                            Instant::now() + Duration::from_secs(60),
-                                        ))
-                                    }
-                                    chosen
-                                }
-                                _ => None,
-                            }
-                        }
-                    };
+                    let address = resolver.resolve(&target, deadline).await;
                     if let Some(address) = address {
                         ip = address.to_string();
                         let slot = if address.is_ipv4() {

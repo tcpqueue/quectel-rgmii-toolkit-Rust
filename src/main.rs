@@ -8,6 +8,7 @@ mod forwarding;
 mod mock;
 mod parser;
 mod persistence;
+mod resolver;
 mod server;
 mod sms;
 mod system;
