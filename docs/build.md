@@ -68,12 +68,18 @@ cargo test --locked
 
 ## 打包
 
+修改前端或安装运行辅助文件后，先更新安装文件校验清单。构建脚本也会自动执行这一步。
+
 ```sh
+bash scripts/checksums.sh
+node tests/installer.cjs
 bash scripts/package.sh
 unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.0-offline.zip
 ```
 
 安装包包含 ADB、安装/卸载入口、设备程序、离线前端、Windows 预览程序、README、验证记录与校验文件。`packages/`、开发缓存及运行状态不提交到 Git。发布的 ZIP 作为 GitHub Release 附件提供。
+
+Windows 安装入口可通过 `powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1` 验证。它使用临时生成的模拟 ADB 和本机 HTTP 服务，不连接真实模块。Linux 安装测试同样使用隔离目录和模拟系统操作，不执行真实挂载、服务管理或 AT 操作。
 
 ## 设备命令
 

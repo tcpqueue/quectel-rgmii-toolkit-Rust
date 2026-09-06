@@ -1,0 +1,172 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const http = require('node:http');
+const {createHash} = require('node:crypto');
+const {spawn, spawnSync} = require('node:child_process');
+
+const root = path.resolve(__dirname, '..');
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'simpleadmin-installer-'));
+let passed = 0;
+function manifest(dir) {
+  const lines = [];
+  function visit(relative) {
+    for (const entry of fs.readdirSync(path.join(dir, relative), {withFileTypes:true})) {
+      const name = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) visit(name);
+      else lines.push(`${createHash('sha256').update(fs.readFileSync(path.join(dir,name))).digest('hex')}  ${name}`);
+    }
+  }
+  visit('simpleadmin');
+  fs.writeFileSync(path.join(dir, 'SHA256SUMS'), lines.join('\n')+'\n');
+}
+function fixture(name) {
+  const dir = path.join(scratch, name);
+  fs.mkdirSync(dir);
+  fs.cpSync(path.join(root,'development'),path.join(dir,'package'),{recursive:true});
+  fs.writeFileSync(path.join(dir,'package/simpleadmin/simpleadmin-httpd.armv7'),'#!/bin/sh\necho fixture-version\n');
+  manifest(path.join(dir,'package'));
+  fs.mkdirSync(path.join(dir,'installed'));
+  fs.writeFileSync(path.join(dir,'installed/simpleadmin.auth'),'admin:existing-secret\n');
+  fs.writeFileSync(path.join(dir,'installed/forwarding.json'),'{"fixture":true}\n');
+  fs.writeFileSync(path.join(dir,'post_boot'),'#!/bin/sh\n');
+  return dir;
+}
+const setup = `
+source "$1/development/install_simpleadmin_rust.sh"
+ORIGINAL_RESTART="$(declare -f restart_services)"
+PKG_DIR="$2/package"
+SIMPLEADMIN_SRC="$PKG_DIR/simpleadmin"
+SIMPLEADMIN_DIR="$2/installed"
+INSTALL_RESULT_FILE="$2/result"
+REBOOT_MARKER_FILE="$2/reboot"
+TTL_VALUE_FILE="$SIMPLEADMIN_DIR/ttlvalue"
+AT_DEVICES_FILE="$SIMPLEADMIN_DIR/at_devices.conf"
+ROOT_BIN="$2/bin"
+MOBILEAP_HELPER_SRC="$SIMPLEADMIN_SRC/mobileap_bridge0_mac.sh"
+MOBILEAP_HELPER_SCRIPT="$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"
+MOBILEAP_RESULT_FILE="$2/mobileap-result"
+POST_BOOT_FILE="$2/post_boot"
+FALLBACK_START_SCRIPT="$SIMPLEADMIN_DIR/start_simpleadmin.sh"
+FALLBACK_STOP_SCRIPT="$SIMPLEADMIN_DIR/stop_simpleadmin.sh"
+PORT_PREPARE_SCRIPT="$SIMPLEADMIN_DIR/prepare_simpleadmin_ports.sh"
+TRACE="$2/trace"
+id() { echo 0; }
+df() { printf 'Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 999999 0 999999 0%% /usrdata\\n'; }
+mount() { echo "$*" >> "$TRACE"; }
+sync() { :; }
+stop_existing_simpleadmin_runtime() { echo STOP >> "$TRACE"; }
+install_systemd_unit() { SERVICE_UNIT_INSTALLED=1; }
+restart_services() { echo START >> "$TRACE"; }
+`;
+function run(dir, script) {
+  return spawnSync('bash',['-c',setup+'\n'+script,'installer-test',root,dir],{encoding:'utf8',timeout:20000});
+}
+function check(name, fn) { fn(); passed++; console.log(`PASS ${name}`); }
+function status(result, expected) { assert.equal(result.status,expected,result.stdout+'\n'+result.stderr); }
+
+(async()=>{
+  let server;
+  try {
+    check('complete install preserves credentials/settings and restores read-only root',()=>{
+      const dir=fixture('success'); const result=run(dir,'main'); status(result,0);
+      assert.match(fs.readFileSync(path.join(dir,'result'),'utf8'),/INSTALL_STATUS=OK/);
+      assert.equal(fs.readFileSync(path.join(dir,'installed/simpleadmin.auth'),'utf8'),'admin:existing-secret\n');
+      assert.equal(fs.readFileSync(path.join(dir,'installed/forwarding.json'),'utf8'),'{"fixture":true}\n');
+      assert.equal(fs.readFileSync(path.join(dir,'trace'),'utf8'),'-o remount,rw /\nSTOP\nSTART\n-o remount,ro /\n');
+      assert(!fs.existsSync(path.join(dir,'installed/bridge0_mac')),'default install must not change MAC');
+    });
+    check('missing or corrupt web files fail before stopping the old service',()=>{
+      for(const mode of ['missing','corrupt']) {
+        const dir=fixture(mode); const file=path.join(dir,'package/simpleadmin/www/js/simpleadmin-spa.js');
+        if(mode==='missing') fs.unlinkSync(file); else fs.appendFileSync(file,'corruption');
+        status(run(dir,'main'),1);
+        assert(!fs.existsSync(path.join(dir,'trace')));
+        assert.match(fs.readFileSync(path.join(dir,'result'),'utf8'),/INSTALL_STATUS=FAIL/);
+      }
+    });
+    check('unsupported executable fails before writes or service stop',()=>{
+      const dir=fixture('bad-arch');
+      fs.writeFileSync(path.join(dir,'package/simpleadmin/simpleadmin-httpd.armv7'),'#!/bin/sh\nexit 126\n');
+      manifest(path.join(dir,'package')); status(run(dir,'main'),1);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+    });
+    check('insufficient storage fails before service stop',()=>{
+      const dir=fixture('no-space'); status(run(dir,`df() { echo 'fixture 100 99 1 99% /usrdata'; }; main`),1);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+    });
+    check('copy failure preserves old web and restores root read-only',()=>{
+      const dir=fixture('copy-failed'); fs.mkdirSync(path.join(dir,'installed/www'));
+      fs.writeFileSync(path.join(dir,'installed/www/index.html'),'old-web');
+      const result=run(dir,'cp() { case "${*: -1}" in */www.new) return 1;; esac; command cp "$@"; }; main');
+      status(result,1);
+      assert.equal(fs.readFileSync(path.join(dir,'installed/www/index.html'),'utf8'),'old-web');
+      assert.equal(fs.readFileSync(path.join(dir,'trace'),'utf8'),'-o remount,rw /\n-o remount,ro /\n');
+      assert.match(fs.readFileSync(path.join(dir,'result'),'utf8'),/INSTALL_STATUS=FAIL/);
+    });
+    check('non-root ADB fails preflight',()=>{
+      const dir=fixture('non-root'); status(run(dir,'id() { echo 2000; }; main'),1);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+    });
+    check('systemd and fallback share firewall setup; insertion failure is not swallowed',()=>{
+      const dir=fixture('firewall'); status(run(dir,'install_fallback_scripts'),0);
+      const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
+      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1'));
+      for(const ok of [true,false]) {
+        const result=spawnSync('sh',['-c',definitions+`\niptables() { echo "$*"; case "$1" in -C) return 1;; -I) return ${ok?0:1};; esac; }; open_web_port`],{encoding:'utf8'});
+        status(result,ok?0:1);
+        assert.match(result.stdout,/-I INPUT 1 -p tcp --dport 80 -j ACCEPT/);
+      }
+    });
+    check('occupied socket cannot be mistaken for free when PID lookup fails',()=>{
+      const dir=fixture('occupied'); status(run(dir,'install_fallback_scripts'),0);
+      const script=fs.readFileSync(path.join(dir,'installed/prepare_simpleadmin_ports.sh'),'utf8');
+      const definitions=script.slice(0,script.lastIndexOf('\nopen_web_port || exit 1'));
+      status(spawnSync('sh',['-c',definitions+'\nport80_listener_inodes() { echo 123; }; port80_owner_pids() { :; }; stop_known_web_conflicts() { :; }; sleep() { :; }; wait_for_port80_free'],{encoding:'utf8'}),1);
+    });
+    for(const mode of ['healthy','unhealthy','no-autostart']) {
+      check(`service readiness ${mode}`,()=>{
+        const dir=fixture('service-'+mode);
+        const result=run(dir,`
+eval "$ORIGINAL_RESTART"
+SERVICE_UNIT_INSTALLED=1
+systemctl() { echo "systemctl $*" >> "$TRACE"; }
+remove_systemd_unit_files() { echo REMOVE >> "$TRACE"; }
+start_fallback_service() { echo FALLBACK >> "$TRACE"; }
+wait_for_web() { return ${mode==='healthy'?0:1}; }
+${mode==='no-autostart'?'POST_BOOT_FILE="$2/missing-post-boot"':''}
+restart_services
+`);
+        status(result,mode==='healthy'?0:1);
+        const trace=fs.readFileSync(path.join(dir,'trace'),'utf8');
+        assert.equal(trace.includes('FALLBACK'),mode==='unhealthy');
+      });
+    }
+    // Serve only synthetic public files. Never start a modem reader or use ADB.
+    let mode='ok';
+    server=http.createServer((req,res)=>{
+      if(mode==='timeout') return;
+      const pages={'/':'SimpleAdminSpaMode','/login.html':'loginLanguage','/js/locales.js':'root.Lang'};
+      res.statusCode=mode==='404'||(mode==='missing-js'&&req.url.endsWith('.js'))?404:200;
+      if (req.url==='/'&&['ok','missing-js','wrong-redirect'].includes(mode)) {
+        res.statusCode=303; res.setHeader('Location',mode==='wrong-redirect'?'/factory-login':'/login.html');
+      }
+      res.end(mode==='wrong-app'?'factory web':pages[req.url]||'missing');
+    });
+    await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+    for(const item of ['ok','404','wrong-app','missing-js','wrong-redirect','timeout']) {
+      mode=item;
+      const result=await new Promise(resolve=>{
+        const child=spawn('bash',[path.join(root,'development/simpleadmin/check_web.sh')],{timeout:12000,env:{...process.env,SIMPLEADMIN_CHECK_PORT:String(server.address().port)}});
+        let output=''; child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
+        child.on('exit',(code)=>resolve({status:code,stdout:output,stderr:''}));
+      });
+      status(result,item==='ok'?0:1); passed++;console.log(`PASS HTTP ${item}`);
+    }
+    console.log(`${passed} installer checks passed`);
+  } finally {
+    if(server) {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+    fs.rmSync(scratch,{recursive:true,force:true});
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});

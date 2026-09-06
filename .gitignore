@@ -1,6 +1,7 @@
 /target/
 /work/
 /packages/
+/logs/
 *.auth
 *.key
 monitor.json

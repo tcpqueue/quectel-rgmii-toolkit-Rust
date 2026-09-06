@@ -8,7 +8,7 @@ Environment=SIMPLEADMIN_MANAGE_ROOTFS=1
 StandardOutput=null
 StandardError=null
 ExecStartPre=/usrdata/simpleadmin/prepare_simpleadmin_ports.sh
-ExecStart=/usrdata/simpleadmin/simpleadmin-httpd -static /usrdata/simpleadmin/www -auth-file /usrdata/simpleadmin/simpleadmin.auth -http :80 -no-tls -at-devices-file /usrdata/simpleadmin/at_devices.conf
+ExecStart=/usrdata/simpleadmin/run_simpleadmin.sh
 Restart=on-failure
 RestartSec=2
 
