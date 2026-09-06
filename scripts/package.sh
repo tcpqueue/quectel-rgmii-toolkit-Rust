@@ -7,5 +7,5 @@ sha256sum -c SHA256SUMS
 mkdir -p packages
 archive="packages/quectel-rgmii-toolkit-Rust-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)-offline.zip"
 rm -f "$archive"
-zip -qr "$archive" toolkit.bat toolkit.ps1 diagnose.bat uninstall.bat adb.exe AdbWinApi.dll AdbWinUsbApi.dll development windows-test README.md LICENSE SHA256SUMS docs
+zip -qr "$archive" SimpleAdmin-Setup.exe toolkit.bat toolkit-cli.bat toolkit.ps1 diagnose.bat uninstall.bat adb.exe AdbWinApi.dll AdbWinUsbApi.dll development windows-test README.md LICENSE SHA256SUMS docs
 sha256sum "$archive"

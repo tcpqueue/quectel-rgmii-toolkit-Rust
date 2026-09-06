@@ -12,7 +12,7 @@
 
 1. 在 [Releases](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases/latest) 下载 `offline.zip`，完整解压。
 2. 将模块连接到 Windows 电脑，确认 ADB 能识别设备。安装包已包含 ADB，无需编译或联网下载依赖。
-3. 双击 `toolkit.bat`，等待安装包校验、服务和 HTTP 页面检查通过。安装报告自动保存在电脑上的 `logs/`；只有脚本提示需要重启时才手动重启设备。
+3. 双击 **`SimpleAdmin-Setup.exe`** 打开中文设备助手，选择模块，点击 **安装 / 升级**。等待文件校验、服务和 HTTP 页面检查通过。
 4. 浏览器访问模块地址，通常为 `http://192.168.225.1`。首次打开先选择语言，再使用 `admin / admin` 登录。
 
 也可以通过 ADB 转发访问：
@@ -23,7 +23,13 @@
 
 随后打开 `http://127.0.0.1:18081`。
 
-安装工具也会自动分配一个空闲的 ADB 转发端口，成功后显示本机访问链接。ADB 通道能打开页面，只证明应用可用；通过模块 IP 访问还取决于网卡、路由与固件防火墙。
+![Windows 设备助手](docs/images/windows-installer.png)
+
+设备助手采用 WinUI 风格的中文界面，支持自动检测、多设备选择、分步进度、故障诊断、打开管理页面和查看报告。基于 Windows 10/11 的 .NET Framework/WPF，无需另外安装 WinUI 运行库；截图使用模拟设备。
+
+点击 **打开管理页面** 会检查登录页，并通过自动分配的空闲 ADB 转发端口打开浏览器。ADB 通道能打开页面，只证明应用可用；通过模块 IP 访问还取决于网卡、路由与固件防火墙。保持 USB 连接即可使用该通道。
+
+`toolkit.bat` 同样打开图形界面；`toolkit-cli.bat` 保留命令行安装。报告自动保存在电脑上的 `logs/`，仅脚本提示需要重启时才手动重启设备。安装过程中请保持 USB 连接，不要断电。
 
 **安装后打不开网页：** 双击同一安装包内的 `diagnose.bat`，将生成的 `logs/simpleadmin-*.txt` 发给维护者。该工具也可诊断旧版本，不重新安装、不重启、不执行 AT 指令、不读取短信或密码。报告包含设备序列号和网络地址，分享前可自行遮盖。参见 [安装排查](docs/install-troubleshooting.md)。
 

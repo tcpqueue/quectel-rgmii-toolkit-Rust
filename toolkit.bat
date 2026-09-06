@@ -1,7 +1,9 @@
 @echo off
 chcp 65001 >nul
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0toolkit.ps1"
-set "RESULT=%ERRORLEVEL%"
-pause
-exit /b %RESULT%
+if not exist "%~dp0SimpleAdmin-Setup.exe" goto cli
+start "" "%~dp0SimpleAdmin-Setup.exe"
+exit /b 0
+:cli
+call "%~dp0toolkit-cli.bat"
+exit /b %ERRORLEVEL%

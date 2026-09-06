@@ -68,10 +68,29 @@ cargo test --locked
 
 ## 打包
 
+### Windows 图形设备助手
+
+中文设备助手使用 WPF/.NET Framework，面向 Windows 10/11，不依赖 WinUI Windows App Runtime。源码为 `installer/Program.cs` 与内嵌的 `installer/MainWindow.xaml`，发布的 `SimpleAdmin-Setup.exe` 已编译好。
+
+在 Windows PowerShell 中重新编译和测试：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
+powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1 -TestBuild
+powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1 -GuiTest
+```
+
+使用系统自带的 .NET Framework C# 编译器，在 Windows 临时目录编译后复制回仓库。测试专用构建保存在 `work/`，不会打包；其自动操作入口不包含在发布程序中。UI 测试使用临时模拟 ADB，不访问真实设备。
+
+GUI 将所选设备明确传给安装脚本，通过结构化进度事件更新界面；同时核对进程退出码、最终结果与验证后的访问地址，避免从日志中的单个成功字样推断安装完成。主界面仅中文，完整诊断输出保留工具原文。
+
+### 离线包
+
 修改前端或安装运行辅助文件后，先更新安装文件校验清单。构建脚本也会自动执行这一步。
 
 ```sh
 bash scripts/checksums.sh
+sha256sum development/simpleadmin/simpleadmin-httpd.armv7 windows-test/bin/simpleadmin-httpd.exe SimpleAdmin-Setup.exe > SHA256SUMS
 node tests/installer.cjs
 bash scripts/package.sh
 unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.0-offline.zip

@@ -1,4 +1,4 @@
-param([switch]$DiagnoseOnly)
+param([switch]$DiagnoseOnly, [switch]$OpenWebOnly)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
@@ -10,6 +10,10 @@ $logDir = Join-Path $PSScriptRoot 'logs'
 try { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
 catch { $logDir = $env:TEMP }
 $report = Join-Path $logDir ('simpleadmin-{0}-{1}.txt' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $PID)
+
+function Event([string]$Kind, [string]$Value) {
+    Write-Output ('@@SIMPLEADMIN|' + $Kind + '|' + $Value)
+}
 
 function Log([string]$Message) {
     Write-Host $Message
@@ -57,7 +61,10 @@ function ProbeWeb([switch]$KeepTunnel) {
         }
         Log 'PC_HTTP_CHECK=OK (ADB tunnel; LAN reachability must be checked separately)'
         $success = $true
-        if ($KeepTunnel) { Log "Open on this PC: http://127.0.0.1:$port/ (available while ADB is connected)" }
+        if ($KeepTunnel) {
+            Log "Open on this PC: http://127.0.0.1:$port/ (available while ADB is connected)"
+            Event 'url' "http://127.0.0.1:$port/"
+        }
     } finally {
         if (-not $KeepTunnel -or -not $success) {
             $null = AdbCommand @('forward', '--remove', "tcp:$port") -Quiet
@@ -78,6 +85,8 @@ function Diagnose {
 }
 
 try {
+    Event 'report' $report
+    Event 'stage' 'device'
     Log ('SimpleAdmin {0} - {1}' -f $(if ($DiagnoseOnly) { 'diagnostics' } else { 'installer' }), (Get-Date -Format o))
     if (-not (Test-Path -LiteralPath $adb)) { throw 'adb.exe is missing. Extract the entire offline ZIP first.' }
     $devices = AdbCommand @('devices')
@@ -90,34 +99,48 @@ try {
         $serial = $ready[0]
     } else { throw 'Connect exactly one authorized ADB device, or set ANDROID_SERIAL to select one.' }
     Log "Selected device: $serial"
-    if ($DiagnoseOnly) {
+    if ($OpenWebOnly) {
+        Event 'stage' 'verify'
+        ProbeWeb -KeepTunnel
+        $exitCode = 0
+    } elseif ($DiagnoseOnly) {
+        Event 'stage' 'diagnose'
         Diagnose
+        Event 'stage' 'verify'
         ProbeWeb
         $exitCode = 0
     } else {
         if (-not (Test-Path (Join-Path $development 'SHA256SUMS'))) { throw 'Package checksums are missing. Extract the entire offline ZIP.' }
+        Event 'stage' 'upload'
         RequireAdb @('shell', 'rm -rf /tmp/development; rm -f /tmp/simpleadmin-install-result.env')
         RequireAdb @('push', $development, '/tmp/development')
+        Event 'stage' 'install'
         $install = AdbCommand @('shell', 'bash /tmp/development/install_simpleadmin_rust.sh')
         $result = AdbCommand @('shell', 'cat /tmp/simpleadmin-install-result.env')
         if ($install.Code -ne 0 -or $result.Code -ne 0 -or $result.Lines -notcontains 'INSTALL_STATUS=OK') {
             throw 'Installation did not pass. See the error and diagnostics in this report.'
         }
+        Event 'stage' 'verify'
         ProbeWeb -KeepTunnel
         $null = AdbCommand @('shell', 'ip -4 addr show')
         Log 'Installation and HTTP checks passed. Use http:// (not https://) with a reachable module IPv4 address.'
-        if ($result.Lines -contains 'REBOOT_REQUIRED=1') { Log 'Network configuration changed. Restart the module manually, then check its current IP address.' }
+        if ($result.Lines -contains 'REBOOT_REQUIRED=1') {
+            Log 'Network configuration changed. Restart the module manually, then check its current IP address.'
+            Event 'reboot' 'required'
+        }
         $exitCode = 0
     }
 } catch {
     Log "ERROR: $($_.Exception.Message)"
-    if ($serial -and -not $DiagnoseOnly) {
+    Event 'failure' 'operation'
+    if ($serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
         try { Diagnose } catch { Log "Diagnostics incomplete: $($_.Exception.Message)" }
     }
 } finally {
-    if ($serial -and -not $DiagnoseOnly) {
+    if ($serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
         $null = AdbCommand @('shell', 'rm -rf /tmp/development') -Quiet
     }
     Log "Report saved: $report"
+    Event 'result' ([string]$exitCode)
 }
 exit $exitCode
