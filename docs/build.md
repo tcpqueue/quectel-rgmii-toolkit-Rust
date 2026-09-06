@@ -81,6 +81,10 @@ GUI 将所选设备明确传给安装脚本，通过结构化进度事件更新�
 
 ### 离线包
 
+正式 `SimpleAdmin-Setup.exe` 内嵌 `payload.zip`，包含 ADB 和 DLL、内部 PowerShell 安装器、`development/` 完整内容与 LICENSE。每次修改上述资源后必须重新执行 Windows `scripts/build-installer.ps1`，再更新 SHA256SUMS。发布 ZIP 仅装入该 EXE；源码中的脚本作为内部实现和维护工具保留。
+
+可运行 `SimpleAdmin-Setup.exe --verify-payload` 校验内嵌资源能解压、必要文件存在且内置 ADB 能启动；此检查不会连接设备或执行安装。运行时使用随机临时目录，报告单独保存到 LocalAppData；不终止共享 ADB 进程。
+
 修改前端或安装运行辅助文件后，先更新安装文件校验清单。构建脚本也会自动执行这一步。
 
 ```sh
@@ -91,7 +95,7 @@ bash scripts/package.sh
 unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.0-offline.zip
 ```
 
-安装包包含 ADB、安装/卸载入口、设备程序、离线前端、Windows 预览程序、README、验证记录与校验文件。`packages/`、开发缓存及运行状态不提交到 Git。发布的 ZIP 作为 GitHub Release 附件提供。
+安装包只包含 `SimpleAdmin-Setup.exe`，ADB、设备程序、离线前端及安装逻辑均内嵌其中。`packages/`、开发缓存及运行状态不提交到 Git。发布时可直接提供 EXE，或将 ZIP 作为 GitHub Release 附件。
 
 Windows 安装入口可通过 `powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1` 验证。它使用临时生成的模拟 ADB 和本机 HTTP 服务，不连接真实模块。Linux 安装测试同样使用隔离目录和模拟系统操作，不执行真实挂载、服务管理或 AT 操作。
 

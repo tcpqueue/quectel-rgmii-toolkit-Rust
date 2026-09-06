@@ -7,6 +7,7 @@ $development = Join-Path $PSScriptRoot 'development'
 $serial = $null
 $exitCode = 1
 $logDir = Join-Path $PSScriptRoot 'logs'
+if ($env:SIMPLEADMIN_REPORT_DIR) { $logDir = $env:SIMPLEADMIN_REPORT_DIR }
 try { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
 catch { $logDir = $env:TEMP }
 $report = Join-Path $logDir ('simpleadmin-{0}-{1}.txt' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $PID)

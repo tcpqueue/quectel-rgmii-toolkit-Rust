@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -134,6 +135,7 @@ namespace SimpleAdminSetup
                     StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
                 };
                 if (serial != null) info.EnvironmentVariables["ANDROID_SERIAL"] = serial;
+                info.EnvironmentVariables["SIMPLEADMIN_REPORT_DIR"] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SimpleAdmin", "Reports");
                 using (var process = new Process { StartInfo = info }) {
                     DataReceivedEventHandler receive = (sender, e) => {
                         if (e.Data == null) return;
@@ -332,10 +334,37 @@ namespace SimpleAdminSetup
 
     static class Program
     {
+        static string ExtractPayload()
+        {
+            string destination = Path.Combine(Path.GetTempPath(), "SimpleAdmin-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(destination);
+            using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")) {
+                if (resource == null) throw new InvalidDataException("内置安装资源缺失，请重新下载设备助手。");
+                using (var archive = new ZipArchive(resource, ZipArchiveMode.Read)) {
+                    foreach (var entry in archive.Entries) {
+                        string target = Path.GetFullPath(Path.Combine(destination, entry.FullName));
+                        if (!target.StartsWith(destination + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("安装资源路径无效。");
+                        if (String.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                        Directory.CreateDirectory(Path.GetDirectoryName(target));
+                        using (var input = entry.Open()) using (var output = File.Create(target)) input.CopyTo(output);
+                    }
+                }
+            }
+            foreach (string file in new[] { "adb.exe", "AdbWinApi.dll", "AdbWinUsbApi.dll", "toolkit.ps1", "development/install_simpleadmin_rust.sh", "development/SHA256SUMS", "development/simpleadmin/simpleadmin-httpd.armv7", "development/simpleadmin/www/index.html" })
+                if (!File.Exists(Path.Combine(destination, file))) throw new InvalidDataException("内置安装资源不完整：" + file);
+            return destination;
+        }
+
         [STAThread]
         static int Main(string[] args)
         {
+            string extracted = null;
             try {
+                if (args.Length > 0 && args[0] == "--verify-payload") {
+                    extracted = ExtractPayload();
+                    var check = new ProcessStartInfo(Path.Combine(extracted, "adb.exe"), "version") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                    using (var process = Process.Start(check)) { process.StandardOutput.ReadToEnd(); process.WaitForExit(); return process.ExitCode; }
+                }
                 if (args.Length > 0 && args[0] == "--self-test") {
                     var list = Controller.ParseDevices("List of devices attached\nabc device product:foo model:RM520N_EU transport_id:1\nbad unauthorized\noff offline\nnoise\n");
                     if (list.Count != 3 || list[0].Model != "RM520N EU" || list[1].State != "unauthorized") return 1;
@@ -345,7 +374,11 @@ namespace SimpleAdminSetup
                 Window window;
                 using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MainWindow.xaml")) window = (Window)XamlReader.Load(stream);
                 bool preview = args.Length >= 2 && args[0] == "--preview";
-                var controller = new Controller(window, AppDomain.CurrentDomain.BaseDirectory, preview);
+                string runtimeRoot = AppDomain.CurrentDomain.BaseDirectory;
+#if !GUI_TEST_HARNESS
+                if (!preview) runtimeRoot = extracted = ExtractPayload();
+#endif
+                var controller = new Controller(window, runtimeRoot, preview);
 #if GUI_TEST_HARNESS
                 if (args.Length == 3 && args[0] == "--test-run") {
                     window.ShowActivated = false; window.ShowInTaskbar = false;
@@ -373,8 +406,11 @@ namespace SimpleAdminSetup
                 return app.Run(window);
             } catch (Exception e) {
                 if (args.Length > 0) { File.WriteAllText(Path.Combine(Path.GetTempPath(), "simpleadmin-setup-error.txt"), e.ToString()); return 1; }
-                MessageBox.Show("设备助手无法启动：" + e.Message + "\n请完整解压安装包，或使用 toolkit-cli.bat。", "SimpleAdmin", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("设备助手无法启动：" + e.Message + "\n请重新下载完整的单文件设备助手。", "SimpleAdmin", MessageBoxButton.OK, MessageBoxImage.Error);
                 return 1;
+            } finally {
+                // A shared ADB server may still hold its executable; never kill it to clean up.
+                if (extracted != null) { try { Directory.Delete(extracted, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
             }
         }
     }

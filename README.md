@@ -10,8 +10,8 @@
 
 ## 安装
 
-1. 在 [Releases](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases/latest) 下载 `offline.zip`，完整解压。
-2. 将模块连接到 Windows 电脑，确认 ADB 能识别设备。安装包已包含 ADB，无需编译或联网下载依赖。
+1. 下载单文件 `SimpleAdmin-Setup.exe`；若下载 `offline.zip`，解压后也只有这一个 EXE。
+2. 将模块连接到 Windows 电脑。EXE 已内嵌 ADB、设备程序、网页和安装资源，无需另附文件夹或联网下载依赖。
 3. 双击 **`SimpleAdmin-Setup.exe`** 打开中文设备助手，选择模块，点击 **安装 / 升级**。等待文件校验、服务和 HTTP 页面检查通过。
 4. 浏览器访问模块地址，通常为 `http://192.168.225.1`。首次打开先选择语言，再使用 `admin / admin` 登录。
 
@@ -29,9 +29,9 @@
 
 点击 **打开管理页面** 会检查登录页，并通过自动分配的空闲 ADB 转发端口打开浏览器。ADB 通道能打开页面，只证明应用可用；通过模块 IP 访问还取决于网卡、路由与固件防火墙。保持 USB 连接即可使用该通道。
 
-`toolkit.bat` 同样打开图形界面；`toolkit-cli.bat` 保留命令行安装。报告自动保存在电脑上的 `logs/`，仅脚本提示需要重启时才手动重启设备。安装过程中请保持 USB 连接，不要断电。
+对外部署只需发送 EXE。内部安装资源运行时解压到 Windows 临时目录，退出时尽量清理；被共享 ADB 服务占用的文件保留到系统清理临时目录，不强制关闭 ADB。图形操作报告保存在 `%LOCALAPPDATA%/SimpleAdmin/Reports`，可点击“查看报告”。安装过程中请保持 USB 连接，不要断电。
 
-**安装后打不开网页：** 双击同一安装包内的 `diagnose.bat`，将生成的 `logs/simpleadmin-*.txt` 发给维护者。该工具也可诊断旧版本，不重新安装、不重启、不执行 AT 指令、不读取短信或密码。报告包含设备序列号和网络地址，分享前可自行遮盖。参见 [安装排查](docs/install-troubleshooting.md)。
+**安装后打不开网页：** 在设备助手中点击“故障诊断”，然后“查看报告”。也可诊断旧版本，不重新安装、不重启、不执行 AT 指令、不读取短信或密码。报告包含设备序列号和网络地址，分享前可自行遮盖。参见 [安装排查](docs/install-troubleshooting.md)。
 
 默认安装不再修改 bridge0 MAC 或 QCMAP 网络配置，也不自动重启设备。仅有明确需求时，才在设备上使用 `SIMPLEADMIN_FIX_BRIDGE0_MAC=1 bash /tmp/development/install_simpleadmin_rust.sh` 启用原有 MAC 修复步骤。
 
@@ -39,7 +39,7 @@
 
 **修改密码：** 登录后进入系统设置，可分别修改 Web 登录密码和系统 root 密码，需要验证当前密码。修改后现有会话失效，重新登录即可。两种密码独立保存。
 
-**卸载：** 双击 `uninstall.bat`。卸载会删除应用及其配置，升级时请使用安装工具。
+**升级：** 直接使用设备助手“安装 / 升级”，无需先卸载。卸载维护脚本保留在源码中，不作为单文件安装器的对外附件。
 
 ## 功能
 

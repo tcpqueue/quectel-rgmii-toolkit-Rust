@@ -13,8 +13,18 @@ try {
     $references = @('WindowsBase', 'PresentationCore', 'PresentationFramework') | ForEach-Object { '/reference:' + (Join-Path $framework ('WPF\' + $_ + '.dll')) }
     $output = Join-Path $buildDir 'SimpleAdmin-Setup.exe'
     $defines = @()
+    $resources = @()
     if ($TestBuild) { $defines = @('/define:GUI_TEST_HARNESS') }
-    & $compiler /nologo /target:winexe /platform:anycpu /optimize+ /utf8output /warnaserror+ "/out:$output" @references @defines /reference:System.Xaml.dll "/resource:$buildDir\MainWindow.xaml,MainWindow.xaml" "/win32manifest:$buildDir\app.manifest" "$buildDir\Program.cs"
+    else {
+        $payload = Join-Path $buildDir 'payload'
+        New-Item -ItemType Directory -Path $payload | Out-Null
+        foreach ($name in @('adb.exe','AdbWinApi.dll','AdbWinUsbApi.dll','toolkit.ps1','development','LICENSE')) {
+            Copy-Item -LiteralPath (Join-Path $repo $name) -Destination $payload -Recurse
+        }
+        Compress-Archive -Path (Join-Path $payload '*') -DestinationPath (Join-Path $buildDir 'payload.zip')
+        $resources = @("/resource:$buildDir\payload.zip,payload.zip")
+    }
+    & $compiler /nologo /target:winexe /platform:anycpu /optimize+ /utf8output /warnaserror+ "/out:$output" @references @defines @resources /reference:System.Xaml.dll /reference:System.IO.Compression.dll "/resource:$buildDir\MainWindow.xaml,MainWindow.xaml" "/win32manifest:$buildDir\app.manifest" "$buildDir\Program.cs"
     if ($LASTEXITCODE -ne 0) { throw 'GUI compilation failed.' }
     if ($TestBuild) {
         New-Item -ItemType Directory -Force -Path (Join-Path $repo 'work') | Out-Null
