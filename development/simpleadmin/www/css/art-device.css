@@ -352,7 +352,10 @@ html[dir="rtl"] .art-chart-footer > span:last-child { margin-left: 0; margin-rig
 .art-status-card .metric-warn { color: #ad6b08; }
 .art-status-card .metric-bad { color: #cf3f51; }
 .art-status-card .metric-neutral { color: var(--sa-muted); }
-.art-signal-track > span { background: currentColor; }
+.art-signal-track > span, .art-resource-colored > span { background: currentColor; }
+.art-site-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; padding: 24px 12px 4px; color: var(--sa-muted); font-size: 12px; text-align: center; }
+.art-site-footer a { color: var(--sa-text-soft); text-decoration: none; }
+.art-site-footer a:hover { color: var(--sa-accent); text-decoration: underline; }
 .art-connection-state { display: flex; align-items: center; gap: 9px; margin: 3px 0 6px; font-size: 15px; font-weight: 600; }
 .art-connection-state svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 html[data-bs-theme="dark"] .art-status-card .metric-good { color: #46d5ad; }

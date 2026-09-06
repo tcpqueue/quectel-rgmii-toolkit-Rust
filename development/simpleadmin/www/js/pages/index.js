@@ -127,6 +127,11 @@ function getStaticNetworkInfo() {
       return 'progress-bar bg-danger';
     },
 
+    resourceTone(value, warning, danger) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return 'metric-neutral';
+      return Number(value) >= danger ? 'metric-bad' : Number(value) >= warning ? 'metric-warn' : 'metric-good';
+    },
+
     clampPercent(value) {
       const number = Number(value);
       if (!Number.isFinite(number)) return 0;

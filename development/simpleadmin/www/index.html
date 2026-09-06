@@ -119,8 +119,8 @@
 <section class="art-status-card" aria-labelledby="artStatusTitle">
 <div class="art-overview-heading"><h2 id="artStatusTitle">设备状态</h2><span v-text="uptime"></span></div>
 <div class="art-health-grid">
-<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon blue"><i data-lucide="cpu" aria-hidden="true"></i></span><span>CPU 使用率</span></div><strong v-text="formatPercent(cpuUsagePercent)"></strong><div class="art-resource-track" role="progressbar" aria-label="CPU 使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(cpuUsagePercent)"><span :style="{width: clampPercent(cpuUsagePercent) + '%'}"></span></div></article>
-<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon green"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span>内存使用率</span></div><strong v-text="formatPercent(ramUsagePercent)"></strong><small v-text="formatRamUsage()"></small><div class="art-resource-track green" role="progressbar" aria-label="内存使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(ramUsagePercent)"><span :style="{width: clampPercent(ramUsagePercent) + '%'}"></span></div></article>
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon blue"><i data-lucide="cpu" aria-hidden="true"></i></span><span>CPU 使用率</span></div><strong :class="resourceTone(cpuUsagePercent, 60, 80)" v-text="formatPercent(cpuUsagePercent)"></strong><div class="art-resource-track art-resource-colored" :class="resourceTone(cpuUsagePercent, 60, 80)" role="progressbar" aria-label="CPU 使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(cpuUsagePercent)"><span :style="{width: clampPercent(cpuUsagePercent) + '%'}"></span></div></article>
+<article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon green"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span>内存使用率</span></div><strong :class="resourceTone(ramUsagePercent, 75, 90)" v-text="formatPercent(ramUsagePercent)"></strong><small v-text="formatRamUsage()"></small><div class="art-resource-track art-resource-colored" :class="resourceTone(ramUsagePercent, 75, 90)" role="progressbar" aria-label="内存使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(ramUsagePercent)"><span :style="{width: clampPercent(ramUsagePercent) + '%'}"></span></div></article>
 <article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon amber"><i data-lucide="radio" aria-hidden="true"></i></span><span>信号质量</span></div><strong :class="signalTone()">{{ signalPercentage }}<small>%</small></strong><small v-text="signalAssessment"></small><div class="art-resource-track art-signal-track" :class="signalTone()" role="progressbar" aria-label="信号质量" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(signalPercentage)"><span :style="{width: clampPercent(signalPercentage) + '%'}"></span></div></article>
 <article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon coral"><i data-lucide="wifi" aria-hidden="true"></i></span><span>互联网</span></div><div class="art-connection-state" :class="internetConnection === '已连接' ? 'metric-good' : 'metric-bad'" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path v-if="internetConnection === '已连接'" d="m8 12 3 3 5-6"></path><path v-else d="m9 9 6 6m0-6-6 6"></path></svg><span v-text="internetConnection"></span></div><small v-text="network_mode"></small></article>
 </div>
@@ -1007,11 +1007,8 @@
 </div>
 </div>
 <div class="sa-panel-footer">
-                访问
-                <a class="text-reset" href="https://github.com/iamromulan/quectel-rgmii-toolkit/tree/development" rel="noopener" target="_blank">代码库</a>
-                或
-                <a class="text-reset" href="https://github.com/iamromulan/quectel-rgmii-configuration-notes.git" rel="noopener" target="_blank">文档</a>
-                以获取更多信息。版权所有。2024
+                <span data-no-i18n>Monologue&amp;蓝天科技 版权所有</span>
+                <span data-no-i18n> · bug反馈邮箱 <a href="mailto:admin@tcpxy.com">admin@tcpxy.com</a></span>
               </div>
 </div>
 </div>
@@ -1037,6 +1034,7 @@
 </div>
 </div>
 </section>
+<footer class="art-site-footer" data-no-i18n><span>Monologue&amp;蓝天科技 版权所有</span><span>bug反馈邮箱 <a href="mailto:admin@tcpxy.com">admin@tcpxy.com</a></span></footer>
 </main>
 </div>
 </div>
