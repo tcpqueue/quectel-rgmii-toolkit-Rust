@@ -27,6 +27,7 @@ MOBILEAP_HELPER_SRC="$SIMPLEADMIN_SRC/mobileap_bridge0_mac.sh"
 MOBILEAP_HELPER_SCRIPT="$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"
 MOBILEAP_RESULT_FILE="/tmp/simpleadmin-mobileap-result.env"
 MOBILEAP_CFG_TOUCHED="0"
+HTTP_PORT=80
 
 log() {
     echo "[信息] $*"
@@ -77,6 +78,31 @@ preflight() {
     available="$(df -Pk /usrdata | awk 'END {print $4}')"
     case "$needed:$available" in *[!0-9:]*|:*|*:) fail "无法检查 /usrdata 剩余空间" ;; esac
     [ "$available" -gt "$((needed + 2048))" ] || fail "/usrdata 空间不足，需要安装包大小加 2 MiB 余量"
+    . "$SIMPLEADMIN_SRC/web_port.sh"
+    if [ "${SIMPLEADMIN_HTTP_PORT+x}" = x ]; then
+        HTTP_PORT="$SIMPLEADMIN_HTTP_PORT"
+        simpleadmin_valid_port "$HTTP_PORT" || fail "HTTP 端口必须是 1–65535 的整数"
+    else
+        HTTP_PORT="$(simpleadmin_read_http_port "$SIMPLEADMIN_DIR/http_port")" || fail "无法读取已有 HTTP 端口"
+    fi
+    local previous_port port_hex occupied
+    previous_port="$(simpleadmin_read_http_port "$SIMPLEADMIN_DIR/http_port" 2>/dev/null || true)"
+    if [ "$previous_port" != "$HTTP_PORT" ]; then
+        port_hex="$(printf '%04X' "$HTTP_PORT")"
+        occupied="$(awk -v suffix=":$port_hex" 'FNR > 1 && substr($2,length($2)-4) == suffix && $4 == "0A" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null || true)"
+        [ -z "$occupied" ] || fail "HTTP 端口 $HTTP_PORT 已被占用，请选择其他端口；原服务未停止"
+    fi
+    log "管理页面 HTTP 端口：$HTTP_PORT"
+}
+
+install_http_port() {
+    local file="$SIMPLEADMIN_DIR/http_port"
+    if [ -f "$file" ] && [ "$(cat "$file")" = "$HTTP_PORT" ]; then
+        return 0
+    fi
+    printf '%s\n' "$HTTP_PORT" > "$file.new"
+    chmod 644 "$file.new"
+    mv -f "$file.new" "$file"
 }
 
 wait_for_web() {
@@ -206,9 +232,6 @@ $POST_BOOT_BEGIN
 (
     sleep 3
     if [ -x "$FALLBACK_START_SCRIPT" ]; then
-        if command -v iptables >/dev/null 2>&1; then
-            iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || iptables -I INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || true
-        fi
         "$FALLBACK_START_SCRIPT" >> "$POST_BOOT_LOG_FILE" 2>&1
     fi
 ) &
@@ -324,8 +347,9 @@ install_simpleadmin_files() {
     chmod 777 "$SIMPLEADMIN_DIR" "$SIMPLEADMIN_DIR/simpleadmin-httpd"
 
     mv "$SIMPLEADMIN_DIR/www.new" "$SIMPLEADMIN_DIR/www"
-    cp -f "$SIMPLEADMIN_SRC/check_web.sh" "$SIMPLEADMIN_SRC/run_simpleadmin.sh" "$SIMPLEADMIN_DIR/"
+    cp -f "$SIMPLEADMIN_SRC/check_web.sh" "$SIMPLEADMIN_SRC/run_simpleadmin.sh" "$SIMPLEADMIN_SRC/web_port.sh" "$SIMPLEADMIN_DIR/"
     chmod 755 "$SIMPLEADMIN_DIR/check_web.sh" "$SIMPLEADMIN_DIR/run_simpleadmin.sh"
+    install_http_port
 
     cp -f "$SIMPLEADMIN_SRC/simplepasswd" "$ROOT_BIN/simplepasswd"
     chmod +x "$ROOT_BIN/simplepasswd"
@@ -347,21 +371,41 @@ install_fallback_scripts() {
     cat > "$PORT_PREPARE_SCRIPT" <<'EOF'
 #!/bin/sh
 . /usrdata/simpleadmin/runtime_processes.sh
+. /usrdata/simpleadmin/web_port.sh
+HTTP_PORT="$(simpleadmin_read_http_port)" || exit 1
+PORT_HEX="$(printf '%04X' "$HTTP_PORT")"
+
+preserve_cellular_web_blocks() {
+    [ "$HTTP_PORT" != 80 ] || return 0
+    for interface_path in /sys/class/net/rmnet*; do
+        [ -e "$interface_path" ] || continue
+        interface="${interface_path##*/}"
+        # Carry over the firmware's explicit cellular HTTP block, if present.
+        if iptables -C INPUT -i "$interface" -p tcp --dport 80 -j DROP >/dev/null 2>&1; then
+            if iptables -C INPUT -i "$interface" -p tcp --dport "$HTTP_PORT" -j DROP >/dev/null 2>&1; then
+                iptables -D INPUT -i "$interface" -p tcp --dport "$HTTP_PORT" -j DROP || return 1
+            fi
+            iptables -I INPUT 1 -i "$interface" -p tcp --dport "$HTTP_PORT" -j DROP || return 1
+        fi
+    done
+    return 0
+}
 
 open_web_port() {
     if command -v iptables >/dev/null 2>&1; then
-        iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 ||
-            iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT || return 1
+        iptables -C INPUT -p tcp --dport "$HTTP_PORT" -j ACCEPT >/dev/null 2>&1 ||
+            iptables -I INPUT 1 -p tcp --dport "$HTTP_PORT" -j ACCEPT || return 1
+        preserve_cellular_web_blocks || return 1
     else
-        echo "[警告] 未找到 iptables，请检查固件防火墙是否允许 TCP 80" >&2
+        echo "[警告] 未找到 iptables，请检查固件防火墙是否允许 TCP $HTTP_PORT" >&2
     fi
 }
 
-port80_listener_inodes() {
-    awk 'FNR > 1 && $2 ~ /:0050$/ && $4 == "0A" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
+web_listener_inodes() {
+    awk -v suffix=":$PORT_HEX" 'FNR > 1 && substr($2,length($2)-4) == suffix && $4 == "0A" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null | sort -u
 }
-port80_owner_pids() {
-    for inode in $(port80_listener_inodes); do
+web_owner_pids() {
+    for inode in $(web_listener_inodes); do
         for fd in /proc/[0-9]*/fd/*; do
             [ "$(readlink "$fd" 2>/dev/null)" = "socket:[$inode]" ] || continue
             pid="${fd#/proc/}"; echo "${pid%%/*}"
@@ -369,7 +413,7 @@ port80_owner_pids() {
     done | sort -u
 }
 stop_known_web_conflicts() {
-    for pid in $(port80_owner_pids); do
+    for pid in $(web_owner_pids); do
         if [ "$(runtime_kind "$pid")" = server ]; then
             stop_runtime_kind server
         elif [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = /usr/sbin/lighttpd ] ||
@@ -380,25 +424,25 @@ stop_known_web_conflicts() {
         fi
     done
 }
-describe_port80_owners() {
-    for pid in $(port80_owner_pids); do
+describe_web_owners() {
+    for pid in $(web_owner_pids); do
         echo "pid=$pid executable=$(readlink "/proc/$pid/exe" 2>/dev/null)"
     done
 }
-wait_for_port80_free() {
+wait_for_web_port_free() {
     for attempt in 1 2 3 4 5; do
-        [ -z "$(port80_listener_inodes)" ] && return 0
+        [ -z "$(web_listener_inodes)" ] && return 0
         stop_known_web_conflicts
         sleep 1
     done
-    [ -z "$(port80_listener_inodes)" ] && return 0
-    echo "[错误] 80 端口仍被占用，SimpleAdmin Rust 无法绑定 :80" >&2
-    describe_port80_owners >&2
+    [ -z "$(web_listener_inodes)" ] && return 0
+    echo "[错误] $HTTP_PORT 端口仍被占用，SimpleAdmin Rust 无法绑定 :$HTTP_PORT" >&2
+    describe_web_owners >&2
     return 1
 }
 open_web_port || exit 1
 stop_known_web_conflicts
-wait_for_port80_free
+wait_for_web_port_free
 EOF
     cat > "$FALLBACK_START_SCRIPT" <<'EOF'
 #!/bin/sh
@@ -444,10 +488,10 @@ start_fallback_service() {
     if "$FALLBACK_START_SCRIPT" >/tmp/simpleadmin-fallback-start.out 2>&1; then
         log "后台进程启动完成"
     else
-        if grep -Eq "80 端口已被占用|80 端口仍被占用|port 80 is already in use" /tmp/simpleadmin-fallback-start.out 2>/dev/null; then
-            warn "80 端口已被占用，SimpleAdmin Rust 无法绑定 :80"
+        if grep -Eq "端口已被占用|端口仍被占用|port .* is already in use" /tmp/simpleadmin-fallback-start.out 2>/dev/null; then
+            warn "$HTTP_PORT 端口已被占用，SimpleAdmin Rust 无法绑定 :$HTTP_PORT"
             cat /tmp/simpleadmin-fallback-start.out 2>/dev/null || true
-            fail "请先停止占用 80 端口的旧 Web 服务后重新安装"
+            fail "请在安装器中选择空闲端口，或先停止占用 $HTTP_PORT 端口的服务"
         fi
         warn "后台启动失败，详情请查看 /tmp/simpleadmin-fallback-start.out"
         fail "simpleadmin-httpd 后台启动失败"

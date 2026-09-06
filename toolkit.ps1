@@ -1,4 +1,4 @@
-﻿param([switch]$DiagnoseOnly, [switch]$OpenWebOnly)
+﻿param([switch]$DiagnoseOnly, [switch]$OpenWebOnly, [string]$HttpPort = '')
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
@@ -69,8 +69,21 @@ echo SIMPLEADMIN_PREFLIGHT_DONE=1
     }
 }
 
+function ReadHttpPort {
+    $probe = 'if [ -e /usrdata/simpleadmin/http_port ]; then cat /usrdata/simpleadmin/http_port; else echo 80; fi'
+    $result = AdbCommand @('shell', $probe) -Quiet
+    $value = ($result.Lines -join "`n").Trim()
+    if ($result.Code -ne 0 -or $value -cnotmatch '^[1-9][0-9]{0,4}$' -or [int]$value -gt 65535) {
+        throw '无法读取模块的 HTTP 端口配置，请在安装器中勾选修改端口后重新安装。'
+    }
+    Log "Device HTTP port: $value"
+    return $value
+}
+
 function ProbeWeb([switch]$KeepTunnel) {
-    $forward = AdbCommand @('forward', 'tcp:0', 'tcp:80') -Quiet
+    $devicePort = ReadHttpPort
+    Event 'http-port' $devicePort
+    $forward = AdbCommand @('forward', 'tcp:0', "tcp:$devicePort") -Quiet
     $port = ($forward.Lines | Where-Object { $_ -match '^\d+$' } | Select-Object -Last 1)
     if ($forward.Code -ne 0 -or -not $port) { throw 'Unable to create an ADB HTTP tunnel.' }
     $success = $false
@@ -119,6 +132,9 @@ function Diagnose {
 try {
     Event 'report' $report
     Event 'stage' 'device'
+    if ($HttpPort -ne '' -and ($HttpPort -cnotmatch '^[1-9][0-9]{0,4}$' -or [int]$HttpPort -gt 65535)) {
+        throw 'HTTP 端口必须是 1–65535 的整数。'
+    }
     Log ('SimpleAdmin {0} - {1}' -f $(if ($DiagnoseOnly) { 'diagnostics' } else { 'installer' }), (Get-Date -Format o))
     if (-not (Test-Path -LiteralPath $adb)) { throw 'adb.exe is missing. Extract the entire offline ZIP first.' }
     $devices = AdbCommand @('devices')
@@ -150,7 +166,9 @@ try {
         RequireAdb @('shell', 'rm -rf /tmp/development; rm -f /tmp/simpleadmin-install-result.env')
         RequireAdb @('push', $development, '/tmp/development')
         Event 'stage' 'install'
-        $install = AdbCommand @('shell', 'bash /tmp/development/install_simpleadmin_rust.sh')
+        $installCommand = 'bash /tmp/development/install_simpleadmin_rust.sh'
+        if ($HttpPort -ne '') { $installCommand = "SIMPLEADMIN_HTTP_PORT=$HttpPort $installCommand" }
+        $install = AdbCommand @('shell', $installCommand)
         $result = AdbCommand @('shell', 'cat /tmp/simpleadmin-install-result.env')
         if ($install.Code -ne 0 -or $result.Code -ne 0 -or $result.Lines -notcontains 'INSTALL_STATUS=OK') {
             throw 'Installation did not pass. See the error and diagnostics in this report.'
@@ -158,7 +176,7 @@ try {
         Event 'stage' 'verify'
         ProbeWeb -KeepTunnel
         $null = AdbCommand @('shell', 'ip -4 addr show')
-        Log 'Installation and HTTP checks passed. Use http:// (not https://) with a reachable module IPv4 address.'
+        Log 'Installation and HTTP checks passed. Use http:// with a reachable module IPv4 address and the device HTTP port shown above.'
         if ($result.Lines -contains 'REBOOT_REQUIRED=1') {
             Log 'Network configuration changed. Restart the module manually, then check its current IP address.'
             Event 'reboot' 'required'

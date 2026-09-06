@@ -25,8 +25,16 @@ pidof simpleadmin-httpd 2>/dev/null || true
 section 'IPv4 addresses / routes'
 ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null || true
 ip -4 route show 2>/dev/null || true
-section 'Port 80 listeners'
-awk 'FNR == 1 || ($2 ~ /:0050$/ && $4 == "0A")' /proc/net/tcp /proc/net/tcp6 2>/dev/null || true
+section 'Configured HTTP port / listeners'
+port=80
+if [ -e /usrdata/simpleadmin/http_port ]; then port="$(cat /usrdata/simpleadmin/http_port)"; fi
+if [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] && [ "$port" -le 65535 ]; then
+    echo "HTTP_PORT=$port"
+    port_hex="$(printf '%04X' "$port")"
+    awk -v suffix=":$port_hex" 'FNR == 1 || (substr($2,length($2)-4) == suffix && $4 == "0A")' /proc/net/tcp /proc/net/tcp6 2>/dev/null || true
+else
+    echo 'Invalid HTTP port configuration; specify a valid port in the installer.'
+fi
 section 'IPv4 INPUT firewall'
 iptables -L INPUT -n -v --line-numbers 2>/dev/null || true
 section 'Loopback HTTP'

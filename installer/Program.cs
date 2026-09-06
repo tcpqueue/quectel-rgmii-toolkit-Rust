@@ -60,6 +60,7 @@ namespace SimpleAdminSetup
         string resultEvent;
         string failureReason;
         string currentStage;
+        string deviceHttpPort;
         readonly Brush blue = new SolidColorBrush(Color.FromRgb(37, 99, 235));
         readonly Brush gray = new SolidColorBrush(Color.FromRgb(113, 128, 150));
 
@@ -77,6 +78,8 @@ namespace SimpleAdminSetup
             Find<Button>("Diagnose").Click += async (s, e) => await Run("diagnose");
             Find<Button>("OpenWeb").Click += async (s, e) => await Run("web");
             Find<Button>("Report").Click += (s, e) => OpenReport();
+            Find<CheckBox>("ChangeHttpPort").Checked += (s, e) => UpdateActions();
+            Find<CheckBox>("ChangeHttpPort").Unchecked += (s, e) => UpdateActions();
             devices.SelectionChanged += (s, e) => UpdateActions();
             window.Closing += (s, e) => {
                 if (busy && !preview) {
@@ -102,6 +105,8 @@ namespace SimpleAdminSetup
             Find<Button>("OpenWeb").IsEnabled = ready;
             Find<Button>("Refresh").IsEnabled = !busy && !scanning;
             devices.IsEnabled = !busy;
+            Find<CheckBox>("ChangeHttpPort").IsEnabled = !busy;
+            Find<TextBox>("HttpPort").IsEnabled = !busy && Find<CheckBox>("ChangeHttpPort").IsChecked == true;
             if (busy) return;
             if (!preview && !PackageAvailable()) {
                 Text("DeviceBadge", "安装包不完整");
@@ -231,6 +236,10 @@ namespace SimpleAdminSetup
                     if (Uri.TryCreate(parts[2], UriKind.Absolute, out uri) && uri.Scheme == "http" && uri.Host == "127.0.0.1" && uri.AbsolutePath == "/" && uri.Port > 0) webUrl = uri.AbsoluteUri;
                     break;
                 case "reboot": reboot = true; break;
+                case "http-port":
+                    int parsedPort;
+                    if (Int32.TryParse(parts[2], out parsedPort) && parsedPort > 0 && parsedPort <= 65535) deviceHttpPort = parsedPort.ToString();
+                    break;
                 case "failure": failedEvent = true; break;
                 case "error": failureReason = parts[2]; break;
                 case "result": resultEvent = parts[2]; break;
@@ -242,8 +251,20 @@ namespace SimpleAdminSetup
             var device = devices.SelectedItem as Device;
             if (busy || device == null || device.State != "device") return;
             if (preview) return;
+            string requestedPort = null;
+            if (operation == "install" && Find<CheckBox>("ChangeHttpPort").IsChecked == true) {
+                int port;
+                string input = Find<TextBox>("HttpPort").Text.Trim();
+                if (!Regex.IsMatch(input, @"^[0-9]{1,5}$") || !Int32.TryParse(input, out port) || port < 1 || port > 65535) {
+                    Text("StatusTitle", "请检查 HTTP 端口");
+                    Text("StatusDetail", "请输入 1–65535 的整数，例如 80 或 8080。尚未修改设备。");
+                    Find<TextBox>("HttpPort").Focus();
+                    return;
+                }
+                requestedPort = port.ToString();
+            }
             busy = true; mode = operation; completed = false; reboot = false; failedEvent = false;
-            report = null; webUrl = null; resultEvent = null;
+            report = null; webUrl = null; resultEvent = null; deviceHttpPort = null;
             failureReason = null; currentStage = "device";
             Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(23, 35, 57));
             Find<Button>("Report").IsEnabled = false;
@@ -262,6 +283,7 @@ namespace SimpleAdminSetup
                 string arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + Quote(Path.Combine(root, "toolkit.ps1"));
                 if (operation == "diagnose") arguments += " -DiagnoseOnly";
                 if (operation == "web") arguments += " -OpenWebOnly";
+                if (requestedPort != null) arguments += " -HttpPort " + requestedPort;
                 var result = await Execute(powershell, arguments, device.Serial, 0, Line);
                 // Drain queued output before evaluating the structured final result.
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
@@ -273,6 +295,9 @@ namespace SimpleAdminSetup
                     Text("ProgressLabel", "全部检查通过");
                     Text("StatusDetail", reboot ? "需要手动重启模块以应用网络配置。重启后请重新打开管理页面。" : operation == "install" ? "程序与网页检查通过。点击“打开管理页面”即可使用，升级后的登录密码保持不变。" : operation == "diagnose" ? "ADB 通道访问正常。如果模块 IP 仍打不开，请查看报告中的网卡、路由和防火墙信息。" : "已通过 USB / ADB 建立访问通道。保持设备连接，即可在浏览器中使用。" );
                     for (int i = 1; i <= 4; i++) Find<TextBlock>("Step" + i).Foreground = blue;
+                    if (deviceHttpPort != null) {
+                        Find<TextBlock>("StatusDetail").Text += " 局域网地址：http://模块IP" + (deviceHttpPort == "80" ? "/" : ":" + deviceHttpPort + "/") + "。";
+                    }
                     if (operation == "web") {
                         try { Process.Start(new ProcessStartInfo(webUrl) { UseShellExecute = true }); }
                         catch (Exception e) { Append(e.Message); Text("StatusDetail", "浏览器未能自动打开，请复制此地址访问：" + webUrl); }
@@ -331,6 +356,11 @@ namespace SimpleAdminSetup
         {
             while (scanning) await Task.Delay(50);
             await RefreshDevices();
+            string testCase = Environment.GetEnvironmentVariable("SIMPLEADMIN_TEST_CASE");
+            if (testCase == "custom-port" || testCase == "invalid-input") {
+                Find<CheckBox>("ChangeHttpPort").IsChecked = true;
+                Find<TextBox>("HttpPort").Text = testCase == "custom-port" ? "8080" : "65536";
+            }
             await Run(operation);
             File.WriteAllLines(destination, new[] {
                 "RESULT=" + resultEvent,

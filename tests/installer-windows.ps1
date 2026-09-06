@@ -64,7 +64,8 @@ public class FakeAdb {
             if (modeName == "multiple") Console.WriteLine("FAKE2\tdevice");
         } else if (call.Contains("push ") && modeName == "push-failed") {
             Console.Error.WriteLine("simulated push failure"); return 1;
-        } else if (call.Contains("shell bash /tmp/development/install_simpleadmin_rust.sh")) {
+        } else if (call.Contains("bash /tmp/development/install_simpleadmin_rust.sh")) {
+            if (call.Contains("SIMPLEADMIN_HTTP_PORT=8080")) File.WriteAllText(Path.Combine(dir, "device-http-port"), "8080");
             if (modeName == "streaming") {
                 Console.WriteLine("STREAMING_PROBE"); Console.Out.Flush();
                 for (int i = 0; i < 100 && !File.Exists(Path.Combine(dir, "streaming-observed")); i++) System.Threading.Thread.Sleep(50);
@@ -74,7 +75,11 @@ public class FakeAdb {
             Console.WriteLine("simulated installation");
         } else if (call.Contains("cat /tmp/simpleadmin-install-result.env")) {
             Console.WriteLine(modeName == "missing-result" ? "REBOOT_REQUIRED=0" : "INSTALL_STATUS=OK");
-        } else if (call.Contains("forward tcp:0 tcp:80")) {
+        } else if (call.Contains("if [ -e /usrdata/simpleadmin/http_port ]")) {
+            if (modeName == "port-read-failed") return 1;
+            Console.WriteLine(modeName == "invalid-saved-port" ? "bad" : File.ReadAllText(Path.Combine(dir, "device-http-port")));
+        } else if (call.Contains("forward tcp:0 tcp:")) {
+            if (!call.EndsWith("tcp:" + File.ReadAllText(Path.Combine(dir, "device-http-port")))) return 1;
             Console.WriteLine(File.ReadAllText(Path.Combine(dir, "port")));
         }
         return 0;
@@ -88,23 +93,30 @@ public class FakeAdb {
     if (-not (Test-Path (Join-Path $scratch 'port'))) { throw 'Fixture HTTP server failed to start.' }
     $count = 0
     $preflightCases = @('phone', 'phone-diagnose', 'emulator', 'no-root', 'no-bash', 'readonly-tmp', 'readonly-tmp-diagnose', 'missing-tmp', 'probe-failed')
-    foreach ($case in (@('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'web', 'forwarded') + $preflightCases)) {
+    $portCases = @('custom-port', 'preserve-port', 'custom-diagnose', 'custom-web', 'port-read-failed', 'invalid-saved-port', 'invalid-input')
+    foreach ($case in (@('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'web', 'forwarded') + $preflightCases + $portCases)) {
         $env:SIMPLEADMIN_TEST_CASE = $case
         Set-Content -LiteralPath (Join-Path $scratch 'http-mode') -Value $(if ($case -eq 'wrong-app') { 'wrong-app' } else { 'ok' })
         Set-Content -LiteralPath (Join-Path $scratch 'calls') -Value ''
+        [IO.File]::WriteAllText((Join-Path $scratch 'device-http-port'), $(if ($case -in @('preserve-port','custom-diagnose','custom-web')) { '8080' } else { '80' }))
         $options = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $scratch 'toolkit.ps1'))
         if ($case -eq 'diagnose' -or $case -like '*-diagnose') { $options += '-DiagnoseOnly' }
-        if ($case -eq 'web') { $options += '-OpenWebOnly' }
+        if ($case -eq 'web' -or $case -eq 'custom-web') { $options += '-OpenWebOnly' }
+        if ($case -eq 'custom-port') { $options += @('-HttpPort','8080') }
+        if ($case -eq 'invalid-input') { $options += @('-HttpPort','65536') }
         $output = & powershell.exe @options 2>&1
         $code = $LASTEXITCODE
-        $expected = if ($case -in @('success', 'diagnose', 'web', 'forwarded')) { 0 } else { 1 }
+        $expected = if ($case -in @('success', 'diagnose', 'web', 'forwarded', 'custom-port', 'preserve-port', 'custom-diagnose', 'custom-web')) { 0 } else { 1 }
         if ($code -ne $expected) { throw "${case}: exit $code expected $expected`n$($output -join "`n")" }
         $calls = Get-Content -LiteralPath (Join-Path $scratch 'calls') -Raw
+        if ($case -eq 'invalid-input' -and $calls.Trim()) { throw 'Invalid port must fail before ADB access.' }
+        if ($case -in @('custom-port','preserve-port','custom-diagnose','custom-web') -and $calls -notmatch 'forward tcp:0 tcp:8080') { throw "${case}: wrong HTTP tunnel port" }
+        if ($case -eq 'preserve-port' -and $calls -match 'SIMPLEADMIN_HTTP_PORT=') { throw 'Upgrade must preserve port unless explicitly changed.' }
         if ($case -in $preflightCases -and $calls -match 'push |remount|rm -|shell bash ') { throw "${case}: preflight failure must not write to device" }
         if ($case -in @('none', 'unauthorized', 'multiple') -and $calls -match 'shell|push') { throw "${case}: must not touch a device" }
         if ($case -eq 'diagnose' -and $calls -match 'install_simpleadmin|remount|reboot|AT\+|sms|passwd') { throw 'Diagnostic path changed device state.' }
         if ($case -eq 'web' -and $calls -match 'push|install_simpleadmin|remount|reboot|AT\+|sms|passwd') { throw 'Open web path changed device state.' }
-        if ($case -notin @('success', 'diagnose', 'web', 'forwarded') -and ($output -join "`n") -match 'Installation and HTTP checks passed') { throw 'False success reported.' }
+        if ($expected -ne 0 -and ($output -join "`n") -match 'Installation and HTTP checks passed') { throw 'False success reported.' }
         if (($output -join "`n") -notmatch "@@SIMPLEADMIN\|result\|$expected") { throw 'Structured final result missing.' }
         if ($case -eq 'wrong-app' -and $calls -notmatch 'forward --remove') { throw 'Failed HTTP tunnel was not removed.' }
         Write-Host "PASS Windows installer: $case"
@@ -112,10 +124,11 @@ public class FakeAdb {
     }
     Write-Host "$count Windows installer checks passed"
     if ($GuiTest) {
-        foreach ($case in (@('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'streaming', 'forwarded') + $preflightCases)) {
+        foreach ($case in (@('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'streaming', 'forwarded', 'custom-port', 'preserve-port', 'custom-diagnose', 'invalid-input') + $preflightCases)) {
             $env:SIMPLEADMIN_TEST_CASE = $case
             Set-Content -LiteralPath (Join-Path $scratch 'http-mode') -Value $(if ($case -eq 'wrong-app') { 'wrong-app' } else { 'ok' })
             Set-Content -LiteralPath (Join-Path $scratch 'calls') -Value ''
+            [IO.File]::WriteAllText((Join-Path $scratch 'device-http-port'), $(if ($case -in @('preserve-port','custom-diagnose')) { '8080' } else { '80' }))
             $guiResult = Join-Path $scratch ('gui-' + $case + '.txt')
             $operation = if ($case -eq 'diagnose' -or $case -like '*-diagnose') { 'diagnose' } else { 'install' }
             $gui = Start-Process -FilePath (Join-Path $scratch 'SimpleAdmin-Setup.exe') -ArgumentList @('--test-run', $operation, $guiResult) -WindowStyle Hidden -PassThru
@@ -126,12 +139,15 @@ public class FakeAdb {
             if ($case -in $preflightCases) {
                 if ($calls -match 'push |remount|rm -|shell bash ' -or $state -notmatch 'TITLE=设备检查未通过') { throw "GUI preflight did not stop safely: $case" }
             }
-            if ($case -in @('none', 'unauthorized', 'multiple')) {
+            if ($case -eq 'invalid-input') {
+                if ($calls -match 'shell|push' -or $state -notmatch 'TITLE=请检查 HTTP 端口') { throw 'GUI did not reject invalid port.' }
+            } elseif ($case -in @('none', 'unauthorized', 'multiple')) {
                 if ($state -notmatch 'INSTALL=False' -or $calls -match 'shell|push') { throw "GUI unsafe device selection: $case" }
             } else {
-                $expected = if ($case -in @('success','diagnose','streaming','forwarded')) { 0 } else { 1 }
+                $expected = if ($case -in @('success','diagnose','streaming','forwarded','custom-port','preserve-port','custom-diagnose')) { 0 } else { 1 }
                 if ($state -notmatch "RESULT=$expected" -or $state -notmatch 'REPORT=True' -or $state -notmatch 'BUSY=False' -or $state -notmatch 'INSTALL=True') { throw "GUI incorrect completion state: $case`n$state" }
             }
+            if ($case -in @('custom-port','preserve-port','custom-diagnose') -and $calls -notmatch 'forward tcp:0 tcp:8080') { throw "GUI wrong port: $case" }
             Write-Host "PASS GUI workflow: $case"
         }
     }

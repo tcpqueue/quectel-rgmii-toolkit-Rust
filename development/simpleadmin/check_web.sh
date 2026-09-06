@@ -1,8 +1,8 @@
 #!/bin/bash
 set -u
-port="${SIMPLEADMIN_CHECK_PORT:-80}"
-case "$port" in ''|*[!0-9]*) exit 1 ;; esac
-[ "$port" -gt 0 ] && [ "$port" -le 65535 ] || exit 1
+. "$(dirname "$0")/web_port.sh"
+port="${SIMPLEADMIN_CHECK_PORT:-$(simpleadmin_read_http_port)}"
+simpleadmin_valid_port "$port" || exit 1
 
 # Loopback only: no login, AT commands, or modem configuration changes.
 check_page() (
