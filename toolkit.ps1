@@ -1,10 +1,12 @@
-param([switch]$DiagnoseOnly, [switch]$OpenWebOnly)
+﻿param([switch]$DiagnoseOnly, [switch]$OpenWebOnly)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 $adb = Join-Path $PSScriptRoot 'adb.exe'
 $development = Join-Path $PSScriptRoot 'development'
 $serial = $null
+$deviceChecked = $false
+$stagingStarted = $false
 $exitCode = 1
 $logDir = Join-Path $PSScriptRoot 'logs'
 if ($env:SIMPLEADMIN_REPORT_DIR) { $logDir = $env:SIMPLEADMIN_REPORT_DIR }
@@ -37,6 +39,34 @@ function AdbCommand([string[]]$Arguments, [switch]$Quiet) {
 function RequireAdb([string[]]$Arguments) {
     $result = AdbCommand $Arguments
     if ($result.Code -ne 0) { throw "ADB command failed: $($Arguments[0]) (exit $($result.Code))" }
+}
+
+function CheckDevice {
+    Log '正在检查所选设备的系统、模块特征、权限及临时目录（只读检查）。'
+    $probe = @'
+echo SIMPLEADMIN_PREFLIGHT=1
+echo SA_SYSTEM=$(uname -s)
+echo SA_ARCH=$(uname -m)
+echo SA_UID=$(id -u)
+if [ -d /usrdata ] && { [ -c /dev/smd11 ] || [ -f /usrdata/etc/data/mobileap_cfg.xml ] || [ -f /etc/data/mobileap_cfg.xml ]; }; then echo SA_MODULE=1; else echo SA_MODULE=0; fi
+if command -v bash >/dev/null 2>&1; then echo SA_BASH=1; else echo SA_BASH=0; fi
+if [ -d /tmp ] && [ -w /tmp ]; then echo SA_TMP=1; else echo SA_TMP=0; fi
+echo SIMPLEADMIN_PREFLIGHT_DONE=1
+'@
+    $probe = $probe.Replace("`r", '')
+    $result = AdbCommand @('shell', $probe)
+    $lines = @($result.Lines | ForEach-Object { $_.Trim() })
+    if ($result.Code -ne 0 -or $lines -notcontains 'SIMPLEADMIN_PREFLIGHT_DONE=1') {
+        throw '无法读取所选设备的系统信息，请检查 ADB 连接并重新选择模块。'
+    }
+    if ($lines -notcontains 'SA_SYSTEM=Linux' -or $lines -notcontains 'SA_ARCH=armv7l' -or $lines -notcontains 'SA_MODULE=1') {
+        throw '所选 ADB 设备未通过模块兼容性检查。请连接 Quectel 模块，排除手机、模拟器或其他 ADB 设备；若通过端口转发连接，请确认转发目标是模块本身。'
+    }
+    if (-not $OpenWebOnly) {
+        if ($lines -notcontains 'SA_UID=0') { throw '当前 ADB 没有 root 权限，无法安装或诊断模块。请使用模块提供的 root ADB 连接。' }
+        if ($lines -notcontains 'SA_BASH=1') { throw '模块固件缺少 Bash，当前安装器无法在此固件上运行。' }
+        if ($lines -notcontains 'SA_TMP=1') { throw '模块的 /tmp 不存在或不可写，尚未上传任何文件。请检查固件的临时目录挂载状态；根目录只读本身是正常的，不要直接解除根目录只读来绕过此检查。' }
+    }
 }
 
 function ProbeWeb([switch]$KeepTunnel) {
@@ -101,6 +131,8 @@ try {
         $serial = $ready[0]
     } else { throw 'Connect exactly one authorized ADB device, or set ANDROID_SERIAL to select one.' }
     Log "Selected device: $serial"
+    CheckDevice
+    $deviceChecked = $true
     if ($OpenWebOnly) {
         Event 'stage' 'verify'
         ProbeWeb -KeepTunnel
@@ -114,6 +146,7 @@ try {
     } else {
         if (-not (Test-Path (Join-Path $development 'SHA256SUMS'))) { throw 'Package checksums are missing. Extract the entire offline ZIP.' }
         Event 'stage' 'upload'
+        $stagingStarted = $true
         RequireAdb @('shell', 'rm -rf /tmp/development; rm -f /tmp/simpleadmin-install-result.env')
         RequireAdb @('push', $development, '/tmp/development')
         Event 'stage' 'install'
@@ -134,12 +167,13 @@ try {
     }
 } catch {
     Log "ERROR: $($_.Exception.Message)"
+    Event 'error' ($_.Exception.Message -replace '[\r\n]+', ' ')
     Event 'failure' 'operation'
-    if ($serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
+    if ($deviceChecked -and $serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
         try { Diagnose } catch { Log "Diagnostics incomplete: $($_.Exception.Message)" }
     }
 } finally {
-    if ($serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
+    if ($stagingStarted -and $serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
         $null = AdbCommand @('shell', 'rm -rf /tmp/development') -Quiet
     }
     Log "Report saved: $report"
