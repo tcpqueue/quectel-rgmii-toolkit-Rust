@@ -38,7 +38,7 @@
 <link href="css/bootstrap.min.css" rel="stylesheet"/>
 <link href="css/Poppins.css?v=2.94" rel="stylesheet"/>
 <link href="css/styles.css?v=2.94" rel="stylesheet"/>
-<link href="css/art-device.css?v=3.3" rel="stylesheet"/>
+<link href="css/art-device.css?v=3.4" rel="stylesheet"/>
 <link href="favicon.ico" rel="icon"/>
 <script src="js/band_map.js?v=2.94"></script>
 <script defer="" src="js/bootstrap.bundle.min.js"></script>
@@ -116,7 +116,8 @@
 </div>
 </div>
 <div class="sa-page-app sa-single-column art-device-overview" id="dashboardApp" v-cloak="">
-<div class="art-overview-heading"><h2>设备状态</h2><span v-text="uptime"></span></div>
+<section class="art-status-card" aria-labelledby="artStatusTitle">
+<div class="art-overview-heading"><h2 id="artStatusTitle">设备状态</h2><span v-text="uptime"></span></div>
 <div class="art-health-grid">
 <article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon blue"><i data-lucide="cpu" aria-hidden="true"></i></span><span>CPU 使用率</span></div><strong v-text="formatPercent(cpuUsagePercent)"></strong><div class="art-resource-track" role="progressbar" aria-label="CPU 使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(cpuUsagePercent)"><span :style="{width: clampPercent(cpuUsagePercent) + '%'}"></span></div></article>
 <article class="art-health-item"><div class="art-health-label"><span class="art-stat-icon green"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span>内存使用率</span></div><strong v-text="formatPercent(ramUsagePercent)"></strong><small v-text="formatRamUsage()"></small><div class="art-resource-track green" role="progressbar" aria-label="内存使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="clampPercent(ramUsagePercent)"><span :style="{width: clampPercent(ramUsagePercent) + '%'}"></span></div></article>
@@ -130,6 +131,7 @@
 <div class="art-radio-row art-radio-labels" role="row"><span role="columnheader">制式</span><span role="columnheader">RSRP <small>dBm</small></span><span role="columnheader">RSRQ <small>dB</small></span><span role="columnheader">SINR <small>dB</small></span></div>
 <div class="art-radio-row" role="row" v-for="radio in ['LTE', 'NR'].filter(hasRadioSignal)" :key="radio"><span role="rowheader" class="art-radio-name"><span class="art-radio-dot" :class="{nr: radio === 'NR'}"></span>{{ radio === 'NR' ? '5G NR' : '4G LTE' }}</span><strong role="cell">{{ $data['rsrp' + radio] === '-' ? '--' : $data['rsrp' + radio] }}</strong><strong role="cell">{{ $data['rsrq' + radio] === '-' ? '--' : $data['rsrq' + radio] }}</strong><strong role="cell">{{ $data['sinr' + radio] === '-' ? '--' : $data['sinr' + radio] }}</strong></div>
 </div>
+</section>
 </section>
 <section class="art-network-section" aria-labelledby="artNetworkTitle">
 <div class="art-network-heading"><div><h2 id="artNetworkTitle">网络信息</h2><span v-text="network_provider"></span></div><div class="art-network-tools">
@@ -198,11 +200,11 @@
 </div>
 </section>
 <section class="art-chart-section art-ping-section" aria-labelledby="pingChartTitle">
-<div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>ICMP · 1 秒采样</span></div><form class="art-target-form" @submit.prevent="saveTarget"><label class="visually-hidden" for="pingTarget">Ping 目标</label><input id="pingTarget" :disabled="saving" v-model="targetInput" @input="targetDirty = true" class="form-control" placeholder="www.baidu.com" maxlength="253" required autocomplete="off" spellcheck="false"/><button class="btn btn-primary" :disabled="saving || !targetDirty" type="submit">{{ saving ? '保存中…' : '应用' }}</button></form></div>
+<div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>ICMP · 1 秒采样</span></div><i data-lucide="activity" aria-hidden="true"></i></div>
 <p class="art-target-message" role="status" v-if="targetMessage">{{ targetMessage }}</p>
 <p class="art-target-message is-error" role="alert" v-if="error">{{ error }} <button class="art-text-button" @click="refresh" type="button">重试</button></p>
 <div class="art-chart-wrap"><div id="pingChart" class="art-chart art-ping-chart" role="img" aria-label="最近五分钟延迟、抖动和失败采样走势图"></div><div class="art-chart-empty" v-if="!snapshot.ping.length">等待首次采样</div></div>
-<div class="art-chart-footer"><span>平均 <b>{{ number(snapshot.summary.average) }}</b> ms</span><span>最低 <b>{{ number(snapshot.summary.minimum) }}</b> ms</span><span>最高 <b>{{ number(snapshot.summary.maximum) }}</b> ms</span><span class="art-failure-key">失败 {{ failedSamples }} 次</span><span>{{ latestPing && latestPing.ip ? latestPing.ip : snapshot.target }}</span></div>
+<div class="art-chart-footer"><span>平均 <b>{{ number(snapshot.summary.average) }}</b> ms</span><span>最低 <b>{{ number(snapshot.summary.minimum) }}</b> ms</span><span>最高 <b>{{ number(snapshot.summary.maximum) }}</b> ms</span><span class="art-failure-key">失败 {{ failedSamples }} 次</span><form class="art-target-form" @submit.prevent="saveTarget"><label class="visually-hidden" for="pingTarget">Ping 目标</label><input id="pingTarget" :disabled="saving" v-model="targetInput" @input="targetDirty = true" class="form-control" placeholder="www.baidu.com" maxlength="253" required autocomplete="off" spellcheck="false"/><button class="btn btn-primary" :disabled="saving || !targetDirty" type="submit">{{ saving ? '保存中…' : '应用' }}</button></form></div>
 </section>
 </div>
 </div>
