@@ -348,6 +348,16 @@ html[dir="rtl"] .art-chart-footer > span:last-child { margin-left: 0; margin-rig
  .art-status-card .art-stat { min-height: 110px; gap: 8px; }
  .art-status-card .art-stat > .art-stat-icon { display: none; }
 }
+.art-status-card .metric-good { color: #138568; }
+.art-status-card .metric-warn { color: #ad6b08; }
+.art-status-card .metric-bad { color: #cf3f51; }
+.art-status-card .metric-neutral { color: var(--sa-muted); }
+.art-signal-track > span { background: currentColor; }
+.art-connection-state { display: flex; align-items: center; gap: 9px; margin: 3px 0 6px; font-size: 15px; font-weight: 600; }
+.art-connection-state svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+html[data-bs-theme="dark"] .art-status-card .metric-good { color: #46d5ad; }
+html[data-bs-theme="dark"] .art-status-card .metric-warn { color: #f2bd61; }
+html[data-bs-theme="dark"] .art-status-card .metric-bad { color: #ff8393; }
 @media (prefers-reduced-motion: no-preference) {
   .sa-menu-link, .art-icon-button, .art-segmented button { transition: background-color .16s, color .16s; }
 }

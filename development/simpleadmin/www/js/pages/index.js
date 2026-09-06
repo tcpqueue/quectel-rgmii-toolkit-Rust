@@ -80,6 +80,11 @@ function getStaticNetworkInfo() {
     _dashboardActive: false,
     _dashboardPageChangeHandler: null,
 
+    signalTone() {
+      if (!this.hasRadioSignal('NR') && !this.hasRadioSignal('LTE')) return 'metric-neutral';
+      return this.signalPercentage >= 70 ? 'metric-good' : this.signalPercentage >= 40 ? 'metric-warn' : 'metric-bad';
+    },
+
     hasRadioSignal(radio) {
       return ['rsrp', 'rsrq', 'sinr'].some(key => {
         const value = this[key + radio];
