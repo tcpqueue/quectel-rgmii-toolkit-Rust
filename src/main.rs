@@ -5,6 +5,7 @@ mod auth;
 mod cleanup;
 mod console;
 mod forwarding;
+mod http;
 mod mock;
 mod parser;
 mod persistence;
@@ -216,11 +217,10 @@ fn entry() -> Result<()> {
         if app.config.no_tls {
             let listener = tokio::net::TcpListener::bind(listen_address(&app.config.http)).await?;
             println!("HTTP listening on {}", listener.local_addr()?);
-            axum::serve(listener, app.router())
-                .with_graceful_shutdown(async {
-                    let _ = tokio::signal::ctrl_c().await;
-                })
-                .await?;
+            tokio::select! {
+                result = http::serve(listener, app.router()) => result?,
+                _ = tokio::signal::ctrl_c() => {},
+            }
         } else {
             tls::serve(app).await?
         }

@@ -815,6 +815,7 @@
 <label class="form-check form-switch"><input id="smsDeleteAfterDay" class="form-check-input" type="checkbox" v-model="deleteAfterDay" @change="saveSmsSettings" :disabled="smsSettingsSaving || !smsSettingsLoaded"/><span>全部渠道转发成功 24 小时后自动删除</span></label>
 <span class="small text-muted">待删除 <b>{{ pendingDeletes }}</b></span>
 </div>
+<p v-if="deleteAfterDay" class="small text-muted">重启或时间异常后，自动删除会延后至少 24 小时。</p>
 <p v-if="smsSettingsMessage" role="status" class="sa-forward-message" v-text="smsSettingsMessage"></p>
 <p v-if="smsSettingsLoaded && !smsEnabled" class="sa-forward-message">短信功能已关闭</p>
 <div class="sa-section-stack" v-if="smsSettingsLoaded && smsEnabled">

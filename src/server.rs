@@ -41,6 +41,7 @@ pub struct App {
     pub forwarding: Arc<Forwarder>,
     metrics: Metrics,
     pub sockets: Arc<tokio::sync::Semaphore>,
+    pub consoles: Arc<tokio::sync::Semaphore>,
     ttl_lock: tokio::sync::Mutex<()>,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
@@ -124,7 +125,8 @@ impl App {
             monitor,
             forwarding,
             metrics: Metrics::default(),
-            sockets: Arc::new(tokio::sync::Semaphore::new(32)),
+            sockets: Arc::new(tokio::sync::Semaphore::new(8)),
+            consoles: Arc::new(tokio::sync::Semaphore::new(2)),
             ttl_lock: tokio::sync::Mutex::new(()),
         }))
     }
@@ -154,7 +156,7 @@ impl App {
                 get(|| async { axum::response::Html(include_str!("console.html")) }),
             )
             .fallback(dispatch)
-            .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024))
+            .layer(axum::extract::DefaultBodyLimit::max(64 * 1024))
             .layer(middleware::from_fn_with_state(self.clone(), gate))
             .with_state(self.clone())
     }
@@ -223,9 +225,24 @@ async fn dispatch(State(app): State<Arc<App>>, request: Request) -> Response {
             Err(_) => error(500, "static file error"),
         };
     }
-    let body = match to_bytes(request.into_body(), 1024 * 1024).await {
-        Ok(b) => b,
-        Err(_) => return error(413, "request too large"),
+    if request
+        .headers()
+        .get("content-length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .is_some_and(|n| n > 64 * 1024)
+    {
+        return error(413, "request too large");
+    }
+    let body = match tokio::time::timeout(
+        Duration::from_secs(5),
+        to_bytes(request.into_body(), 64 * 1024),
+    )
+    .await
+    {
+        Ok(Ok(b)) => b,
+        Ok(Err(_)) => return error(413, "request too large"),
+        Err(_) => return error(408, "request body timeout"),
     };
     let body = match std::str::from_utf8(&body) {
         Ok(s) => s,
@@ -316,7 +333,12 @@ pub async fn api(
                 if body.len()>128{bail!("test request too large")}
                 let test:Test=serde_json::from_str(body)?;app.forwarding.test(&test.platform).await?
             },
-            "/api/telemetry"=>app.monitor.snapshot(),
+            "/api/telemetry"=>{
+                let cursor = p.get("cursor");
+                if cursor.len() > 512 { bail!("invalid telemetry cursor"); }
+                let cursor = serde_json::from_str::<crate::telemetry::Cursor>(cursor).ok();
+                app.monitor.snapshot_since(cursor.as_ref())
+            },
             "/api/telemetry/target"=>{
                 #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Target{target:String}
                 if body.len()>1024{bail!("target request too large")}let config:Target=serde_json::from_str(body)?;app.monitor.set_target(&config.target).await?;app.monitor.snapshot()
@@ -496,8 +518,8 @@ async fn websocket(
         Err(_) => return error(503, "too many connections"),
     };
     upgrade
-        .max_message_size(1024 * 1024)
-        .max_frame_size(1024 * 1024)
+        .max_message_size(64 * 1024)
+        .max_frame_size(64 * 1024)
         .on_upgrade(move |socket| async move {
             let _permit = permit;
             ws_loop(app, socket, token).await
@@ -513,12 +535,13 @@ async fn console_socket(
         return error(403, "websocket origin forbidden");
     }
     let token = cookie(&headers);
-    let permit = match app.sockets.clone().try_acquire_owned() {
+    let permit = match app.consoles.clone().try_acquire_owned() {
         Ok(p) => p,
         Err(_) => return error(503, "too many connections"),
     };
     upgrade
-        .max_message_size(65536)
+        .max_message_size(16 * 1024)
+        .max_frame_size(16 * 1024)
         .on_upgrade(move |socket| async move {
             let _permit = permit;
             crate::console::run(app, socket, token).await
