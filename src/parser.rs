@@ -651,7 +651,7 @@ pub fn network(raw: &str) -> Value {
             }
             "+QNWLOCK" if p.len() > 1 => match p[0].as_str() {
                 "common/4g" => lte = p[1] != "0",
-                "common/5g" => nr = p[1] != "0",
+                "common/5g" => nr = p.len() >= 5,
                 _ => {}
             },
             "+QNWPREFCFG" if p.len() > 1 => match p[0].as_str() {

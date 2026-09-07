@@ -2,6 +2,7 @@ mod actions;
 mod at;
 mod at_policy;
 mod auth;
+mod cell_lock;
 mod cleanup;
 mod console;
 mod forwarding;

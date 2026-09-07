@@ -34,6 +34,33 @@ function cellLocking() {
         updatedLockedBands: null,
         updatedLockedBandsByMode: { LTE: [], NSA: [], SA: [] },
         cellLockStatus: "未知",
+        lockPersistence: 'temporary', lockAutoUnlock: true, lockBusy: false, lockMessage: '', lockRadios: [],
+        lockTimer: null, lockEventsBound: false, lockRefreshBusy: false,
+        lockLanguage: SimpleAdmin.Lang.getCurrentLanguage(),
+        lockStatusText(state) {
+          const key=({temporary:'临时锁频',persistent:'持久化锁频',connected:'已拨号，锁频保持',unlocked:'未锁定',fallback:'已超时回退，开机恢复已关闭',fallback_error:'回退失败，正在重试'})[state.phase] || (state.persistent?'等待开机恢复':'未锁定');
+          return this.lockLanguage==='zh-CN'?key:SimpleAdmin.Lang.t(key);
+        },
+        async refreshCellLocks() {
+          if(this.lockRefreshBusy) return;
+          this.lockRefreshBusy=true;
+          try {const data=await SimpleAdmin.Api.networkData({action:'cell_lock_status'});this.lockRadios=data.radios||[];} finally {this.lockRefreshBusy=false;}
+        },
+        async requestCellLock(params) {
+          this.lockBusy=true;this.lockMessage='';
+          try {
+            const data=await SimpleAdmin.Api.networkData({persistence:this.lockPersistence,auto_unlock:this.lockAutoUnlock?'1':'0',...params});
+            if(data.ok===false) throw new Error(data.error||data.response||'锁频失败');
+            this.lockRadios=data.cell_lock.radios;this.lockMessage=data.warning||SimpleAdmin.Lang.t('已保存');
+            return data;
+          } catch(error) {this.lockMessage=error.message;throw error;} finally {this.lockBusy=false;}
+        },
+        async restoreSavedLock(state) {
+          const v=state.values;if(!v)return;
+          const params=state.radio==='lte'?{action:'lock_lte_manual',cellNum:v[0],pairs:Array.from({length:v[0]},(_,i)=>v.slice(1+i*2,3+i*2).join(',')).join(';')}:{action:'lock_nr_manual',pci:v[0],earfcn:v[1],scs:v[2],band:v[3]};
+          try {await this.requestCellLock({...params,persistence:'persistent',auto_unlock:state.auto_unlock?'1':'0'});}catch(_){}
+        },
+        async cancelSavedLock(state) {try {await this.requestCellLock({action:state.radio==='lte'?'unlock_lte':'unlock_nr'});}catch(_){}},
         bands: "获取频段中...",
         isGettingBands: false,
         pdpType: "-",
@@ -163,6 +190,7 @@ function cellLocking() {
         },
         toggleCellSelection(pci, provider) {
           if (this.cellScanMode === "NR5G Only") {
+            if(this.selectedCells.length!==1){alert('NR5G-SA 每次只能锁定一个小区');return;}
             // 如果是 NR5G Only 模式，只能选择一个小区
             const index = this.selectedCells.findIndex(cell => cell.pci === pci && cell.provider === provider);
 
@@ -244,7 +272,7 @@ function cellLocking() {
             for (const { pci, provider } of this.selectedCells) {
               const { earfcn1: earfcn, pci1: cellPci, scs, band } = this.getCellDetails(pci, provider,"NR5G");
 
-              await SimpleAdmin.Api.networkData({ action: 'lock_scanned_cells', mode: this.cellScanMode, pci: cellPci, earfcn, scs, band })
+              await this.requestCellLock({ action: 'lock_scanned_cells', mode: this.cellScanMode, pci: cellPci, earfcn, scs, band })
                 .catch(error => { console.error('发送锁定命令失败:', error); });
             }
           } else if (this.cellScanMode === "LTE Only") {
@@ -273,7 +301,7 @@ function cellLocking() {
 
             const cellNum = pairs.length;  // 设置正确的小区数
             // 提交小区锁定参数，由后端生成锁定指令
-            await SimpleAdmin.Api.networkData({
+            await this.requestCellLock({
               action: 'lock_scanned_cells',
               mode: this.cellScanMode,
               earfcn: pairs.join(','),
@@ -434,6 +462,12 @@ function cellLocking() {
           return this._bandsFetchInFlight[selectedMode];
         },
         async init() {
+          if(!this.lockEventsBound){
+            this.lockEventsBound=true;
+            window.addEventListener('simpleadmin:language-changed',()=>{this.lockLanguage=SimpleAdmin.Lang.getCurrentLanguage();});
+            const sync=()=>{const active=document.querySelector('[data-page="network"]').classList.contains('active');if(active){this.refreshCellLocks().catch(()=>{});if(!this.lockTimer)this.lockTimer=setInterval(()=>this.refreshCellLocks().catch(()=>{}),5000);}else{clearInterval(this.lockTimer);this.lockTimer=null;}};
+            window.addEventListener('simpleadmin:page-changed',sync);sync();
+          }
           // 初始化时，禁止用户操作（还没有准备好）
           this._initialized = false;
 
@@ -492,6 +526,7 @@ function cellLocking() {
             .then(settings => {
               this.apn = settings.apn || '-';
               this.cellLockStatus = settings.cellLockStatus || '未知';
+              this.lockRadios = settings.cell_lock?.radios || [];
               this.prefNetwork = settings.prefNetwork || '-';
               this.bands = settings.bands || '-';
               this.nrModeControlCurrent = settings.nrModeControlNum || null;
@@ -693,7 +728,7 @@ function cellLocking() {
             return;
           }
 
-          await SimpleAdmin.Api.networkData({
+          await this.requestCellLock({
             action: 'lock_lte_manual',
             cellNum,
             pairs: pairs.map(p => `${p.earfcn},${p.pci}`).join(';')
@@ -709,21 +744,21 @@ function cellLocking() {
             alert("请输入所有必填字段");
             return;
           }
-          await SimpleAdmin.Api.networkData({ action: 'lock_nr_manual', pci, earfcn, scs, band });
+          await this.requestCellLock({ action: 'lock_nr_manual', pci, earfcn, scs, band });
           await this.startModalCountdown(3);
           //await this.getCurrentSettings();
           await this.init();
         },
 
         async cellLockDisableLTE() {
-          await SimpleAdmin.Api.networkData({ action: 'unlock_lte' });
+          await this.requestCellLock({ action: 'unlock_lte' });
           await this.startModalCountdown(3);
           //await this.getCurrentSettings();
           await this.init();
         },
 
         async cellLockDisableNR() {
-          await SimpleAdmin.Api.networkData({ action: 'unlock_nr' });
+          await this.requestCellLock({ action: 'unlock_nr' });
           await this.startModalCountdown(3);
           //await this.getCurrentSettings();
           await this.init();

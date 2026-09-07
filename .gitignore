@@ -6,5 +6,6 @@
 *.key
 monitor.json
 forwarding.json
+cell-lock.json
 sms-delete-receipts.json
 /windows-test/state/

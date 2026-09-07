@@ -22,7 +22,14 @@ const RETRY_WINDOW: Duration = Duration::from_secs(180);
 const MAX_JOBS: usize = 64;
 const MAX_QUEUED_BYTES: usize = 256 * 1024;
 const MAX_SEEN: usize = 4096;
-const PLATFORMS: [&str; 5] = ["serverchan", "wecom", "dingtalk", "feishu", "webhook"];
+const PLATFORMS: [&str; 6] = [
+    "serverchan",
+    "wecom",
+    "dingtalk",
+    "feishu",
+    "webhook",
+    "sim",
+];
 
 #[derive(Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
@@ -32,6 +39,7 @@ pub struct Channel {
     pub url: String,
     pub token: String,
     pub secret: String,
+    pub number: String,
     #[serde(skip_serializing)]
     pub clear: bool,
 }
@@ -62,6 +70,14 @@ impl Default for Settings {
     }
 }
 impl Settings {
+    fn migrate(&mut self) {
+        if self.channels.len() == 5 && !self.channels.iter().any(|c| c.platform == "sim") {
+            self.channels.push(Channel {
+                platform: "sim".into(),
+                ..Channel::default()
+            });
+        }
+    }
     fn validate(&self) -> Result<()> {
         if self.device_name.trim().is_empty()
             || self.device_name.chars().count() > 64
@@ -70,14 +86,18 @@ impl Settings {
             bail!("invalid device name")
         }
         if self.channels.len() != PLATFORMS.len() {
-            bail!("five platform entries required")
+            bail!("six platform entries required")
         }
         let mut seen = HashSet::new();
         for c in &self.channels {
             if !PLATFORMS.contains(&c.platform.as_str()) || !seen.insert(&c.platform) {
                 bail!("invalid or duplicate platform")
             }
-            if c.url.len() > 2048 || c.token.len() > 512 || c.secret.len() > 256 {
+            if c.url.len() > 2048
+                || c.token.len() > 512
+                || c.secret.len() > 256
+                || c.number.len() > 21
+            {
                 bail!("credentials too long")
             }
             if c.token.contains(['\r', '\n']) || c.secret.contains(['\r', '\n']) {
@@ -86,7 +106,13 @@ impl Settings {
             if !c.enabled {
                 continue;
             }
-            if c.platform == "serverchan" {
+            if c.platform == "sim" {
+                let digits = c.number.strip_prefix('+').unwrap_or(&c.number);
+                if !(5..=20).contains(&digits.len()) || !digits.bytes().all(|b| b.is_ascii_digit())
+                {
+                    bail!("invalid forwarding phone number");
+                }
+            } else if c.platform == "serverchan" {
                 if !c.token.starts_with("SCT")
                     || c.token.len() < 8
                     || !c.token.bytes().all(|b| b.is_ascii_alphanumeric())
@@ -305,7 +331,7 @@ struct State {
     detector: Detector,
     queue: VecDeque<Job>,
     records: VecDeque<Record>,
-    cooldown: [Option<Instant>; 5],
+    cooldown: [Option<Instant>; 6],
     poll_error: String,
     test_at: Option<Instant>,
     outcomes: HashMap<String, (usize, bool)>,
@@ -316,6 +342,7 @@ pub struct Forwarder {
     state: Mutex<State>,
     mutation: tokio::sync::Mutex<()>,
     client: OnceLock<reqwest::Client>,
+    at: OnceLock<At>,
     path: PathBuf,
     store: Arc<Store>,
 }
@@ -324,6 +351,10 @@ impl Forwarder {
         let (settings, poll_error) = match std::fs::read(&path) {
             Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes)
                 .ok()
+                .map(|mut s| {
+                    s.migrate();
+                    s
+                })
                 .filter(|s| s.validate().is_ok())
             {
                 Some(s) => (s, String::new()),
@@ -352,23 +383,25 @@ impl Forwarder {
                 detector: Detector::default(),
                 queue: VecDeque::new(),
                 records: VecDeque::new(),
-                cooldown: [None; 5],
+                cooldown: [None; 6],
                 poll_error,
                 test_at: None,
                 outcomes: HashMap::new(),
             }),
             mutation: tokio::sync::Mutex::new(()),
             client: OnceLock::new(),
+            at: OnceLock::new(),
             path,
             store,
         }
     }
     pub fn snapshot(&self) -> Value {
         let s = self.state.lock().unwrap();
-        let channels: Vec<_> = s.settings.channels.iter().map(|c|json!({"platform":c.platform,"enabled":c.enabled,"has_url":!c.url.is_empty(),"has_token":!c.token.is_empty(),"has_secret":!c.secret.is_empty()})).collect();
+        let channels: Vec<_> = s.settings.channels.iter().map(|c|json!({"platform":c.platform,"enabled":c.enabled,"number":c.number,"has_url":!c.url.is_empty(),"has_token":!c.token.is_empty(),"has_secret":!c.secret.is_empty()})).collect();
         json!({"sms_enabled":s.settings.sms_enabled,"delete_after_day":s.settings.delete_after_day,"cleanup":self.cleanup.status(),"enabled":s.settings.enabled,"device_name":s.settings.device_name,"channels":channels,"queued":s.queue.len(),"ready":s.detector.initialized,"error":s.poll_error,"records":s.records,"retry_seconds":180})
     }
     fn merge_settings(&self, mut next: Settings) -> Result<Settings> {
+        next.migrate();
         let state = self.state.lock().unwrap();
         next.device_name = next.device_name.trim().into();
         for c in &mut next.channels {
@@ -376,6 +409,7 @@ impl Forwarder {
                 c.url.clear();
                 c.token.clear();
                 c.secret.clear();
+                c.number.clear();
                 c.enabled = false;
                 c.clear = false;
                 continue;
@@ -429,7 +463,7 @@ impl Forwarder {
             if !s.settings.delete_after_day {
                 self.cleanup.cancel();
             }
-            s.cooldown = [None; 5];
+            s.cooldown = [None; 6];
             s.poll_error.clear();
         }
         saved?;
@@ -446,6 +480,7 @@ impl Forwarder {
         s.records.truncate(50);
     }
     pub fn start(self: &Arc<Self>, at: At) {
+        let _ = self.at.set(at.clone());
         let cleanup_self = self.clone();
         let cleanup_at = at.clone();
         tokio::spawn(async move {
@@ -588,10 +623,26 @@ impl Forwarder {
         let Some((mut job, channel, generation)) = work else {
             return;
         };
-        let parts = chunks(&job.notification.text, 1200);
+        if self.state.lock().unwrap().generation != generation {
+            return;
+        }
+        let parts = if channel.platform == "sim" {
+            vec![job.notification.text.as_str()]
+        } else {
+            chunks(&job.notification.text, 1200)
+        };
         let count = parts.len();
-        let result = self
-            .send(
+        let result = if channel.platform == "sim" {
+            self.send_sim(
+                &channel,
+                &job.notification,
+                RETRY_WINDOW.saturating_sub(job.created.elapsed()),
+                generation,
+            )
+            .await
+            .map_err(|e| (e.to_string(), false))
+        } else {
+            self.send(
                 &channel,
                 &job.notification,
                 parts[job.part],
@@ -599,7 +650,8 @@ impl Forwarder {
                 count,
                 RETRY_WINDOW.saturating_sub(job.created.elapsed()),
             )
-            .await;
+            .await
+        };
         let mut s = self.state.lock().unwrap();
         if s.generation != generation {
             return;
@@ -642,6 +694,9 @@ impl Forwarder {
         }
     }
     pub async fn test(&self, platform: &str) -> Result<Value> {
+        if platform == "sim" {
+            bail!("SIM channel test is disabled; use the SMS compose page");
+        }
         let (channel, device) = {
             let mut s = self.state.lock().unwrap();
             if s.test_at
@@ -793,6 +848,65 @@ impl Forwarder {
             Some(code) => Err((format!("provider error {code}"), true)),
             None => Err(("provider success code missing".into(), true)),
         }
+    }
+    async fn send_sim(
+        &self,
+        c: &Channel,
+        n: &Notification,
+        remaining: Duration,
+        generation: u64,
+    ) -> Result<()> {
+        if !self.sms_enabled() {
+            bail!("SMS service disabled");
+        }
+        let at = self.at.get().context("SMS service not ready")?;
+        let imsi = at.fetch("AT+CIMI", false).await?;
+        let number = sms::normalize_number(&c.number, &imsi)?;
+        if sms::normalize_number(&n.sender, &imsi).ok().as_deref() == Some(number.as_str()) {
+            bail!("Forwarding destination is the sender; loop prevented");
+        }
+        let content = format!(
+            "[{}] SMS\nFrom: {}\nTime: {}\n\n{}",
+            n.device, n.sender, n.received_at, n.text
+        );
+        let parts = sms::submit(&number, &content, rand::random::<u8>())?;
+        let started = Instant::now();
+        for (index, (pdu, len)) in parts.iter().enumerate() {
+            let _guard = self.sms_mutation.lock().await;
+            {
+                let state = self.state.lock().unwrap();
+                if !state.settings.sms_enabled
+                    || !state.settings.enabled
+                    || state.generation != generation
+                    || !state.settings.channels.contains(c)
+                {
+                    bail!("SMS forwarding configuration changed; remaining segments cancelled");
+                }
+            }
+            let timeout = remaining
+                .saturating_sub(started.elapsed())
+                .min(Duration::from_secs(30));
+            if timeout < Duration::from_secs(1) {
+                bail!("SMS forwarding deadline reached; no automatic retry");
+            }
+            let result = at
+                .transaction_timeout(
+                    &format!("AT+CMGF=0;+CMGS={len}"),
+                    Some(pdu.clone()),
+                    Some(timeout),
+                )
+                .await;
+            match result {
+                Ok(raw) if parser::ok(&raw) && (raw.contains("+CMGS:") || at.mock) => (),
+                _ => bail!(
+                    "SMS segment {} of {} was not confirmed; no automatic retry",
+                    index + 1,
+                    parts.len()
+                ),
+            }
+        }
+        at.invalidate().await;
+        Ok(())
     }
 }
 fn chunks(text: &str, max: usize) -> Vec<&str> {

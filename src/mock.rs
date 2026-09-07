@@ -20,6 +20,9 @@ pub fn response(
     fixtures: &HashMap<String, String>,
     overrides: &HashMap<String, String>,
 ) -> String {
+    if let Some(raw) = overrides.get(command) {
+        return envelope(command, raw);
+    }
     let source = if command == crate::at::SIGNAL {
         DASHBOARD
     } else {

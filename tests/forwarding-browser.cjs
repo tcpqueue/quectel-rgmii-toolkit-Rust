@@ -21,21 +21,29 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.goto('http://127.0.0.1:18086/login.html');await page.locator('#loginLanguage').selectOption('zh-CN');await page.locator('#username').fill('admin');await page.locator('#password').fill('admin');await page.locator('#loginButton').click();await page.waitForURL('http://127.0.0.1:18086/');
     const api=(path,data)=>page.evaluate(async({path,data})=>{const response=await SimpleAdmin.Api.request(path,data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{});return {status:response.status,data:await response.json()};},{path,data});
     assert.equal((await api('/api/telemetry')).data.mock,true);
-    await page.locator('[data-page-link="forwarding"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#forwardingApp']?.loaded);
+    const showForwarding=async()=>{await page.locator('[data-page-link="sms"]').click();await page.locator('.sa-sms-tabs button').nth(2).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#forwardingApp']?.loaded);};
+    await showForwarding();
+    assert(!(await page.locator('.sa-sms-inbox').isVisible()));
+    assert(!(await page.locator('.sa-sms-compose').isVisible()));
+    await page.locator('.sa-sms-tabs button').nth(1).click();assert(await page.locator('.sa-sms-compose').isVisible());assert(!(await page.locator('#forwardingApp').isVisible()));
+    await page.locator('.sa-sms-tabs button').nth(0).click();assert(await page.locator('.sa-sms-inbox').isVisible());assert(!(await page.locator('.sa-sms-compose').isVisible()));
+    await page.locator('.sa-sms-tabs button').nth(2).click();
     for(const language of ['zh-CN','en','ru','ar']) {
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       for(const width of [1440,1024,390,320]) {
         await page.setViewportSize({width,height:1000});
         await page.waitForTimeout(350);
-        for(const platform of ['serverchan','wecom','dingtalk','feishu','webhook']) {
+        for(const platform of ['serverchan','wecom','dingtalk','feishu','webhook','sim']) {
           await page.locator('#forward-tab-'+platform).click();
           assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)),`${language}/${width}/${platform}: overflow`);
           const panel=page.locator('#forward-panel-'+platform);assert(await panel.isVisible());
+          assert.equal(await panel.locator('.sa-forward-guide li').count(),3);
         }
         await page.screenshot({path:path.join(temp,`${language}-${width}.png`),fullPage:true});
       }
     }
     await page.evaluate(()=>SimpleAdmin.Lang.setLanguage('zh-CN'));await page.setViewportSize({width:1440,height:1000});
+    await page.locator('#forward-tab-webhook').click();
     await page.locator('#forwardDevice').fill('Mock SMS module');
     await page.locator('#forward-url-webhook').fill('http://127.0.0.1:18087/hook');await page.locator('#forward-token-webhook').fill('Bearer local-test');await page.locator('#forward-channel-webhook').check();
     await page.locator('.sa-forward-toolbar button[type="submit"]').click();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#forwardingApp'].dirty && !SimpleAdmin.Vue.apps['#forwardingApp'].busy);
@@ -54,7 +62,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(received.length,3,'first attempt and retry must arrive');assert.equal(received[1].body.text,'New SMS: 123456');assert.deepEqual(received[1].body,received[2].body);assert.equal(received[1].headers['idempotency-key'],received[2].headers['idempotency-key']);
     await page.waitForTimeout(12000);assert.equal(received.length,3,'duplicate polling must not resend');
     const status=(await api('/api/forwarding')).data;assert.equal(status.retry_seconds,180);assert(status.records.some(r=>r.status==='sent'&&r.sender==='10086'));assert(status.records.some(r=>r.status==='retrying'));
-    await page.locator('.sa-menu-link[data-page-link="settings"]').click();await page.reload();await page.locator('[data-page-link="forwarding"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#forwardingApp']?.loaded);assert(await page.locator('#forwardEnabled').isChecked());
+    await page.locator('.sa-menu-link[data-page-link="settings"]').click();await page.reload();await showForwarding();assert(await page.locator('#forwardEnabled').isChecked());
     await page.locator('#forwardEnabled').uncheck();await page.locator('.sa-forward-toolbar button[type="submit"]').click();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#forwardingApp'].busy&&!SimpleAdmin.Vue.apps['#forwardingApp'].dirty);
     await page.locator('[data-page-link="sms"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#smsApp']?.smsSettingsLoaded);
     await page.locator('#smsServiceEnabled').uncheck();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#smsApp'].smsSettingsSaving);
@@ -73,8 +81,28 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(()=>SimpleAdmin.Lang.setLanguage('zh-CN'));await page.setViewportSize({width:1440,height:1000});
     await page.locator('#smsDeleteAfterDay').uncheck();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#smsApp'].smsSettingsSaving);
     await page.locator('#smsServiceEnabled').check();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#smsApp'].smsSettingsSaving);
-    await page.locator('[data-page-link="forwarding"]').click();
+    await showForwarding();
+    await page.locator('#forward-tab-sim').click();
+    await page.locator('#forward-number-sim').fill('+8613800138000');await page.locator('#forward-channel-sim').check();
+    await page.locator('.sa-forward-toolbar button[type="submit"]').click();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#forwardingApp'].dirty&&!SimpleAdmin.Vue.apps['#forwardingApp'].busy);
+    assert.equal((await api('/api/forwarding')).data.channels[5].number,'+8613800138000');
+    assert.equal(await page.locator('#forward-panel-sim').getByRole('button',{name:'测试推送'}).count(),0);
+    await page.reload();await showForwarding();await page.locator('#forward-tab-sim').click();assert.equal(await page.locator('#forward-number-sim').inputValue(),'+8613800138000');
     await page.waitForTimeout(350);await page.screenshot({path:path.join(temp,'configured.png'),fullPage:true});assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({result:'passed',languages:4,viewports:4,platforms:5,baseline:'passed',retry:'passed',dedup:'passed',screenshots:temp}));
+    await page.locator('[data-page-link="network"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp']?._initialized);
+    await page.locator('input[name="cell-lock-mode"][value="persistent"]').check();
+    await page.locator('#networkModeCell').selectOption({label:'NR5G-SA'});
+    await page.locator('#saElementsCell input[aria-label="EARFCN"]').fill('633984');await page.locator('#saElementsCell input[aria-label="PCI"]').fill('0');
+    await page.locator('#saElementsCell select').selectOption('30');await page.locator('#saElementsCell input[aria-label="band"]').fill('78');
+    await page.getByRole('button',{name:'锁定NR5G-SA小区',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===true);
+    assert(fs.existsSync(path.join(temp,'cell-lock.json')));
+    await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#networkApp'].showModal);
+    for(const language of ['zh-CN','en','ru','ar']){await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(250);assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)),`${language}/${width}: locks overflow`);}}
+    await page.evaluate(()=>SimpleAdmin.Lang.setLanguage('zh-CN'));await page.setViewportSize({width:1440,height:1000});
+    await page.locator('.sa-lock-policy').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(temp,'cell-lock.png'),fullPage:true});
+    await page.locator('.sa-lock-status').filter({hasText:'NR5G-SA'}).getByRole('button',{name:'取消锁频',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===false);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(temp,'cell-lock.json'),'utf8')).rules[1],null);
+    assert.deepEqual(errors,[]);
+    console.log(JSON.stringify({result:'passed',languages:4,viewports:4,platforms:6,cellLocks:'passed',baseline:'passed',retry:'passed',dedup:'passed',screenshots:temp}));
   } finally {if(browser)await browser.close();child.kill();await new Promise(r=>child.once('exit',r));await new Promise(r=>sink.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});
