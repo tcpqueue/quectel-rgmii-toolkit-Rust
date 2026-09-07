@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Security.Cryptography;
@@ -29,10 +30,23 @@ namespace SimpleAdminSetup
         {
             if (!Regex.IsMatch(port, @"^COM[1-9][0-9]*$")) throw new ArgumentException("串口名称无效。");
             serial = new SerialPort(port, 115200, Parity.None, 8, StopBits.One) {
-                ReadTimeout = 150, WriteTimeout = 2000, DtrEnable = false, RtsEnable = false,
+                ReadTimeout = 150, WriteTimeout = 2000, DtrEnable = true, RtsEnable = true,
                 Handshake = Handshake.None, Encoding = Encoding.ASCII
             };
-            try { serial.Open(); } catch { serial.Dispose(); throw; }
+            try {
+                serial.Open();
+                // USB AT drivers may release queued replies when DTR/RTS are asserted.
+                // Wait for quiet before the first transaction; never pair an old OK with a new query.
+                var settle = System.Diagnostics.Stopwatch.StartNew();
+                long lastData = 0;
+                while (settle.ElapsedMilliseconds < 2000) {
+                    if (serial.ReadExisting().Length > 0) lastData = settle.ElapsedMilliseconds;
+                    if (settle.ElapsedMilliseconds - lastData >= 200) break;
+                    Thread.Sleep(20);
+                }
+                if (settle.ElapsedMilliseconds - lastData < 200) throw new IOException("串口持续有积压响应，请关闭其他串口工具后重试。");
+                serial.DiscardInBuffer();
+            } catch { serial.Dispose(); throw; }
         }
         public AtReply Send(string command, CancellationToken cancel)
         {
@@ -106,25 +120,40 @@ namespace SimpleAdminSetup
     sealed class UsbProfile
     {
         public string[] Fields;
-        public int Adb => int.Parse(Fields[Fields.Length - 2]);
+        public int Adb => int.Parse(Fields[Fields.Length - 2], CultureInfo.InvariantCulture);
         public bool AdbEnabled => Adb == 1 || Adb == 2;
         public string EnableAdbCommand()
         {
-            var copy = (string[])Fields.Clone(); copy[7] = "1";
+            var copy = (string[])Fields.Clone(); copy[copy.Length - 2] = "1";
             return "AT+QCFG=\"usbcfg\"," + string.Join(",", copy);
+        }
+        static bool UsbId(string value, out uint id)
+        {
+            bool hex = value.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+            string digits = hex ? value.Substring(2) : value;
+            id = 0;
+            return Regex.IsMatch(digits, hex ? @"\A[0-9A-Fa-f]{1,4}\z" : @"\A[0-9]{1,5}\z") &&
+                uint.TryParse(digits, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None, CultureInfo.InvariantCulture, out id) && id <= 65535;
         }
         public static UsbProfile Parse(string response)
         {
-            var match = Regex.Match(response, @"\+QCFG:\s*""usbcfg""\s*,([^\r\n]+)", RegexOptions.IgnoreCase);
-            var fields = match.Groups[1].Value.Split(',').Select(s => s.Trim()).ToArray();
-            if (!match.Success || fields.Length != 9 || !fields[0].Equals("0x2C7C", StringComparison.OrdinalIgnoreCase) ||
-                !Regex.IsMatch(fields[1], @"^0x080[01]$", RegexOptions.IgnoreCase) ||
-                fields.Skip(2).Any(s => !Regex.IsMatch(s, "^[012]$")))
-                throw new InvalidOperationException("USB 配置不符合已核对的移远高通格式（VID 2C7C、PID 0800/0801），未生成修改指令。");
+            var matches = Regex.Matches(response, @"(?:\A|[\r\n])\s*\+QCFG:\s*""usbcfg""\s*,([^\r\n]+)", RegexOptions.IgnoreCase);
+            if (matches.Count != 1)
+                throw new InvalidOperationException("未收到唯一完整的 USB 配置响应，请查看上方原始返回值后重新检查。未发送解锁指令。");
+            var fields = matches[0].Groups[1].Value.Split(',').Select(s => s.Trim()).ToArray();
+            if (fields.Length != 9)
+                throw new InvalidOperationException("USB 配置返回 " + fields.Length + " 个字段，当前需要 VID、PID 和 7 个接口参数；未修改配置。");
+            if (!UsbId(fields[0], out uint vid) || vid != 0x2C7C)
+                throw new InvalidOperationException("USB VID 不是移远 2C7C，未修改配置。");
+            if (!UsbId(fields[1], out _))
+                throw new InvalidOperationException("USB PID 不是有效的 16 位编号，未修改配置。");
+            if (fields.Skip(2).Any(s => !Regex.IsMatch(s, @"\A[012]\z")))
+                throw new InvalidOperationException("USB 接口参数不在 0/1/2 范围内，未修改配置。");
             return new UsbProfile { Fields = fields };
         }
     }
 
+    enum NetworkProfile { Pcie, Ecm, Rndis }
     static class Qualcomm
     {
         public static readonly string[] InfoCommands = {
@@ -199,18 +228,38 @@ namespace SimpleAdminSetup
             }
             return commands;
         }
-        public static string[] EthernetPlan(string driver, int dataInterface, bool enable, bool legacy)
+        public static bool HasMpdnRuleZero(string response)
         {
-            if (driver != "r8125" && driver != "r8168") throw new ArgumentException("请选择网卡型号。");
-            if (dataInterface != 0 && dataInterface != 1) throw new ArgumentException("数据接口无效。");
-            if (legacy) return new[] { "AT+QCFG=\"data_interface\",0,0", "AT+QCFG=\"pcie/mode\"," + (enable ? 1 : 0),
-                "AT+QETH=\"eth_driver\",\"" + driver + "\"," + (enable ? 1 : 0), "AT+QCFG=\"usbnet\"," + (enable ? 1 : 0),
-                "AT+QSIMDET=" + (enable ? "1,1" : "0,0"), "AT+QMAPWAC=" + (enable ? 1 : 0) };
-            return enable ? new[] { "AT+QCFG=\"data_interface\"," + dataInterface + ",0", "AT+QCFG=\"pcie/mode\",1",
-                "AT+QETH=\"eth_driver\",\"" + driver + "\",1", "AT+QMAP=\"MPDN_rule\",0,1,0,0,1" }
-                : new[] { "AT+QETH=\"eth_driver\",\"" + driver + "\",0" };
+            var matches = Regex.Matches(response, @"(?:\A|[\r\n])\s*\+QMAP:\s*""MPDN_RULE""\s*,\s*0\s*,([^\r\n]+)", RegexOptions.IgnoreCase);
+            if (matches.Count == 0) {
+                if (response.Trim().Length == 0 || response.Contains("+QMAP:", StringComparison.OrdinalIgnoreCase)) return false;
+                throw new InvalidOperationException("未能识别 MPDN 规则查询结果，未修改配置。");
+            }
+            if (matches.Count != 1) throw new InvalidOperationException("MPDN 规则 0 返回多次，未修改配置。");
+            var fields = matches[0].Groups[1].Value.Split(',').Select(s => s.Trim()).ToArray();
+            if (fields.Length < 4 || !Regex.IsMatch(fields[0], @"\A[0-9]+\z"))
+                throw new InvalidOperationException("MPDN 规则 0 格式无效，未修改配置。");
+            return fields[0] != "0";
         }
-        public static void ExecutePlan(IAtLink link, IEnumerable<string> commands, CancellationToken cancel, Action<string> progress)
+        public static string[] EthernetPlan(string driver, NetworkProfile profile, bool enable, bool hasMpdnRuleZero)
+        {
+            if (!Enum.IsDefined(typeof(NetworkProfile), profile)) throw new ArgumentException("请选择连接方案。");
+            var commands = new List<string>();
+            if (hasMpdnRuleZero) commands.Add("AT+QMAP=\"MPDN_RULE\",0");
+            if (profile == NetworkProfile.Pcie) {
+                if (driver != "r8125" && driver != "r8168") throw new ArgumentException("请选择网卡型号。");
+                if (enable) {
+                    commands.Add("AT+QCFG=\"data_interface\",1,0");
+                    commands.Add("AT+QCFG=\"pcie/mode\",1");
+                }
+                commands.Add("AT+QETH=\"eth_driver\",\"" + driver + "\"," + (enable ? 1 : 0));
+            } else if (enable) {
+                commands.Add("AT+QCFG=\"data_interface\",0,0");
+                commands.Add("AT+QCFG=\"usbnet\"," + (profile == NetworkProfile.Ecm ? 1 : 3));
+            }
+            commands.Add("AT+QMAPWAC=" + (enable ? 1 : 0));
+            return commands.ToArray();
+        }        public static void ExecutePlan(IAtLink link, IEnumerable<string> commands, CancellationToken cancel, Action<string> progress)
         {
             int done = 0;
             foreach (string command in commands) {

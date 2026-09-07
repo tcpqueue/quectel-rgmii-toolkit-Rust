@@ -26,11 +26,7 @@ namespace SimpleAdminSetup
         public InstallerView()
         {
             InitializeComponent();
-            SizeChanged += (s, e) => {
-                bool compact = e.NewSize.Width < 900;
-                SidebarColumn.Width = new GridLength(compact ? 0 : 200);
-                Sidebar.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-            };
+
         }
     }
 
@@ -50,7 +46,7 @@ namespace SimpleAdminSetup
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
             try {
-                window = new Window { Title = "SimpleAdmin · 设备助手" };
+                window = new Window { Title = "移远高通系列5G模块配置与维护" };
                 window.Content = new InstallerView();
                 var content = (FrameworkElement)window.Content;
                 double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(window)) / 96.0;
@@ -64,6 +60,15 @@ namespace SimpleAdminSetup
                 preparation = new Preparation(window, controller, preview);
                 window.Closed += (s, ev) => Exit();
 #if GUI_TEST_HARNESS
+                if (args.Length == 3 && args[0] == "--test-at-read-only") {
+                    window.AppWindow.Move(new PointInt32(-10000, -10000));
+                    window.AppWindow.IsShownInSwitchers = false;
+                    content.Loaded += async (s, ev) => {
+                        try { await preparation.TestReadOnly(args[1], args[2]); }
+                        catch (Exception error) { Program.ReportError(error); }
+                        window.Close();
+                    };
+                }
                 if (args.Length == 3 && args[0] == "--test-run") {
                     window.AppWindow.Move(new PointInt32(-10000, -10000));
                     window.AppWindow.IsShownInSwitchers = false;
@@ -83,6 +88,7 @@ namespace SimpleAdminSetup
                             content.RequestedTheme = state.EndsWith("dark", StringComparison.Ordinal) ? ElementTheme.Dark : ElementTheme.Light;
                             controller.Preview(state);
                             if (state.StartsWith("prepare", StringComparison.Ordinal)) preparation.Preview();
+                            if (!state.StartsWith("prepare", StringComparison.Ordinal)) ((FrameworkElement)content.FindName("InstallPage")).StartBringIntoView();
                             await Task.Delay(600);
                             var bitmap = new RenderTargetBitmap();
                             await bitmap.RenderAsync(content);

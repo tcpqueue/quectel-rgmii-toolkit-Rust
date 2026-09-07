@@ -6,6 +6,7 @@ mod cleanup;
 mod console;
 mod forwarding;
 mod http;
+mod install_credentials;
 mod mock;
 mod parser;
 mod persistence;
@@ -121,6 +122,9 @@ fn entry() -> Result<()> {
         }
     }
     let sub = args.get(1).map(String::as_str).unwrap_or("");
+    if sub == "install-credentials" {
+        return install_credentials::run(args.iter().any(|arg| arg == "--check"));
+    }
     if sub == "root-password-init" {
         let store = persistence::Store::new(false);
         let marker = PathBuf::from("/usrdata/simpleadmin/root-password.initialized");

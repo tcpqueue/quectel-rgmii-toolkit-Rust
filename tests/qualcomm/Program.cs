@@ -29,7 +29,19 @@ static class Tests
         public void Dispose() {}
     }
     static Link Identity(string imei = "123456789012345") => new Link().Add("AT").Add("AT+CGMI","Quectel").Add("AT+GMM","RM520N-EU").Add("AT+GMR","test").Add("AT+CGSN",imei);
-    public static void Main() {
+    public static void Main(string[] args) {
+        if(args.Length == 2 && args[0] == "--read-only-port") {
+            using var link = new SerialAtLink(args[1]);
+            var identity = Qualcomm.Identify(link, Token);
+            Console.WriteLine("Model: " + identity.Model + " / " + identity.Firmware);
+            Qualcomm.VerifyIdentity(link, identity, Token);
+            string response = Qualcomm.Require(link, Query, Token);
+            Console.WriteLine("USB response: " + response);
+            Console.WriteLine("USB bytes: " + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(response)));
+            var profile = UsbProfile.Parse(response);
+            Console.WriteLine("ADB field: " + profile.Adb + "; skip unlock: " + profile.AdbEnabled);
+            return;
+        }
         Case("md5-crypt OpenSSL independent vectors", () => {
             Check(Qualcomm.UnlockKey("12345678") == "0jXKXQwSwMxYoegx0S.I.1".Substring(0,15));
             Check(Qualcomm.UnlockKey("1234") == "DYRcQGIywMfppi0mNc/qc1".Substring(0,15));
@@ -51,7 +63,7 @@ static class Tests
             Check(!Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
         });
         Case("unknown USB profiles rejected", () => {
-            foreach(var response in new[]{Closed.Replace("0801","0900"), Closed.Replace("2C7C","1234"),Closed+",1",Profile(3),"ERROR"})
+            foreach(var response in new[]{Closed.Replace("0801","100000"), Closed.Replace("2C7C","1234"),Closed+",1",Profile(3),"ERROR"})
                 Reject<InvalidOperationException>(()=>UsbProfile.Parse(response));
         });
         string key="AT+QADBKEY=\"" + Qualcomm.UnlockKey("1234") + "\"";
@@ -103,14 +115,46 @@ static class Tests
             foreach(var command in new[]{"","AT;AT","AT\t+CSQ","AT\u001a",new string('A',513),string.Join("\n",Enumerable.Repeat("AT",33))})
                 Reject<ArgumentException>(()=>Qualcomm.ParseCustom(command));
         });
-        Case("NAT plan matches intended four commands", () => {
-            Check(Qualcomm.EthernetPlan("r8125",1,true,false).SequenceEqual(new[]{"AT+QCFG=\"data_interface\",1,0","AT+QCFG=\"pcie/mode\",1","AT+QETH=\"eth_driver\",\"r8125\",1","AT+QMAP=\"MPDN_rule\",0,1,0,0,1"}));
-            Check(Qualcomm.EthernetPlan("r8168",0,false,false).SequenceEqual(new[]{"AT+QETH=\"eth_driver\",\"r8168\",0"}));
+        Case("arbitrary original PID and VID numeric forms preserved", () => {
+            foreach(var pid in new[]{"0x0900","0x0125","0xFFFF","0x801","2049"}) {
+                var profile = UsbProfile.Parse(Closed.Replace("0x0801",pid));
+                Check(profile.EnableAdbCommand().Contains("," + pid + ","));
+            }
+            Check(UsbProfile.Parse(Profile(2).Replace("0x2C7C","11388")).AdbEnabled);
         });
-        Case("reference profile is explicit six-command plan", () => {
-            Check(Qualcomm.EthernetPlan("r8125",0,true,true).SequenceEqual(new[]{"AT+QCFG=\"data_interface\",0,0","AT+QCFG=\"pcie/mode\",1","AT+QETH=\"eth_driver\",\"r8125\",1","AT+QCFG=\"usbnet\",1","AT+QSIMDET=1,1","AT+QMAPWAC=1"}));
+        Case("live RM520N-EU response skips unlocking", () => {
+            var profile=UsbProfile.Parse("+QCFG: \"usbcfg\",0x2C7C,0x0801,1,1,1,1,1,2,0");
+            Check(profile.Adb==2 && profile.AdbEnabled);
         });
-        Case("exact response terminators", () => {
+        Case("PCIe automatic dial plan replaces MPDN", () => {
+            Check(Qualcomm.EthernetPlan("r8125",NetworkProfile.Pcie,true,true).SequenceEqual(new[]{"AT+QMAP=\"MPDN_RULE\",0","AT+QCFG=\"data_interface\",1,0","AT+QCFG=\"pcie/mode\",1","AT+QETH=\"eth_driver\",\"r8125\",1","AT+QMAPWAC=1"}));
+            Check(Qualcomm.EthernetPlan("r8168",NetworkProfile.Pcie,false,false).SequenceEqual(new[]{"AT+QETH=\"eth_driver\",\"r8168\",0","AT+QMAPWAC=0"}));
+        });
+        Case("ECM and RNDIS select USB mode without PCIe or SIM changes", () => {
+            foreach(var profile in new[]{NetworkProfile.Ecm,NetworkProfile.Rndis}) {
+                int mode=profile==NetworkProfile.Ecm ? 1 : 3;
+                Check(Qualcomm.EthernetPlan(null,profile,true,false).SequenceEqual(new[]{"AT+QCFG=\"data_interface\",0,0","AT+QCFG=\"usbnet\","+mode,"AT+QMAPWAC=1"}));
+                Check(Qualcomm.EthernetPlan(null,profile,false,true).SequenceEqual(new[]{"AT+QMAP=\"MPDN_RULE\",0","AT+QMAPWAC=0"}));
+            }
+        });
+        Case("MPDN rule zero detection from live responses", () => {
+            Check(Qualcomm.HasMpdnRuleZero("+QMAP: \"MPDN_rule\",0,1,0,0,1\n+QMAP: \"MPDN_rule\",1,0,0,0,0"));
+            Check(!Qualcomm.HasMpdnRuleZero("+QMAP: \"MPDN_rule\",0,0,0,0,0"));
+            Check(!Qualcomm.HasMpdnRuleZero(""));
+            Reject<InvalidOperationException>(()=>Qualcomm.HasMpdnRuleZero("ERROR"));
+        });
+        Case("credential selections preserve existing settings", () => {
+            Check(InstallOptions.Credentials(false,"","",false,"")==null);
+            Check(InstallOptions.Credentials(true,"owner","secret",false,"").Contains("web_username"));
+            Check(!InstallOptions.Credentials(false,"","",true,"secret").Contains("web_username"));
+        });
+        Case("credential validation prevents truncation and format ambiguity", () => {
+            foreach(var user in new[]{"", "bad:name","#comment",new string('a',65)})
+                Reject<ArgumentException>(()=>InstallOptions.Credentials(true,user,"secret",false,""));
+            foreach(var password in new[]{"", "abc\nxyz","secret ",new string('好',43)})
+                Reject<ArgumentException>(()=>InstallOptions.Credentials(true,"user",password,false,""));
+            Check(InstallOptions.Credentials(true,"user","a:\"$你好",true," 'secret' ").Contains("root_password"));
+        });        Case("exact response terminators", () => {
             foreach(var line in new[]{"OK","ERROR","+CME ERROR: 10","+CMS ERROR: 500"}) Check(AtReply.IsTerminal(line));
             foreach(var line in new[]{"BOOK","NOT OK","+QIND: \"OK\""}) Check(!AtReply.IsTerminal(line));
         });

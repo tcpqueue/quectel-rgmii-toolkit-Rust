@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
+[assembly: AssemblyTitle("移远高通系列5G模块配置与维护")]
+[assembly: AssemblyVersion("1.2.0.0")]
 static class Bootstrap
 {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

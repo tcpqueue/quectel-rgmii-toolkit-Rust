@@ -16,9 +16,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Dispatching;
 using Windows.UI;
 
-[assembly: AssemblyTitle("SimpleAdmin 设备助手")]
+[assembly: AssemblyTitle("移远高通系列5G模块配置与维护")]
 [assembly: AssemblyDescription("Quectel RGMII Toolkit Windows installer")]
-[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
 
 namespace SimpleAdminSetup
 {
@@ -86,6 +86,10 @@ namespace SimpleAdminSetup
             Find<Button>("Report").Click += (s, e) => OpenReport();
             Find<CheckBox>("ChangeHttpPort").Checked += (s, e) => UpdateActions();
             Find<CheckBox>("ChangeHttpPort").Unchecked += (s, e) => UpdateActions();
+            foreach (string name in new[] { "ChangeWebCredentials", "ChangeRootPassword" }) {
+                Find<CheckBox>(name).Checked += (s, e) => UpdateActions();
+                Find<CheckBox>(name).Unchecked += (s, e) => UpdateActions();
+            }
             devices.SelectionChanged += (s, e) => UpdateActions();
             window.AppWindow.Closing += (s, e) => {
                 if ((busy || preparing) && !preview) {
@@ -156,6 +160,11 @@ namespace SimpleAdminSetup
             devices.IsEnabled = !busy && !preparing;
             Find<CheckBox>("ChangeHttpPort").IsEnabled = !busy && !preparing;
             Find<TextBox>("HttpPort").IsEnabled = !busy && !preparing && Find<CheckBox>("ChangeHttpPort").IsChecked == true;
+            foreach (string name in new[] { "ChangeWebCredentials", "ChangeRootPassword" }) Find<CheckBox>(name).IsEnabled = !busy && !preparing;
+            bool editWeb = !busy && !preparing && Find<CheckBox>("ChangeWebCredentials").IsChecked == true;
+            Find<TextBox>("WebUsername").IsEnabled = editWeb;
+            Find<PasswordBox>("WebPassword").IsEnabled = editWeb;
+            Find<PasswordBox>("RootPassword").IsEnabled = !busy && !preparing && Find<CheckBox>("ChangeRootPassword").IsChecked == true;
             if (busy || preparing) return;
             if (!preview && !PackageAvailable()) {
                 Text("DeviceBadge", "安装包不完整");
@@ -179,14 +188,14 @@ namespace SimpleAdminSetup
             return "\"" + Regex.Replace(arg, @"(\\*)(""|$)", match => new string('\\', match.Groups[1].Length * 2) + (match.Groups[2].Value == "\"" ? "\\\"" : "")) + "\"";
         }
 
-        async Task<Result> Execute(string executable, string arguments, string serial, int timeout, Action<string> output)
+        async Task<Result> Execute(string executable, string arguments, string serial, int timeout, Action<string> output, string standardInput = null)
         {
             return await Task.Run(() => {
                 var lines = new StringBuilder();
                 var sync = new object();
                 var info = new ProcessStartInfo(executable, arguments) {
                     UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = root,
-                    RedirectStandardOutput = true, RedirectStandardError = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = standardInput != null,
                     StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
                 };
                 if (serial != null) info.EnvironmentVariables["ANDROID_SERIAL"] = serial;
@@ -199,6 +208,10 @@ namespace SimpleAdminSetup
                     };
                     process.OutputDataReceived += receive; process.ErrorDataReceived += receive;
                     process.Start(); process.BeginOutputReadLine(); process.BeginErrorReadLine();
+                    if (standardInput != null) {
+                        using var input = new StreamWriter(process.StandardInput.BaseStream, new UTF8Encoding(false));
+                        input.Write(standardInput);
+                    }
                     if (timeout > 0 && !process.WaitForExit(timeout)) {
                         process.Kill(); process.WaitForExit();
                         return new Result { Code = -1, Output = "设备检测超时，请检查 ADB 连接后重试。" };
@@ -312,6 +325,17 @@ namespace SimpleAdminSetup
                 }
                 requestedPort = port.ToString();
             }
+            string credentials = null;
+            if (operation == "install") {
+                try {
+                    credentials = InstallOptions.Credentials(
+                        Find<CheckBox>("ChangeWebCredentials").IsChecked == true, Find<TextBox>("WebUsername").Text,
+                        Find<PasswordBox>("WebPassword").Password, Find<CheckBox>("ChangeRootPassword").IsChecked == true,
+                        Find<PasswordBox>("RootPassword").Password);
+                } catch (ArgumentException error) {
+                    Text("StatusTitle", "请检查账号密码"); Text("StatusDetail", error.Message + " 尚未修改设备。"); return;
+                }
+            }
             busy = true; mode = operation; completed = false; reboot = false; failedEvent = false;
             report = null; webUrl = null; resultEvent = null; deviceHttpPort = null;
             failureReason = null; currentStage = "device";
@@ -333,7 +357,8 @@ namespace SimpleAdminSetup
                 if (operation == "diagnose") arguments += " -DiagnoseOnly";
                 if (operation == "web") arguments += " -OpenWebOnly";
                 if (requestedPort != null) arguments += " -HttpPort " + requestedPort;
-                var result = await Execute(powershell, arguments, device.Serial, 0, Line);
+                if (credentials != null) arguments += " -CredentialsFromStdin";
+                var result = await Execute(powershell, arguments, device.Serial, 0, Line, credentials);
                 // Drain queued output before evaluating the structured final result.
                 await Dispatch(() => { });
                 bool ok = result.Code == 0 && resultEvent == "0" && !failedEvent;
@@ -342,7 +367,7 @@ namespace SimpleAdminSetup
                 if (ok) {
                     Text("StatusTitle", operation == "install" ? "安装完成，管理页面已就绪" : operation == "diagnose" ? "诊断完成，网页检查通过" : "管理页面已就绪");
                     Text("ProgressLabel", "全部检查通过");
-                    Text("StatusDetail", reboot ? "需要手动重启模块以应用网络配置。重启后请重新打开管理页面。" : operation == "install" ? "程序与网页检查通过。点击“打开管理页面”即可使用，升级后的登录密码保持不变。" : operation == "diagnose" ? "ADB 通道访问正常。如果模块 IP 仍打不开，请查看报告中的网卡、路由和防火墙信息。" : "已通过 USB / ADB 建立访问通道。保持设备连接，即可在浏览器中使用。" );
+                    Text("StatusDetail", reboot ? "需要手动重启模块以应用网络配置。重启后请重新打开管理页面。" : operation == "install" ? "程序与网页检查通过。点击“打开管理页面”即可使用，账号密码按本次选择保存；未勾选的项目保留原值。" : operation == "diagnose" ? "ADB 通道访问正常。如果模块 IP 仍打不开，请查看报告中的网卡、路由和防火墙信息。" : "已通过 USB / ADB 建立访问通道。保持设备连接，即可在浏览器中使用。" );
                     for (int i = 1; i <= 4; i++) Find<TextBlock>("Step" + i).Foreground = blue;
                     if (deviceHttpPort != null) {
                         Find<TextBlock>("StatusDetail").Text += " 局域网地址：http://模块IP" + (deviceHttpPort == "80" ? "/" : ":" + deviceHttpPort + "/") + "。";
@@ -388,7 +413,7 @@ namespace SimpleAdminSetup
             } else if (state == "success") {
                 completed = true; progress.Value = 100;
                 Text("StatusTitle", "安装完成，管理页面已就绪"); Text("ProgressLabel", "全部检查通过");
-                Text("StatusDetail", "程序与网页检查通过。点击“打开管理页面”即可使用，升级后的登录密码保持不变。");
+                Text("StatusDetail", "程序与网页检查通过。点击“打开管理页面”即可使用，账号密码按本次选择保存；未勾选的项目保留原值。");
                 for (int i = 1; i <= 4; i++) Find<TextBlock>("Step" + i).Foreground = blue;
             } else if (state == "error") {
                 completed = true;
@@ -409,6 +434,13 @@ namespace SimpleAdminSetup
             if (testCase == "custom-port" || testCase == "invalid-input") {
                 Find<CheckBox>("ChangeHttpPort").IsChecked = true;
                 Find<TextBox>("HttpPort").Text = testCase == "custom-port" ? "8080" : "65536";
+            }
+            if (testCase == "credentials" || testCase == "invalid-credentials" || testCase == "credential-transfer-failed") {
+                Find<CheckBox>("ChangeWebCredentials").IsChecked = true;
+                Find<TextBox>("WebUsername").Text = testCase == "invalid-credentials" ? "bad:name" : "owner";
+                Find<PasswordBox>("WebPassword").Password = "web-secret:\"$value";
+                Find<CheckBox>("ChangeRootPassword").IsChecked = true;
+                Find<PasswordBox>("RootPassword").Password = "root-secret:$value";
             }
             await Run(operation);
             File.WriteAllLines(destination, new[] {

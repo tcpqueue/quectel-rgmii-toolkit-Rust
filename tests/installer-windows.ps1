@@ -47,6 +47,19 @@ public class FakeAdb {
         string modeName = Environment.GetEnvironmentVariable("SIMPLEADMIN_TEST_CASE") ?? "success";
         string call = String.Join(" ", args);
         File.AppendAllText(Path.Combine(dir, "calls"), call + "\n");
+        if (call.Contains("cat > /tmp/development/install-credentials.json")) {
+            string json = Console.In.ReadToEnd();
+            if (!json.Contains("web_username") || !json.Contains("root_password")) return 1;
+            File.WriteAllText(Path.Combine(dir, "credential-input"), json);
+            return modeName == "credential-transfer-failed" ? 1 : 0;
+        }
+        if (call.Contains("sha256sum /tmp/development/install-credentials.json")) {
+            using (var sha = System.Security.Cryptography.SHA256.Create()) {
+                byte[] bytes = File.ReadAllBytes(Path.Combine(dir, "credential-input"));
+                Console.WriteLine(BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant() + "  /tmp/development/install-credentials.json");
+            }
+            return 0;
+        }
         if (call.Contains("SIMPLEADMIN_PREFLIGHT=1")) {
             if (modeName == "probe-failed") return 1;
             Console.WriteLine("SIMPLEADMIN_PREFLIGHT=1");
@@ -124,7 +137,7 @@ public class FakeAdb {
     }
     Write-Host "$count Windows installer checks passed"
     if ($GuiTest) {
-        foreach ($case in (@('none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'streaming', 'forwarded', 'custom-port', 'preserve-port', 'custom-diagnose', 'invalid-input') + $preflightCases)) {
+        foreach ($case in (@('credentials', 'invalid-credentials', 'credential-transfer-failed', 'none', 'unauthorized', 'multiple', 'push-failed', 'install-failed', 'missing-result', 'success', 'wrong-app', 'diagnose', 'streaming', 'forwarded', 'custom-port', 'preserve-port', 'custom-diagnose', 'invalid-input') + $preflightCases)) {
             $env:SIMPLEADMIN_TEST_CASE = $case
             Set-Content -LiteralPath (Join-Path $scratch 'http-mode') -Value $(if ($case -eq 'wrong-app') { 'wrong-app' } else { 'ok' })
             Set-Content -LiteralPath (Join-Path $scratch 'calls') -Value ''
@@ -139,12 +152,21 @@ public class FakeAdb {
             if ($case -in $preflightCases) {
                 if ($calls -match 'push |remount|rm -|shell bash ' -or $state -notmatch 'TITLE=设备检查未通过') { throw "GUI preflight did not stop safely: $case" }
             }
-            if ($case -eq 'invalid-input') {
+            if ($case -eq 'credentials') {
+                $json = Get-Content -LiteralPath (Join-Path $scratch 'credential-input') -Raw | ConvertFrom-Json
+                if ($json.web_username -ne 'owner' -or $json.web_password -ne 'web-secret:"$value' -or $json.root_password -ne 'root-secret:$value') { throw 'GUI credentials changed during stdin transport.' }
+                $reports = Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA 'SimpleAdmin\Reports') -Filter '*.txt' | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-2) }
+                if ($calls -match 'web-secret|root-secret' -or ($reports | Get-Content -Raw) -match 'web-secret|root-secret') { throw 'Credentials leaked to command lines or reports.' }
+            }
+            if ($case -eq 'credential-transfer-failed' -and $calls -match 'bash /tmp/development/install_simpleadmin_rust.sh') { throw 'Install must stop when credential transport fails.' }
+            if ($case -eq 'invalid-credentials') {
+                if ($calls -match 'shell|push' -or $state -notmatch 'TITLE=请检查账号密码') { throw 'GUI did not reject invalid credentials.' }
+            } elseif ($case -eq 'invalid-input') {
                 if ($calls -match 'shell|push' -or $state -notmatch 'TITLE=请检查 HTTP 端口') { throw 'GUI did not reject invalid port.' }
             } elseif ($case -in @('none', 'unauthorized', 'multiple')) {
                 if ($state -notmatch 'INSTALL=False' -or $calls -match 'shell|push') { throw "GUI unsafe device selection: $case" }
             } else {
-                $expected = if ($case -in @('success','diagnose','streaming','forwarded','custom-port','preserve-port','custom-diagnose')) { 0 } else { 1 }
+                $expected = if ($case -in @('credentials','success','diagnose','streaming','forwarded','custom-port','preserve-port','custom-diagnose')) { 0 } else { 1 }
                 if ($state -notmatch "RESULT=$expected" -or $state -notmatch 'REPORT=True' -or $state -notmatch 'BUSY=False' -or $state -notmatch 'INSTALL=True') { throw "GUI incorrect completion state: $case`n$state" }
             }
             if ($case -in @('custom-port','preserve-port','custom-diagnose') -and $calls -notmatch 'forward tcp:0 tcp:8080') { throw "GUI wrong port: $case" }

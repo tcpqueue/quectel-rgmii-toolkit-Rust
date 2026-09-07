@@ -19,6 +19,33 @@ namespace SimpleAdminSetup
         ModuleIdentity identity;
         string identifiedPort;
         bool busy;
+#if GUI_TEST_HARNESS
+        bool readOnlyTest;
+        sealed class ReadOnlyLink : IAtLink {
+            readonly IAtLink inner;
+            public ReadOnlyLink(string port) { inner = new SerialAtLink(port); }
+            public AtReply Send(string command, CancellationToken token) {
+                if (!new[] { "AT", "AT+CGMI", "AT+GMM", "AT+GMR", "AT+CGSN", "AT+QCFG=\"usbcfg\"" }.Contains(command))
+                    throw new InvalidOperationException("Read-only test refused a non-whitelisted command.");
+                return inner.Send(command, token);
+            }
+            public void Dispose() => inner.Dispose();
+        }
+        public async Task TestReadOnly(string port, string output) {
+            readOnlyTest = true;
+            Find<ComboBox>("AtPorts").ItemsSource = new[] { new AtPort { Name = port } };
+            Find<ComboBox>("AtPorts").SelectedIndex = 0;
+            await Identify();
+            if (identity != null) await Unlock();
+            File.WriteAllText(output, Find<TextBox>("AtLog").Text + "\n" + Find<InfoBar>("PrepareStatus").Title);
+        }
+#endif
+        IAtLink OpenLink(string port) {
+#if GUI_TEST_HARNESS
+            if (readOnlyTest) return new ReadOnlyLink(port);
+#endif
+            return new SerialAtLink(port);
+        }
         CancellationTokenSource cancellation;
         T Find<T>(string name) where T : FrameworkElement => (T)((FrameworkElement)window.Content).FindName(name);
         string Port => (Find<ComboBox>("AtPorts").SelectedItem as AtPort)?.Name;
@@ -28,6 +55,10 @@ namespace SimpleAdminSetup
             this.window = window; this.installer = installer; this.preview = preview;
             installer.StateChanged += Update;
             Find<Button>("GoPrepare").Click += async (s, e) => { Navigate(true); if (!preview && !busy) await Scan(); };
+            Find<Button>("GoAdb").Click += (s, e) => Find<FrameworkElement>("AdbSection").StartBringIntoView();
+            Find<Button>("GoNetwork").Click += (s, e) => Find<FrameworkElement>("NetworkSection").StartBringIntoView();
+            Find<Button>("GoVerify").Click += (s, e) => Find<FrameworkElement>("VerifySection").StartBringIntoView();
+            Find<ComboBox>("EthernetProfile").SelectionChanged += (s, e) => Update();
             Find<Button>("GoInstall").Click += (s, e) => Navigate(false);
             Find<Button>("ContinueInstall").Click += async (s, e) => { Navigate(false); await installer.RefreshAfterPreparation(); };
             Find<Button>("ScanPorts").Click += async (s, e) => await Scan();
@@ -60,9 +91,7 @@ namespace SimpleAdminSetup
         }
         void Navigate(bool preparation)
         {
-            Find<ScrollViewer>("PreparePage").Visibility = preparation ? Visibility.Visible : Visibility.Collapsed;
-            Find<ScrollViewer>("InstallPage").Visibility = preparation ? Visibility.Collapsed : Visibility.Visible;
-            Find<TextBlock>("SidebarSection").Text = preparation ? "连接与准备" : "安装与维护";
+            Find<FrameworkElement>(preparation ? "PreparePage" : "InstallPage").StartBringIntoView();
             Update();
         }
         void Status(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
@@ -86,6 +115,7 @@ namespace SimpleAdminSetup
             Find<Button>("ScanPorts").IsEnabled = available;
             Find<ComboBox>("AtPorts").IsEnabled = available;
             foreach (string name in new[] { "EthernetDriver", "EthernetProfile", "AtPreset" }) Find<ComboBox>(name).IsEnabled = available;
+            Find<ComboBox>("EthernetDriver").IsEnabled = available && Find<ComboBox>("EthernetProfile").SelectedIndex == 0;
             Find<TextBox>("CustomAt").IsEnabled = available;
             Find<Button>("StopAt").IsEnabled = busy && cancellation != null;
             Find<Button>("SaveAtPreset").IsEnabled = available;
@@ -116,7 +146,7 @@ namespace SimpleAdminSetup
             busy = true; installer.SetPreparationBusy(true); cancellation = new CancellationTokenSource(); Update();
             Status(title, "请保持连接，正在与模块通信。确认窗口出现前只读取信息。"); Log(title + " · " + port);
             try {
-                using var link = await Task.Run(() => new SerialAtLink(port));
+                using var link = await Task.Run(() => OpenLink(port));
                 if (verify) await Task.Run(() => Qualcomm.VerifyIdentity(link, expected, cancellation.Token));
                 await action(link, cancellation.Token);
             } catch (OperationCanceledException) {
@@ -157,6 +187,7 @@ namespace SimpleAdminSetup
         }, false);
         Task Unlock() => Run("检查 ADB 配置", async (link, token) => {
             string response = await Task.Run(() => Qualcomm.Require(link, "AT+QCFG=\"usbcfg\"", token));
+            Log("USB 配置原始返回：" + response);
             var profile = UsbProfile.Parse(response);
             if (profile.AdbEnabled) { Status("ADB 接口已开启", "未修改配置。请前往安装页刷新设备；若仍未出现，请检查驱动或手动重启模块。", InfoBarSeverity.Success); Log("USB 配置倒数第二项为 " + profile.Adb + "，ADB 已开启，跳过解锁。"); return; }
             string challenge = await Task.Run(() => Qualcomm.Challenge(Qualcomm.Require(link, "AT+QADBKEY?", token)));
@@ -169,11 +200,22 @@ namespace SimpleAdminSetup
         Task Ethernet(bool enable)
         {
             string driver = (Find<ComboBox>("EthernetDriver").SelectedItem as ComboBoxItem)?.Tag as string;
-            int profile = Find<ComboBox>("EthernetProfile").SelectedIndex;
-            return Change(enable ? "开启网口" : "关闭网口", Qualcomm.EthernetPlan(driver, profile == 0 ? 1 : 0, enable, profile == 2),
-                profile == 2 ? "此方案按参考工具修改数据接口、PCIe、网卡驱动、USB 网卡模式、SIM 检测电平和自动拨号。可能影响当前连接；先核对转接板要求。" : enable ? "设置所选网卡及 MPDN NAT 规则 0，使用拨号配置 1；不会设置 APN。部分配置需重启生效，当前网口连接可能中断。" : "关闭所选网卡驱动，网口连接会中断，USB 接口保持原值。");
-        }
-        Task Change(string title, string[] commands, string description, bool disconnect = false, bool destructive = false) => Run(title, async (link, token) => {
+            var selection = (NetworkProfile)Find<ComboBox>("EthernetProfile").SelectedIndex;
+            string name = selection == NetworkProfile.Pcie ? "PCIe 转网口" : selection == NetworkProfile.Ecm ? "ECM" : "RNDIS";
+            return Run("检查 " + name + " 配置", async (link, token) => {
+                string response = await Task.Run(() => Qualcomm.Require(link, "AT+QMAP=\"MPDN_RULE\"", token));
+                Log("现有 MPDN 规则：" + (response.Length == 0 ? "无" : response));
+                bool hasRule = Qualcomm.HasMpdnRuleZero(response);
+                string[] commands = Qualcomm.EthernetPlan(driver, selection, enable, hasRule);
+                string description = (hasRule ? "检测到 MPDN 规则 0，将先关闭该规则。" : "未配置 MPDN 规则 0，无需关闭。") +
+                    (enable ? "使用 QMAPWAC 自动拨号，不创建 MPDN 规则。" : "关闭 QMAPWAC 自动拨号，网络将中断。") +
+                    (selection == NetworkProfile.Pcie ? "PCIe 方案按转接板选择网卡型号。" : "USB 方案切换数据接口与网卡模式，不修改 PCIe 网卡或 SIM 检测。") +
+                    "配置可能需重启生效，执行后可单独选择重启。";
+                if (!await Confirm((enable ? "配置 " : "停用 ") + name, description, commands)) { Status("已取消", "未修改模块配置。"); return; }
+                await Task.Run(() => Qualcomm.ExecutePlan(link, commands, token, Log));
+                Status("配置指令已被接受", "可以重新读取设备信息核对；需要重启时点击“重启模块”，不会自动重启。", InfoBarSeverity.Success);
+            });
+        }        Task Change(string title, string[] commands, string description, bool disconnect = false, bool destructive = false) => Run(title, async (link, token) => {
             if (!await Confirm(title, description, commands, destructive)) { Status("已取消", "未执行配置修改。"); return; }
             try { await Task.Run(() => Qualcomm.ExecutePlan(link, commands, token, Log)); }
             catch (Exception error) when (disconnect && (error.GetBaseException() is IOException || error.GetBaseException() is TimeoutException)) {

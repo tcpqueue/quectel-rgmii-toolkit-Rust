@@ -1,6 +1,7 @@
-﻿param([switch]$DiagnoseOnly, [switch]$OpenWebOnly, [string]$HttpPort = '')
+﻿param([switch]$DiagnoseOnly, [switch]$OpenWebOnly, [string]$HttpPort = '', [switch]$CredentialsFromStdin)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 $adb = Join-Path $PSScriptRoot 'adb.exe'
 $development = Join-Path $PSScriptRoot 'development'
@@ -69,6 +70,40 @@ echo SIMPLEADMIN_PREFLIGHT_DONE=1
     }
 }
 
+function WriteInstallCredentials([string]$Json) {
+    if ($serial -match '["\r\n]') { throw 'ADB 设备序列号格式无效。' }
+    $info = New-Object System.Diagnostics.ProcessStartInfo
+    $info.FileName = $adb
+    $info.Arguments = '-s "' + $serial + '" exec-in sh -c "umask 077; cat > /tmp/development/install-credentials.json"'
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardInput = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $info
+    try {
+        $null = $process.Start()
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        $bytes = [Text.Encoding]::UTF8.GetBytes($Json)
+        $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+        $process.StandardInput.Close()
+        if (-not $process.WaitForExit(15000)) { $process.Kill(); throw '安装凭据传输超时，尚未安装。' }
+        if ($process.ExitCode -ne 0) { throw '安装凭据传输失败，尚未安装。' }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $expectedHash = [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant() }
+        finally { $sha.Dispose() }
+        $verified = $false
+        for ($attempt = 0; $attempt -lt 10; $attempt++) {
+            $digest = AdbCommand @('shell', 'sha256sum /tmp/development/install-credentials.json') -Quiet
+            if ($digest.Code -eq 0 -and ($digest.Lines -join ' ').Trim().StartsWith($expectedHash + ' ')) { $verified = $true; break }
+            Start-Sleep -Milliseconds 100
+        }
+        if (-not $verified) { throw '安装凭据完整性校验失败，尚未安装。' }
+        Log '账号密码已传入模块临时内存并校验；不写入命令行和日志。'
+    } finally { $process.Dispose() }
+}
 function ReadHttpPort {
     $probe = 'if [ -e /usrdata/simpleadmin/http_port ]; then cat /usrdata/simpleadmin/http_port; else echo 80; fi'
     $result = AdbCommand @('shell', $probe) -Quiet
@@ -130,6 +165,21 @@ function Diagnose {
 }
 
 try {
+    $credentialJson = $null
+    if ($CredentialsFromStdin) {
+        if ($DiagnoseOnly -or $OpenWebOnly) { throw '仅安装模式支持设置账号密码。' }
+        $buffer = New-Object char[] 4097
+        $length = [Console]::In.ReadBlock($buffer, 0, $buffer.Length)
+        if ($length -gt 4096 -or $length -eq 0) { throw '安装凭据为空或超过长度限制。' }
+        $credentialJson = -join $buffer[0..($length-1)]
+        try { $credentialObject = ConvertFrom-Json -InputObject $credentialJson -ErrorAction Stop }
+        catch { throw '安装凭据格式无效。' }
+        $allowed = @('web_username','web_password','root_password')
+        if ($null -eq $credentialObject -or $credentialObject -is [Array] -or $credentialObject -is [string]) { throw '安装凭据格式无效。' }
+        foreach ($property in $credentialObject.PSObject.Properties) {
+            if ($property.Name -notin $allowed -or $property.Value -isnot [string]) { throw '安装凭据字段无效。' }
+        }
+    }
     Event 'report' $report
     Event 'stage' 'device'
     if ($HttpPort -ne '' -and ($HttpPort -cnotmatch '^[1-9][0-9]{0,4}$' -or [int]$HttpPort -gt 65535)) {
@@ -165,6 +215,7 @@ try {
         $stagingStarted = $true
         RequireAdb @('shell', 'rm -rf /tmp/development; rm -f /tmp/simpleadmin-install-result.env')
         RequireAdb @('push', $development, '/tmp/development')
+        if ($credentialJson) { WriteInstallCredentials $credentialJson }
         Event 'stage' 'install'
         $installCommand = 'bash /tmp/development/install_simpleadmin_rust.sh'
         if ($HttpPort -ne '') { $installCommand = "SIMPLEADMIN_HTTP_PORT=$HttpPort $installCommand" }
@@ -194,6 +245,7 @@ try {
     if ($stagingStarted -and $serial -and -not $DiagnoseOnly -and -not $OpenWebOnly) {
         $null = AdbCommand @('shell', 'rm -rf /tmp/development') -Quiet
     }
+    $credentialJson = $null; $credentialObject = $null
     Log "Report saved: $report"
     Event 'result' ([string]$exitCode)
 }

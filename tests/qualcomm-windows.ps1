@@ -1,4 +1,5 @@
-﻿$ErrorActionPreference = 'Stop'
+﻿param([string]$ReadOnlyPort)
+$ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $scratch = Join-Path $env:TEMP ('simpleadmin-qualcomm-test-' + [guid]::NewGuid())
 $dotnet = $env:SIMPLEADMIN_DOTNET
@@ -8,8 +9,12 @@ try {
     Copy-Item -Path (Join-Path $repo 'tests\qualcomm\*') -Destination $scratch
     Copy-Item -LiteralPath (Join-Path $repo 'installer\Qualcomm.cs') -Destination $scratch
     Copy-Item -LiteralPath (Join-Path $repo 'installer\global.json') -Destination $scratch
+    Copy-Item -LiteralPath (Join-Path $repo 'installer\InstallOptions.cs') -Destination $scratch
     Push-Location $scratch
-    try { & $dotnet run --project Qualcomm.Tests.csproj -c Release }
+    try {
+        if ($ReadOnlyPort) { & $dotnet run --project Qualcomm.Tests.csproj -c Release -- --read-only-port $ReadOnlyPort }
+        else { & $dotnet run --project Qualcomm.Tests.csproj -c Release }
+    }
     finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { throw 'Qualcomm tests failed.' }
 } finally {
