@@ -391,8 +391,8 @@ pub async fn api(
                 if matches!(action,""|"list"|"list_meta"){json!({"messages":[],"serviceCenters":[],"disabled":true})}else{bail!("SMS service disabled")}
             }else{match action {
                 ""|"list"|"list_meta"=>{let mut data=sms::list(&app.at.page("sms",force).await?);if action=="list_meta"{for value in data["messages"].as_array_mut().unwrap(){value.as_object_mut().unwrap().remove("text");value.as_object_mut().unwrap().remove("textLines");}}data},
-                "delete_all"=>run_action(app,"AT+CMGD=,4").await?,
-                "delete_indices"=>{let values=p.list("indices",',');if values.is_empty()||values.len()>1024{bail!("missing indices or too many messages")}let mut commands=Vec::new();for v in values{let index=v.parse::<u16>()?;commands.push(format!("+CMGD={index}"))}run_action(app,&format!("AT{}",commands.join(";"))).await?},
+                "delete_all"=>{let _guard=app.forwarding.sms_mutation.lock().await;let raw=app.at.page("sms",true).await?;if !parser::ok(&raw){bail!("SMS read failed")};let data=sms::list(&raw);let entries=data["messages"].as_array().unwrap();for storage in [sms::Storage::ME,sms::Storage::SM]{if entries.iter().any(|v|sms::Storage::of(v)==storage){app.at.delete_sms(storage,&[],true).await?;}}json!({"ok":true})},
+                "delete_indices"=>{let _guard=app.forwarding.sms_mutation.lock().await;let values=p.list("indices",',');if values.is_empty()||values.len()>1024{bail!("missing indices or too many messages")}let indices=values.iter().map(|v|v.parse::<u16>()).collect::<std::result::Result<Vec<_>,_>>()?;let storage=sms::Storage::parse(p.get("storage"))?;let raw=app.at.delete_sms(storage,&indices,false).await?;json!({"ok":parser::ok(&raw),"response":raw})},
                 "sim_status"=>{let raw=app.at.run("AT+CPIN?").await?.to_ascii_uppercase();json!({"inserted":!raw.contains("SIM NOT INSERTED")&&!raw.contains("+CME ERROR: 10")})},
                 "send"=>send_sms(app,p.get("number"),p.get("message")).await?,_=>bail!("unsupported action")
             }},
@@ -437,7 +437,6 @@ async fn send_sms(app: &Arc<App>, number: &str, message: &str) -> Result<Value> 
     if !app.forwarding.sms_enabled() {
         bail!("SMS service disabled")
     }
-    let message = message.trim();
     if message.is_empty() || message.len() > 65536 {
         bail!("missing or oversized message")
     }
@@ -448,8 +447,11 @@ async fn send_sms(app: &Arc<App>, number: &str, message: &str) -> Result<Value> 
             .at
             .transaction(&format!("AT+CMGF=0;+CMGS={len}"), Some(pdu.clone()))
             .await?;
-        if !parser::ok(&raw) {
+        if !sms::sent(&raw) {
             bail!("SMS segment {} failed: {}", i + 1, raw)
+        }
+        if i + 1 < parts.len() {
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
     app.at.invalidate().await;

@@ -114,7 +114,8 @@ function fetchSMS() {
           Number.isNaN(date.getTime()) ? new Date() : date,
           msg.text || '',
           msg.indices || [],
-          Array.isArray(msg.textLines) ? msg.textLines : []
+          Array.isArray(msg.textLines) ? msg.textLines : [],
+          msg.storage || 'ME'
         );
       });
 
@@ -126,13 +127,13 @@ function fetchSMS() {
       this.syncSelectAllCheckbox();
     },
 
-    pushSMSMessage(sender, date, text, indices, textLines = []) {
+    pushSMSMessage(sender, date, text, indices, textLines = [], storage = 'ME') {
       const normalizedText = this.normalizeMessageText(text);
       const lines = this.normalizeMessageLines(normalizedText, textLines);
       this.messageIndices.push(indices);
       this.senders.push(sender);
       this.dates.push(this.formatDate(date));
-      this.messages.push({ text: normalizedText, lines, sender, date, indices });
+      this.messages.push({ text: normalizedText, lines, sender, date, indices, storage });
     },
 
     normalizeMessageText(text) {
@@ -165,6 +166,7 @@ function fetchSMS() {
 
     makeSMSListSignature(data) {
       return JSON.stringify((data.messages || []).map((msg) => [
+        msg.storage || 'ME',
         msg.sender || '',
         msg.date || '',
         msg.text || '',
@@ -179,10 +181,10 @@ function fetchSMS() {
         if (!Array.isArray(msg.indices)) return;
         msg.indices.forEach((index) => {
           const n = Number(index);
-          if (Number.isFinite(n)) indices.push(n);
+          if (Number.isFinite(n)) indices.push(`${msg.storage || 'ME'}:${n}`);
         });
       });
-      indices.sort((a, b) => a - b);
+      indices.sort();
       return indices.join(',');
     },
 
@@ -206,7 +208,7 @@ function fetchSMS() {
     messageKey(message, sender, dateText) {
       if (!message) return '';
       const indices = Array.isArray(message.indices) ? message.indices.join(',') : '';
-      return [indices, sender || message.sender || '', dateText || '', message.text || ''].join('|');
+      return [message.storage || 'ME', indices, sender || message.sender || '', dateText || '', message.text || ''].join('|');
     },
 
     currentMessageKey(index) {
@@ -309,6 +311,7 @@ function fetchSMS() {
 
     makeSMSMetaSignature(data) {
       return JSON.stringify((data.messages || []).map((msg) => [
+        msg.storage || 'ME',
         msg.sender || '',
         msg.date || '',
         Array.isArray(msg.indices) ? msg.indices.join(',') : '',
@@ -406,7 +409,7 @@ function fetchSMS() {
       return `${day}/${month}/${year},${hour}:${minute}:${second}`;
     },
 
-    deleteSelectedSMS() {
+    async deleteSelectedSMS() {
       if (this.selectedMessages.length === 0) {
         console.warn('没有选中的短信');
         return;
@@ -423,21 +426,27 @@ function fetchSMS() {
         return;
       }
 
-      const indicesToDelete = [];
+      const banks = new Map();
       this.selectedMessages.forEach((index) => {
-        indicesToDelete.push(...this.messages[index].indices);
+        const message = this.messages[index];
+        const storage = message.storage || 'ME';
+        if (!banks.has(storage)) banks.set(storage, []);
+        banks.get(storage).push(...message.indices);
       });
 
-      if (indicesToDelete.length === 0) {
+      if (banks.size === 0) {
         console.warn('没有有效的短信索引');
         return;
       }
 
-      SimpleAdmin.Api.smsData({ action: 'delete_indices', indices: indicesToDelete.join(',') })
-        .finally(() => {
-          this.selectedMessages = [];
-          this.requestSMS({ force: true });
-        });
+      try {
+        for (const [storage, indices] of banks) {
+          await SimpleAdmin.Api.smsData({ action: 'delete_indices', storage, indices: indices.join(',') });
+        }
+      } finally {
+        this.selectedMessages = [];
+        this.requestSMS({ force: true });
+      }
     },
 
     deleteAllSMS() {
