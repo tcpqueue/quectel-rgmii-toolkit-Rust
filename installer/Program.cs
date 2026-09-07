@@ -8,16 +8,17 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Markup;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Dispatching;
+using Windows.UI;
 
 [assembly: AssemblyTitle("SimpleAdmin 设备助手")]
 [assembly: AssemblyDescription("Quectel RGMII Toolkit Windows installer")]
-[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
 
 namespace SimpleAdminSetup
 {
@@ -43,7 +44,7 @@ namespace SimpleAdminSetup
     {
         readonly Window window;
         readonly string root;
-        readonly DispatcherTimer timer;
+        readonly DispatcherQueueTimer timer;
         readonly ComboBox devices;
         readonly TextBox log;
         readonly ProgressBar progress;
@@ -61,17 +62,17 @@ namespace SimpleAdminSetup
         string failureReason;
         string currentStage;
         string deviceHttpPort;
-        readonly Brush blue = new SolidColorBrush(Color.FromRgb(37, 99, 235));
-        readonly Brush gray = new SolidColorBrush(Color.FromRgb(113, 128, 150));
+        readonly Brush blue = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235));
+        readonly Brush gray = new SolidColorBrush(Color.FromArgb(255, 113, 128, 150));
 
-        T Find<T>(string name) where T : FrameworkElement { return (T)window.FindName(name); }
+        T Find<T>(string name) where T : FrameworkElement { return (T)((FrameworkElement)window.Content).FindName(name); }
         void Text(string name, string value) { Find<TextBlock>(name).Text = value; }
 
         public Controller(Window window, string root, bool preview)
         {
             this.window = window; this.root = root; this.preview = preview;
             devices = Find<ComboBox>("Devices"); log = Find<TextBox>("Log"); progress = Find<ProgressBar>("Progress");
-            timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+            timer = window.DispatcherQueue.CreateTimer(); timer.Interval = TimeSpan.FromSeconds(4);
             timer.Tick += async (s, e) => await RefreshDevices();
             Find<Button>("Refresh").Click += async (s, e) => await RefreshDevices();
             Find<Button>("Install").Click += async (s, e) => await Run("install");
@@ -81,16 +82,58 @@ namespace SimpleAdminSetup
             Find<CheckBox>("ChangeHttpPort").Checked += (s, e) => UpdateActions();
             Find<CheckBox>("ChangeHttpPort").Unchecked += (s, e) => UpdateActions();
             devices.SelectionChanged += (s, e) => UpdateActions();
-            window.Closing += (s, e) => {
+            window.AppWindow.Closing += (s, e) => {
                 if (busy && !preview) {
                     e.Cancel = true;
-                    MessageBox.Show(window, "当前操作尚未结束，请等待结果。安装过程中关闭工具可能中断文件传输。", "操作进行中", MessageBoxButton.OK, MessageBoxImage.Information);
+                    _ = ShowMessage("操作进行中", "当前操作尚未结束，请等待结果。安装过程中关闭工具可能中断文件传输。");
                 } else { closed = true; timer.Stop(); }
             };
-            window.Loaded += async (s, e) => { if (!preview) { await RefreshDevices(); timer.Start(); } };
+            ((FrameworkElement)window.Content).Loaded += async (s, e) => { if (!preview) { await RefreshDevices(); timer.Start(); } };
             UpdateActions();
         }
 
+        Task Dispatch(Action action)
+        {
+            var done = new TaskCompletionSource<bool>();
+            if (!window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => {
+                try { action(); done.SetResult(true); } catch (Exception e) { done.SetException(e); }
+            })) done.SetException(new InvalidOperationException("界面已关闭。"));
+            return done.Task;
+        }
+
+        bool messageOpen;
+        async Task ShowMessage(string title, string message)
+        {
+            if (messageOpen) return;
+            messageOpen = true;
+            try {
+                await new ContentDialog {
+                    XamlRoot = window.Content.XamlRoot,
+                    Title = title, Content = message, CloseButtonText = "知道了",
+                    RequestedTheme = ((FrameworkElement)window.Content).ActualTheme
+                }.ShowAsync();
+            } finally { messageOpen = false; }
+        }
+
+        static ScrollViewer FindScrollViewer(DependencyObject element)
+        {
+            if (element is ScrollViewer viewer) return viewer;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++) {
+                var found = FindScrollViewer(VisualTreeHelper.GetChild(element, i));
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        void ScrollLogToEnd()
+        {
+            window.DispatcherQueue.TryEnqueue(() => {
+                if (Find<CheckBox>("FollowLog").IsChecked == true) {
+                    var viewer = FindScrollViewer(log);
+                    viewer?.ChangeView(null, viewer.ScrollableHeight, null, true);
+                }
+            });
+        }
         bool PackageAvailable()
         {
             return File.Exists(Path.Combine(root, "toolkit.ps1")) && File.Exists(Path.Combine(root, "adb.exe"));
@@ -146,7 +189,7 @@ namespace SimpleAdminSetup
                     DataReceivedEventHandler receive = (sender, e) => {
                         if (e.Data == null) return;
                         lock (sync) { if (lines.Length < 1024 * 1024) lines.AppendLine(e.Data); }
-                        if (output != null && !closed) window.Dispatcher.BeginInvoke(new Action(() => output(e.Data)));
+                        if (output != null && !closed) window.DispatcherQueue.TryEnqueue(() => output(e.Data));
                     };
                     process.OutputDataReceived += receive; process.ErrorDataReceived += receive;
                     process.Start(); process.BeginOutputReadLine(); process.BeginErrorReadLine();
@@ -196,10 +239,10 @@ namespace SimpleAdminSetup
         {
             if (String.IsNullOrWhiteSpace(line)) return;
             if (log.Text.Length > 90000) log.Text = log.Text.Substring(log.Text.Length - 60000);
-            log.AppendText("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + line + Environment.NewLine);
-            if (Find<CheckBox>("FollowLog").IsChecked == true) log.ScrollToEnd();
+            log.Text += ("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + line + Environment.NewLine);
+            if (Find<CheckBox>("FollowLog").IsChecked == true) ScrollLogToEnd();
 #if GUI_TEST_HARNESS
-            if (line == "STREAMING_PROBE" && busy && Find<Expander>("Details").IsExpanded && log.IsVisible)
+            if (line == "STREAMING_PROBE" && busy && Find<Expander>("Details").IsExpanded && log.Visibility == Visibility.Visible)
                 File.WriteAllText(Path.Combine(root, "streaming-observed"), "visible before process exit");
 #endif
         }
@@ -258,7 +301,7 @@ namespace SimpleAdminSetup
                 if (!Regex.IsMatch(input, @"^[0-9]{1,5}$") || !Int32.TryParse(input, out port) || port < 1 || port > 65535) {
                     Text("StatusTitle", "请检查 HTTP 端口");
                     Text("StatusDetail", "请输入 1–65535 的整数，例如 80 或 8080。尚未修改设备。");
-                    Find<TextBox>("HttpPort").Focus();
+                    Find<TextBox>("HttpPort").Focus(FocusState.Programmatic);
                     return;
                 }
                 requestedPort = port.ToString();
@@ -266,12 +309,12 @@ namespace SimpleAdminSetup
             busy = true; mode = operation; completed = false; reboot = false; failedEvent = false;
             report = null; webUrl = null; resultEvent = null; deviceHttpPort = null;
             failureReason = null; currentStage = "device";
-            Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(23, 35, 57));
+            Find<TextBlock>("StatusTitle").ClearValue(TextBlock.ForegroundProperty);
             Find<Button>("Report").IsEnabled = false;
-            log.Clear(); timer.Stop(); UpdateActions();
+            log.Text = ""; timer.Stop(); UpdateActions();
             Find<Expander>("Details").IsExpanded = true;
             Append(operation == "install" ? "开始安装 / 升级，正在连接设备…" : "开始检查设备…");
-            await window.Dispatcher.InvokeAsync(() => log.BringIntoView(), DispatcherPriority.Loaded);
+            await Dispatch(() => log.StartBringIntoView());
             Text("Step1", "① 检查连接");
             Text("Step2", operation == "install" ? "② 上传文件" : operation == "diagnose" ? "② 收集状态" : "② 建立通道");
             Text("Step3", operation == "install" ? "③ 安装程序" : operation == "diagnose" ? "③ 生成报告" : "③ 检查连接");
@@ -286,7 +329,7 @@ namespace SimpleAdminSetup
                 if (requestedPort != null) arguments += " -HttpPort " + requestedPort;
                 var result = await Execute(powershell, arguments, device.Serial, 0, Line);
                 // Drain queued output before evaluating the structured final result.
-                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                await Dispatch(() => { });
                 bool ok = result.Code == 0 && resultEvent == "0" && !failedEvent;
                 if ((operation == "install" || operation == "web") && webUrl == null) ok = false;
                 progress.IsIndeterminate = false; progress.Value = ok ? 100 : 0;
@@ -306,7 +349,7 @@ namespace SimpleAdminSetup
                     Text("StatusTitle", currentStage == "device" ? "设备检查未通过" : currentStage == "verify" ? "网页检查未通过" : operation == "install" ? "安装未通过检查" : "诊断未完成");
                     Text("ProgressLabel", "需要处理");
                     Text("StatusDetail", String.IsNullOrEmpty(failureReason) ? "请查看实时日志或点击“查看报告”了解失败原因。" : failureReason);
-                    Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));
+                    Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromArgb(255, 180, 83, 9));
                 }
             } catch (Exception e) {
                 Append(e.ToString()); progress.IsIndeterminate = false; progress.Value = 0;
@@ -322,15 +365,15 @@ namespace SimpleAdminSetup
         void OpenReport()
         {
             if (report == null || !File.Exists(report)) {
-                MessageBox.Show(window, "报告文件尚未生成或已被移动，请重新运行诊断。", "查看报告"); return;
+                _ = ShowMessage("查看报告", "报告文件尚未生成或已被移动，请重新运行诊断。"); return;
             }
             try { Process.Start(new ProcessStartInfo("notepad.exe", Quote(report)) { UseShellExecute = false }); }
-            catch (Exception e) { MessageBox.Show(window, "无法打开报告：" + e.Message, "查看报告"); }
+            catch (Exception e) { _ = ShowMessage("查看报告", "无法打开报告：" + e.Message); }
         }
 
         public void Preview(string state)
         {
-            if (state == "small") { window.Width = 920; window.Height = 700; }
+            if (state == "small") { window.AppWindow.Resize(new Windows.Graphics.SizeInt32(920, 760)); }
             devices.ItemsSource = new[] { new Device { Serial = "DEMO-DEVICE", State = "device", Model = "RM520N-EU" } };
             devices.SelectedIndex = 0; mode = "install"; UpdateActions();
             if (state == "running") {
@@ -345,7 +388,7 @@ namespace SimpleAdminSetup
                 completed = true;
                 Text("StatusTitle", "安装未通过检查"); Text("ProgressLabel", "需要处理");
                 Text("StatusDetail", "请检查 USB 连接，并点击“查看报告”了解原因。可以把报告发给维护者，报告不包含短信或密码。");
-                Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromRgb(180, 83, 9));
+                Find<TextBlock>("StatusTitle").Foreground = new SolidColorBrush(Color.FromArgb(255, 180, 83, 9));
                 Append("[检查] 安装文件已校验\n[错误] 模拟网页连接超时，请查看诊断报告。");
                 Find<Expander>("Details").IsExpanded = true;
             }
@@ -375,86 +418,4 @@ namespace SimpleAdminSetup
 #endif
     }
 
-    static class Program
-    {
-        static string ExtractPayload()
-        {
-            string destination = Path.Combine(Path.GetTempPath(), "SimpleAdmin-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(destination);
-            using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")) {
-                if (resource == null) throw new InvalidDataException("内置安装资源缺失，请重新下载设备助手。");
-                using (var archive = new ZipArchive(resource, ZipArchiveMode.Read)) {
-                    foreach (var entry in archive.Entries) {
-                        string target = Path.GetFullPath(Path.Combine(destination, entry.FullName));
-                        if (!target.StartsWith(destination + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("安装资源路径无效。");
-                        if (String.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
-                        Directory.CreateDirectory(Path.GetDirectoryName(target));
-                        using (var input = entry.Open()) using (var output = File.Create(target)) input.CopyTo(output);
-                    }
-                }
-            }
-            foreach (string file in new[] { "adb.exe", "AdbWinApi.dll", "AdbWinUsbApi.dll", "toolkit.ps1", "development/install_simpleadmin_rust.sh", "development/SHA256SUMS", "development/simpleadmin/simpleadmin-httpd.armv7", "development/simpleadmin/www/index.html" })
-                if (!File.Exists(Path.Combine(destination, file))) throw new InvalidDataException("内置安装资源不完整：" + file);
-            return destination;
-        }
-
-        [STAThread]
-        static int Main(string[] args)
-        {
-            string extracted = null;
-            try {
-                if (args.Length > 0 && args[0] == "--verify-payload") {
-                    extracted = ExtractPayload();
-                    var check = new ProcessStartInfo(Path.Combine(extracted, "adb.exe"), "version") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
-                    using (var process = Process.Start(check)) { process.StandardOutput.ReadToEnd(); process.WaitForExit(); return process.ExitCode; }
-                }
-                if (args.Length > 0 && args[0] == "--self-test") {
-                    var list = Controller.ParseDevices("List of devices attached\nabc device product:foo model:RM520N_EU transport_id:1\nbad unauthorized\noff offline\nnoise\n");
-                    if (list.Count != 3 || list[0].Model != "RM520N EU" || list[1].State != "unauthorized") return 1;
-                    return 0;
-                }
-                var app = new Application();
-                Window window;
-                using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MainWindow.xaml")) window = (Window)XamlReader.Load(stream);
-                bool preview = args.Length >= 2 && args[0] == "--preview";
-                string runtimeRoot = AppDomain.CurrentDomain.BaseDirectory;
-#if !GUI_TEST_HARNESS
-                if (!preview) runtimeRoot = extracted = ExtractPayload();
-#endif
-                var controller = new Controller(window, runtimeRoot, preview);
-#if GUI_TEST_HARNESS
-                if (args.Length == 3 && args[0] == "--test-run") {
-                    window.ShowActivated = false; window.ShowInTaskbar = false;
-                    window.Left = -10000; window.Top = -10000; window.WindowStartupLocation = WindowStartupLocation.Manual;
-                    window.Loaded += async (s, e) => {
-                        await controller.TestRun(args[1], args[2]);
-                        app.Shutdown();
-                    };
-                }
-#endif
-                if (preview) {
-                    window.ShowActivated = false; window.ShowInTaskbar = false;
-                    window.Left = -10000; window.Top = -10000; window.WindowStartupLocation = WindowStartupLocation.Manual;
-                    window.Loaded += (s, e) => window.Dispatcher.BeginInvoke(new Action(() => {
-                        controller.Preview(args.Length > 2 ? args[2] : "ready");
-                        window.UpdateLayout();
-                        var content = (FrameworkElement)window.Content;
-                        var bitmap = new RenderTargetBitmap((int)content.ActualWidth, (int)content.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-                        bitmap.Render(content);
-                        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                        using (var file = File.Create(args[1])) encoder.Save(file);
-                        app.Shutdown();
-                    }), DispatcherPriority.ApplicationIdle);
-                }
-                return app.Run(window);
-            } catch (Exception e) {
-                if (args.Length > 0) { File.WriteAllText(Path.Combine(Path.GetTempPath(), "simpleadmin-setup-error.txt"), e.ToString()); return 1; }
-                MessageBox.Show("设备助手无法启动：" + e.Message + "\n请重新下载完整的单文件设备助手。", "SimpleAdmin", MessageBoxButton.OK, MessageBoxImage.Error);
-                return 1;
-            } finally {
-                // A shared ADB server may still hold its executable; never kill it to clean up.
-                if (extracted != null) { try { Directory.Delete(extracted, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
-            }
-        }
-    }
 }

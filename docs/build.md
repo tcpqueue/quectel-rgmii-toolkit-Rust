@@ -65,7 +65,9 @@ Windows 上运行 `powershell -ExecutionPolicy Bypass -File scripts/test-windows
 
 ### Windows 图形设备助手
 
-中文设备助手使用 WPF/.NET Framework，面向 Windows 10/11，不依赖 WinUI Windows App Runtime。源码为 `installer/Program.cs` 与内嵌的 `installer/MainWindow.xaml`，发布的 `SimpleAdmin-Setup.exe` 已编译好。
+中文设备助手使用原生 WinUI 3，面向 Windows 10 2004（19041）及以上、Windows 11 x64。界面使用 Windows App SDK WinUI 组件，.NET 8 与 Windows App SDK 均采用自包含部署；不依赖系统预装对应运行库。
+
+构建电脑需安装 .NET SDK 8.0.424（同 feature band 的更新补丁也可），首次 NuGet 恢复需要联网。`installer/packages.lock.json` 固定依赖，发布时使用锁定模式。可通过 `SIMPLEADMIN_DOTNET` 指定 dotnet.exe；否则优先使用 `%LOCALAPPDATA%/SimpleAdminBuild/dotnet/dotnet.exe`，最后查找 PATH。
 
 在 Windows PowerShell 中重新编译和测试：
 
@@ -75,13 +77,15 @@ powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1 -TestBuild
 powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1 -GuiTest
 ```
 
-使用系统自带的 .NET Framework C# 编译器，在 Windows 临时目录编译后复制回仓库。测试专用构建保存在 `work/`，不会打包；其自动操作入口不包含在发布程序中。UI 测试使用临时模拟 ADB，不访问真实设备。
+脚本将源码复制到 Windows 本机临时目录，用 .NET SDK 编译原生界面并生成 XAML 资源索引。系统自带的 .NET Framework C# 编译器仅用于编译单文件解包启动器 `installer/Bootstrap.cs`，没有 WPF 界面。最终产物复制回仓库；构建不在 WSL `/mnt/` 下进行。
+
+测试专用自包含程序位于 `work/winui-test/`。测试将它复制到 Windows 本地临时目录再运行，避免直接从 WSL UNC 路径启动 WinUI。自动操作入口不包含在正式程序中；UI 测试使用模拟 ADB，不访问真实设备。
 
 GUI 将所选设备明确传给安装脚本，通过结构化进度事件更新界面；同时核对进程退出码、最终结果与验证后的访问地址，避免从日志中的单个成功字样推断安装完成。主界面仅中文，完整诊断输出保留工具原文。
 
 ### 离线包
 
-正式 `SimpleAdmin-Setup.exe` 内嵌 `payload.zip`，包含 ADB 和 DLL、内部 PowerShell 安装器、`development/` 完整内容与 LICENSE。每次修改上述资源后必须重新执行 Windows `scripts/build-installer.ps1`，再更新 SHA256SUMS。发布 ZIP 仅装入该 EXE；源码中的脚本作为内部实现和维护工具保留。
+正式 `SimpleAdmin-Setup.exe` 内嵌 `payload.zip`，包含原生 WinUI 3 程序、Windows App SDK、.NET 运行库、ADB 和 DLL、内部 PowerShell 安装器、`development/` 完整内容及许可证。构建仅引用 WinUI 所需组件，不引入 Windows App SDK 的 AI、ML、Widgets 组件。NuGet 根目录中的许可证和第三方声明随资源包保存至 `licenses/`。每次修改上述资源后必须重新构建 EXE，再更新 SHA256SUMS。发布 ZIP 仅装入该 EXE；源码中的脚本作为内部实现和维护工具保留。
 
 可运行 `SimpleAdmin-Setup.exe --verify-payload` 校验内嵌资源能解压、必要文件存在且内置 ADB 能启动；此检查不会连接设备或执行安装。运行时使用随机临时目录，报告单独保存到 LocalAppData；不终止共享 ADB 进程。
 

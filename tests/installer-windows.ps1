@@ -10,7 +10,7 @@ New-Item -ItemType Directory -Path $scratch | Out-Null
 
 try {
     Copy-Item -LiteralPath (Join-Path $root 'toolkit.ps1') -Destination $scratch
-    if ($GuiTest) { Copy-Item -LiteralPath (Join-Path $root 'work\SimpleAdmin-Setup.Test.exe') -Destination (Join-Path $scratch 'SimpleAdmin-Setup.exe') }
+    if ($GuiTest) { Copy-Item -Path (Join-Path $root 'work\winui-test\*') -Destination $scratch -Recurse }
     New-Item -ItemType Directory -Path (Join-Path $scratch 'development') | Out-Null
     Set-Content -LiteralPath (Join-Path $scratch 'development/SHA256SUMS') -Value 'fixture'
     $env:SIMPLEADMIN_TEST_DIR = $scratch
@@ -131,7 +131,7 @@ public class FakeAdb {
             [IO.File]::WriteAllText((Join-Path $scratch 'device-http-port'), $(if ($case -in @('preserve-port','custom-diagnose')) { '8080' } else { '80' }))
             $guiResult = Join-Path $scratch ('gui-' + $case + '.txt')
             $operation = if ($case -eq 'diagnose' -or $case -like '*-diagnose') { 'diagnose' } else { 'install' }
-            $gui = Start-Process -FilePath (Join-Path $scratch 'SimpleAdmin-Setup.exe') -ArgumentList @('--test-run', $operation, $guiResult) -WindowStyle Hidden -PassThru
+            $gui = Start-Process -FilePath (Join-Path $scratch 'SimpleAdmin.Installer.exe') -ArgumentList @('--test-run', $operation, $guiResult) -WindowStyle Hidden -PassThru
             if (-not $gui.WaitForExit(30000)) { Stop-Process -Id $gui.Id -Force; throw "GUI timeout: $case" }
             if ($gui.ExitCode -ne 0 -or -not (Test-Path $guiResult)) { throw "GUI failed: $case" }
             $state = Get-Content -LiteralPath $guiResult -Raw -Encoding UTF8
