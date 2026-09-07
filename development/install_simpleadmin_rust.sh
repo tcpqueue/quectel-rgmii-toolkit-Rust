@@ -73,6 +73,9 @@ preflight() {
     (cd "$PKG_DIR" && sha256sum -c SHA256SUMS) || fail "安装包校验失败，请重新完整解压并上传"
     chmod +x "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7"
     "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" --version || fail "程序不能在此固件执行（架构、内核或执行权限不兼容）"
+    if [ -f "$PKG_DIR/install-credentials.json" ]; then
+        SIMPLEADMIN_MANAGE_ROOTFS=0 "$SIMPLEADMIN_SRC/simpleadmin-httpd.armv7" install-credentials --check < "$PKG_DIR/install-credentials.json" || fail "账号密码配置无效；原服务未停止"
+    fi
     local needed available
     needed="$(du -sk "$SIMPLEADMIN_SRC" | awk '{print $1}')"
     available="$(df -Pk /usrdata | awk 'END {print $4}')"
@@ -548,13 +551,18 @@ main() {
     install_simpleadmin_files
     install_at_device_config
     install_ttl_state
+    if [ -f "$PKG_DIR/install-credentials.json" ]; then
+        SIMPLEADMIN_MANAGE_ROOTFS=0 "$SIMPLEADMIN_DIR/simpleadmin-httpd" install-credentials < "$PKG_DIR/install-credentials.json" || fail "保存账号密码失败"
+        rm -f "$PKG_DIR/install-credentials.json"
+        log "所选账号密码已保存"
+    fi
     SIMPLEADMIN_MANAGE_ROOTFS=0 "$SIMPLEADMIN_DIR/simpleadmin-httpd" root-password-init || fail "初始化系统 root 密码失败"
     maybe_install_bridge0_mac_config
     restart_services
     remount_ro
     write_reboot_marker_if_mobileap_cfg_touched
     write_install_success_result
-    log "安装完成。首次安装默认 admin / admin；升级保留原 Web 登录密码"
+    log "安装完成。账号密码按本次选择保存；未自定义时首次使用 admin，升级保留原值"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

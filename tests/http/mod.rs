@@ -211,3 +211,110 @@ async fn form_actions_and_mock_radio_override_work() {
     assert_eq!(value["rsrpLTE"], "-");
     assert_eq!(value["sinrNR"], "0");
 }
+
+#[tokio::test]
+async fn web_username_can_change_without_resetting_password() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    let response = call(
+        &app,
+        "/api/set_password",
+        "current_password=wrong&new_username=owner",
+        &token,
+    )
+    .await;
+    assert_eq!(response.status(), 403);
+    assert_eq!(auth::read(&app.auth.path).unwrap().0, "admin");
+    let response = call(
+        &app,
+        "/api/set_password",
+        "current_password=admin&new_username=bad%3Aname",
+        &token,
+    )
+    .await;
+    assert_eq!(response.status(), 400);
+    let response = call(
+        &app,
+        "/api/set_password",
+        "current_password=admin&new_username=owner",
+        &token,
+    )
+    .await;
+    assert_eq!(response.status(), 200);
+    assert_eq!(
+        auth::read(&app.auth.path).unwrap(),
+        ("owner".into(), "admin".into())
+    );
+    assert!(!app.auth.valid(&token, false));
+}
+
+#[tokio::test]
+async fn web_port_rebinds_and_rejects_conflicts_before_saving() {
+    let (app, dir) = application();
+    let first = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let old = first.local_addr().unwrap();
+    let instance = app.clone();
+    let server = tokio::spawn(async move { crate::webui::serve(instance, first).await.unwrap() });
+    tokio::task::yield_now().await;
+    let token = app.auth.create();
+    let occupied = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = occupied.local_addr().unwrap().port();
+    let data = format!("current_password=admin&http_port={port}");
+    assert_eq!(
+        call(&app, "/api/set_webui_port", &data, &token)
+            .await
+            .status(),
+        409
+    );
+    assert!(!dir.path().join("http_port").exists());
+    assert_eq!(
+        call(
+            &app,
+            "/api/set_webui_port",
+            "current_password=wrong&http_port=12345",
+            &token
+        )
+        .await
+        .status(),
+        403
+    );
+    for value in ["0", "65536", "080", "-1", "80%3Breboot"] {
+        let data = format!("current_password=admin&http_port={value}");
+        assert_eq!(
+            call(&app, "/api/set_webui_port", &data, &token)
+                .await
+                .status(),
+            400
+        );
+    }
+    drop(occupied);
+    assert_eq!(
+        call(&app, "/api/set_webui_port", &data, &token)
+            .await
+            .status(),
+        200
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("http_port")).unwrap(),
+        format!("{port}\n")
+    );
+    tokio::task::yield_now().await;
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .unwrap();
+    let response = client
+        .get(format!("http://127.0.0.1:{port}/api/webui_settings"))
+        .header("Cookie", format!("{}={token}", auth::COOKIE))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let json: Value = response.json().await.unwrap();
+    assert_eq!(json["http_port"], port);
+    assert_eq!(json["username"], "admin");
+    assert!(json.get("password").is_none());
+    assert!(tokio::net::TcpStream::connect(old).await.is_err());
+    server.abort();
+}

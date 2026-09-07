@@ -85,6 +85,40 @@ function portDefinitions(dir) {
       assert(!fs.existsSync(path.join(dir,'installed/bridge0_mac')),'default install must not change MAC');
       assert.equal(fs.readFileSync(path.join(dir,'installed/http_port'),'utf8'),'80\n');
     });
+    check('invalid installation credentials stop before remount or service stop',()=>{
+      const dir=fixture('invalid-credentials');
+      fs.writeFileSync(path.join(dir,'package/install-credentials.json'),'{"web_password":"do-not-log-secret"}');
+      fs.writeFileSync(path.join(dir,'package/simpleadmin/simpleadmin-httpd.armv7'),
+        '#!/bin/sh\nif [ "$1" = install-credentials ]; then cat >/dev/null; exit 1; fi\necho fixture-version\n');
+      manifest(path.join(dir,'package'));
+      const result=run(dir,'main'); status(result,1);
+      assert(!fs.existsSync(path.join(dir,'trace')));
+      assert(!result.stdout.includes('do-not-log-secret') && !result.stderr.includes('do-not-log-secret'));
+    });
+    check('credentials are validated before writes and applied before root default initialization',()=>{
+      const dir=fixture('credentials-order');
+      const input='{"web_username":"owner","web_password":"do-not-log-secret"}';
+      fs.writeFileSync(path.join(dir,'package/install-credentials.json'),input);
+      fs.writeFileSync(path.join(dir,'package/simpleadmin/simpleadmin-httpd.armv7'),
+        '#!/bin/sh\ncase "$1" in\ninstall-credentials)\n if [ "$2" = --check ]; then cat >/dev/null; echo CHECK >> "'+dir+'/trace"; else cat > "'+dir+'/received"; echo CREDENTIALS >> "'+dir+'/trace"; fi;;\nroot-password-init) echo ROOT_DEFAULT >> "'+dir+'/trace";;\n*) echo fixture-version;;\nesac\n');
+      manifest(path.join(dir,'package'));
+      const result=run(dir,'main'); status(result,0);
+      assert.equal(fs.readFileSync(path.join(dir,'received'),'utf8'),input);
+      assert.equal(fs.readFileSync(path.join(dir,'trace'),'utf8'),'CHECK\n-o remount,rw /\nSTOP\nCREDENTIALS\nROOT_DEFAULT\nSTART\n-o remount,ro /\n');
+      assert(!fs.existsSync(path.join(dir,'package/install-credentials.json')));
+      assert(!result.stdout.includes('do-not-log-secret') && !result.stderr.includes('do-not-log-secret'));
+    });
+    check('credential save failure restores read-only root and does not initialize defaults',()=>{
+      const dir=fixture('credentials-save-failure');
+      fs.writeFileSync(path.join(dir,'package/install-credentials.json'),'{}');
+      fs.writeFileSync(path.join(dir,'package/simpleadmin/simpleadmin-httpd.armv7'),
+        '#!/bin/sh\nif [ "$1" = install-credentials ]; then cat >/dev/null; [ "$2" = --check ]; exit $?; fi\nif [ "$1" = root-password-init ]; then echo BAD_ROOT_INIT >> "'+dir+'/trace"; fi\necho fixture-version\n');
+      manifest(path.join(dir,'package'));
+      const result=run(dir,'main'); status(result,1);
+      const trace=fs.readFileSync(path.join(dir,'trace'),'utf8');
+      assert(trace.endsWith('-o remount,ro /\n'));
+      assert(!trace.includes('BAD_ROOT_INIT') && !trace.includes('START'));
+    });
     check('custom port is persisted, preserved by upgrade, and can be changed',()=>{
       const dir=fixture('custom-port');
       status(run(dir,'SIMPLEADMIN_HTTP_PORT=18089; main'),0);

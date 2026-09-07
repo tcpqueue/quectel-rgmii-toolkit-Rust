@@ -35,6 +35,13 @@ function simpleSettings() {
         language: SimpleAdmin.Lang ? SimpleAdmin.Lang.getCurrentLanguage() : "zh-CN",
         isSavingLanguage: false,
         languageSaveMessage: "",
+        webUsername: "",
+        webHttpPort: 80,
+        webHttpEnabled: true,
+        webuiCurrentPassword: "",
+        isSavingWebui: false,
+        webuiSaveMessage: "",
+        webuiNewUrl: "",
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
@@ -109,11 +116,56 @@ function simpleSettings() {
           finally {clearTimeout(deadline);this.isSavingRootPassword=false;}
         },
 
+        async fetchWebuiSetting() {
+          try {
+            const response = await fetch('/api/webui_settings', {cache:'no-store'});
+            if (!response.ok) throw new Error(this.t("读取 WebUI 设置失败"));
+            const data = await response.json();
+            this.webUsername = data.username;
+            this.webHttpPort = data.http_port;
+            this.webHttpEnabled = data.http_enabled;
+          } catch(error) { this.webuiSaveMessage = error.message; }
+        },
+
+        async saveWebuiPort() {
+          if (this.isSavingWebui) return;
+          this.webuiSaveMessage = ""; this.webuiNewUrl = "";
+          if (!this.webuiCurrentPassword || !/^[1-9][0-9]{0,4}$/.test(String(this.webHttpPort)) || Number(this.webHttpPort) > 65535) {
+            this.webuiSaveMessage = this.t("请填写当前 Web 密码和 1–65535 的端口"); return;
+          }
+          this.isSavingWebui = true;
+          const controller = new AbortController();
+          const deadline = setTimeout(() => controller.abort(), 40000);
+          try {
+            const response = await fetch('/api/set_webui_port', {method:'POST',signal:controller.signal,
+              headers:{'Content-Type':'application/x-www-form-urlencoded'},
+              body:new URLSearchParams({current_password:this.webuiCurrentPassword,http_port:String(this.webHttpPort)})});
+            const data = await response.json();
+            if (!response.ok) {
+              const errors = {"current password incorrect":"当前密码不正确","HTTP port is already in use or unavailable":"端口已被占用或不可用，原配置保持不变"};
+              throw new Error(this.t(errors[data.error] || data.error || "保存失败"));
+            }
+            this.webuiCurrentPassword = "";
+            this.webuiSaveMessage = this.t(data.changed ? "端口已保存并生效，无需重启模块" : "端口未改变");
+            if (data.warning) this.webuiSaveMessage += " · " + data.warning;
+            if (data.changed) {
+              if (["127.0.0.1","localhost","[::1]"].includes(window.location.hostname)) {
+                this.webuiSaveMessage += " · " + this.t("通过 ADB 转发访问时，请在安装器重新打开管理页面");
+              } else {
+                const url = new URL(window.location.href);
+                url.protocol = "http:"; url.port = String(data.http_port); url.pathname = "/login.html"; url.search = ""; url.hash = "";
+                this.webuiNewUrl = url.href;
+              }
+            }
+          } catch(error) { this.webuiSaveMessage = error.name === 'AbortError' ? this.t("请求超时，请重新检查当前端口") : error.message; }
+          finally { clearTimeout(deadline); this.isSavingWebui = false; }
+        },
+
         changeLoginPassword() {
           if (this.isSavingPassword) return;
           this.passwordSaveMessage = "";
-          if (!this.currentPassword || !this.newPassword) {
-            this.passwordSaveMessage = this.t("请输入当前密码和新密码");
+          if (!this.currentPassword || !this.webUsername) {
+            this.passwordSaveMessage = this.t("请输入当前密码和 Web 账号");
             return;
           }
           if (this.newPassword !== this.confirmPassword) {
@@ -122,7 +174,7 @@ function simpleSettings() {
           }
 
           this.isSavingPassword = true;
-          return SimpleAdmin.Api.setPassword(this.currentPassword, this.newPassword, this.confirmPassword)
+          return SimpleAdmin.Api.setPassword(this.currentPassword, this.newPassword, this.confirmPassword, this.webUsername)
             .then((res) => {
               return res.json().catch(() => ({})).then((data) => ({ res, data }));
             })
@@ -494,6 +546,7 @@ function simpleSettings() {
             return;  // 如果设备正在重启，跳过
           }
 
+          this.fetchWebuiSetting();
           this.fetchLanguageSetting();  // 获取界面语言设置
           this.fetchCurrentSettings();  // 发送 AT 命令获取当前设置
           this.fetchTTL();  // 获取 TTL 状态

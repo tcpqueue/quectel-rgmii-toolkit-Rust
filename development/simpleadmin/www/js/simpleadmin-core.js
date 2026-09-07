@@ -219,8 +219,9 @@
       setLanguage(language) {
         return request(this.url('/api/set_language', { language }), { method: 'POST' });
       },
-      setPassword(currentPassword, newPassword, confirmPassword) {
+      setPassword(currentPassword, newPassword, confirmPassword, newUsername) {
         const params = new URLSearchParams({
+          new_username: newUsername || '',
           current_password: currentPassword || '',
           new_password: newPassword || '',
           confirm_password: confirmPassword || ''
