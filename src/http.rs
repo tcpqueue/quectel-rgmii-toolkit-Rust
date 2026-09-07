@@ -10,7 +10,13 @@ pub fn builder() -> hyper::server::conn::http1::Builder {
 }
 
 pub async fn serve(listener: tokio::net::TcpListener, router: axum::Router) -> std::io::Result<()> {
-    let permits = Arc::new(tokio::sync::Semaphore::new(32));
+    serve_with_permits(listener, router, Arc::new(tokio::sync::Semaphore::new(32))).await
+}
+pub async fn serve_with_permits(
+    listener: tokio::net::TcpListener,
+    router: axum::Router,
+    permits: Arc<tokio::sync::Semaphore>,
+) -> std::io::Result<()> {
     loop {
         let (stream, _) = listener.accept().await?;
         let Ok(permit) = permits.clone().try_acquire_owned() else {

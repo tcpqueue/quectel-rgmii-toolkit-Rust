@@ -4,7 +4,6 @@ using System.IO;
 using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -124,7 +123,7 @@ namespace SimpleAdminSetup
         public bool AdbEnabled => Adb == 1 || Adb == 2;
         public string EnableAdbCommand()
         {
-            var copy = (string[])Fields.Clone(); copy[copy.Length - 2] = "1";
+            var copy = (string[])Fields.Clone(); copy[copy.Length - 2] = "2";
             return "AT+QCFG=\"usbcfg\"," + string.Join(",", copy);
         }
         static bool UsbId(string value, out uint id)
@@ -177,7 +176,7 @@ namespace SimpleAdminSetup
         public static string Require(IAtLink link, string command, CancellationToken cancel)
         {
             var reply = link.Send(command, cancel);
-            if (!reply.Ok) throw new InvalidOperationException(command.StartsWith("AT+QADBKEY=", StringComparison.Ordinal) ? "模块拒绝了解锁密钥，未继续修改 USB 配置。" : command + " 返回错误：" + reply.Text.Trim());
+            if (!reply.Ok) throw new InvalidOperationException(command + " 返回错误：" + reply.Text.Trim());
             return Body(reply);
         }
         public static ModuleIdentity Identify(IAtLink link, CancellationToken cancel)
@@ -195,36 +194,26 @@ namespace SimpleAdminSetup
             if (!current.Supported || !current.SameDevice(expected))
                 throw new InvalidOperationException("串口上的模块与刚才识别的不一致或型号未适配，请重新识别；未执行配置修改。");
         }
-        public static string Challenge(string response)
-        {
-            var m = Regex.Match(response, @"\+QADBKEY:\s*([0-9]{1,8})\s*(?:\r?\n|$)");
-            if (!m.Success) throw new InvalidOperationException("未读到有效的 QADBKEY 挑战码，此固件可能不支持该解锁方式。");
-            return m.Groups[1].Value;
-        }
-        public static bool ApplyAdb(IAtLink link, UsbProfile profile, string challenge, CancellationToken token)
+        public static bool ApplyAdb(IAtLink link, UsbProfile profile, CancellationToken token)
         {
             var latest = UsbProfile.Parse(Require(link, "AT+QCFG=\"usbcfg\"", token));
             if (latest.AdbEnabled) return false;
             if (!latest.Fields.SequenceEqual(profile.Fields))
-                throw new InvalidOperationException("USB 配置已变化，请重新检查 ADB；未发送密钥或修改配置。");
-            string current = Challenge(Require(link, "AT+QADBKEY?", token));
-            if (current != challenge) throw new InvalidOperationException("挑战码已变化，请重新检查 ADB，未发送解锁密钥。");
-            Require(link, "AT+QADBKEY=\"" + UnlockKey(challenge) + "\"", token);
+                throw new InvalidOperationException("USB 配置已变化，请重新检查；未修改配置。");
             string command = profile.EnableAdbCommand();
             Require(link, command, token);
             var verified = UsbProfile.Parse(Require(link, "AT+QCFG=\"usbcfg\"", token));
-            if (verified.Adb != 1 || verified.EnableAdbCommand() != command)
+            if (verified.Adb != 2 || verified.EnableAdbCommand() != command)
                 throw new InvalidOperationException("USB 配置复查不一致，请重新识别模块；不要重复发送指令。");
             return true;
-        }
-        public static string[] ParseCustom(string text)
+        }        public static string[] ParseCustom(string text)
         {
             var commands = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
             if (commands.Length == 0 || commands.Length > 32) throw new ArgumentException("请输入 1–32 条 AT 指令，每行一条。");
             foreach (string command in commands) {
                 ValidateCommand(command);
                 if (Regex.IsMatch(command, @"^AT\+(?:CMGS|CMSS|CMGW|CMGD|CMGC|QCMGS|QCMGD|QADBKEY)\b", RegexOptions.IgnoreCase))
-                    throw new ArgumentException("此工具不提供短信发送/删除。ADB 密钥请通过专用解锁流程处理，不在自定义指令中记录。");
+                    throw new ArgumentException("此工具不提供短信发送/删除或 ADB 密钥操作，请使用上方 ADB 接口配置。");
             }
             return commands;
         }
@@ -271,30 +260,6 @@ namespace SimpleAdminSetup
                 }
                 done++; progress("已确认：" + command);
             }
-        }
-        public static string UnlockKey(string salt)
-        {
-            if (!Regex.IsMatch(salt, @"\A[0-9]{1,8}\z")) throw new ArgumentException("挑战码格式无效。");
-            byte[] password = Encoding.ASCII.GetBytes("SH_adb_quectel"), saltBytes = Encoding.ASCII.GetBytes(salt);
-            byte[] Hash(params byte[][] arrays) { using var md5 = MD5.Create(); return md5.ComputeHash(arrays.SelectMany(a => a).ToArray()); }
-            var seed = new List<byte>(); seed.AddRange(password); seed.AddRange(Encoding.ASCII.GetBytes("$1$")); seed.AddRange(saltBytes);
-            byte[] alternate = Hash(password, saltBytes, password);
-            for (int n = password.Length; n > 0; n -= 16) seed.AddRange(alternate.Take(Math.Min(16, n)));
-            for (int n = password.Length; n > 0; n >>= 1) seed.Add((n & 1) != 0 ? (byte)0 : password[0]);
-            byte[] digest = Hash(seed.ToArray());
-            for (int i = 0; i < 1000; i++) {
-                var input = new List<byte>(); input.AddRange((i & 1) != 0 ? password : digest);
-                if (i % 3 != 0) input.AddRange(saltBytes);
-                if (i % 7 != 0) input.AddRange(password);
-                input.AddRange((i & 1) != 0 ? digest : password); digest = Hash(input.ToArray());
-            }
-            const string alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-            var output = new StringBuilder();
-            void Encode(int a, int b, int c, int count) { int n = (a << 16) | (b << 8) | c; while (count-- > 0) { output.Append(alphabet[n & 63]); n >>= 6; } }
-            Encode(digest[0], digest[6], digest[12], 4); Encode(digest[1], digest[7], digest[13], 4);
-            Encode(digest[2], digest[8], digest[14], 4); Encode(digest[3], digest[9], digest[15], 4);
-            Encode(digest[4], digest[10], digest[5], 4); Encode(0, 0, digest[11], 2);
-            return output.ToString().Substring(0, 15);
         }
     }
 }

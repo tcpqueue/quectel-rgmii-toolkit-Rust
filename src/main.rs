@@ -16,6 +16,7 @@ mod sms;
 mod system;
 mod telemetry;
 mod tls;
+mod webui;
 
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -221,10 +222,7 @@ fn entry() -> Result<()> {
         if app.config.no_tls {
             let listener = tokio::net::TcpListener::bind(listen_address(&app.config.http)).await?;
             println!("HTTP listening on {}", listener.local_addr()?);
-            tokio::select! {
-                result = http::serve(listener, app.router()) => result?,
-                _ = tokio::signal::ctrl_c() => {},
-            }
+            webui::serve(app.clone(), listener).await?;
         } else {
             tls::serve(app).await?
         }

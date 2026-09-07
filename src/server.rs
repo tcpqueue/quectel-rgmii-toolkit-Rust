@@ -43,6 +43,7 @@ pub struct App {
     pub sockets: Arc<tokio::sync::Semaphore>,
     pub consoles: Arc<tokio::sync::Semaphore>,
     ttl_lock: tokio::sync::Mutex<()>,
+    pub webui: crate::webui::ListenerState,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap(), axum::Json(value)).into_response()
@@ -128,6 +129,7 @@ impl App {
             sockets: Arc::new(tokio::sync::Semaphore::new(8)),
             consoles: Arc::new(tokio::sync::Semaphore::new(2)),
             ttl_lock: tokio::sync::Mutex::new(()),
+            webui: crate::webui::ListenerState::default(),
         }))
     }
     pub fn start(self: &Arc<Self>) {
@@ -265,6 +267,7 @@ pub async fn api(
 ) -> Response {
     if [
         "/api/login",
+        "/api/set_webui_port",
         "/api/set_password",
         "/api/set_root_password",
         "/api/telemetry/target",
@@ -313,6 +316,15 @@ pub async fn api(
     }
     if path == "/api/set_password" || path == "/api/set_root_password" {
         return change_password(app, &p, path.ends_with("root_password")).await;
+    }
+    if path == "/api/webui_settings" {
+        if method != "GET" {
+            return error(405, "method not allowed");
+        }
+        return crate::webui::snapshot(app);
+    }
+    if path == "/api/set_webui_port" {
+        return crate::webui::change_port(app, &p).await;
     }
     let force = p.flag("force", false);
     let action = p.get("action");
@@ -437,6 +449,22 @@ async fn change_password(app: &Arc<App>, p: &Params, root: bool) -> Response {
     let current = get("current_password", "currentPassword");
     let next = get("new_password", "newPassword");
     let confirm = get("confirm_password", "confirmPassword");
+    let username = p.get("new_username");
+    if !root && !username.is_empty() {
+        let options = crate::install_credentials::Credentials {
+            web_username: Some(username.into()),
+            web_password: Some(if next.is_empty() { current } else { next }.into()),
+            root_password: None,
+        };
+        if let Err(e) = options.validate() {
+            return error(400, e);
+        }
+    }
+    let next = if !root && !username.is_empty() && next.is_empty() {
+        current
+    } else {
+        next
+    };
     if let Err(e) = auth::validate(next) {
         return error(400, e);
     }
@@ -473,6 +501,11 @@ async fn change_password(app: &Arc<App>, p: &Params, root: bool) -> Response {
         }
         let path = app.auth.path.clone();
         let store = app.store.clone();
+        let user = if username.is_empty() {
+            user
+        } else {
+            username.into()
+        };
         let data = format!("{user}:{next}\n");
         match tokio::task::spawn_blocking(move || store.write(&path, data.as_bytes(), 0o600)).await
         {

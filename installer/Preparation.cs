@@ -55,9 +55,9 @@ namespace SimpleAdminSetup
             this.window = window; this.installer = installer; this.preview = preview;
             installer.StateChanged += Update;
             Find<Button>("GoPrepare").Click += async (s, e) => { Navigate(true); if (!preview && !busy) await Scan(); };
-            Find<Button>("GoAdb").Click += (s, e) => Find<FrameworkElement>("AdbSection").StartBringIntoView();
-            Find<Button>("GoNetwork").Click += (s, e) => Find<FrameworkElement>("NetworkSection").StartBringIntoView();
-            Find<Button>("GoVerify").Click += (s, e) => Find<FrameworkElement>("VerifySection").StartBringIntoView();
+            Find<Button>("GoAdb").Click += (s, e) => { SelectStep("GoAdb"); Find<FrameworkElement>("AdbSection").StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false, VerticalAlignmentRatio = 0 }); };
+            Find<Button>("GoNetwork").Click += (s, e) => { SelectStep("GoNetwork"); Find<FrameworkElement>("NetworkSection").StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false, VerticalAlignmentRatio = 0 }); };
+            Find<Button>("GoVerify").Click += (s, e) => { SelectStep("GoVerify"); Find<FrameworkElement>("VerifySection").StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false, VerticalAlignmentRatio = 0 }); };
             Find<ComboBox>("EthernetProfile").SelectionChanged += (s, e) => Update();
             Find<Button>("GoInstall").Click += (s, e) => Navigate(false);
             Find<Button>("ContinueInstall").Click += async (s, e) => { Navigate(false); await installer.RefreshAfterPreparation(); };
@@ -89,9 +89,13 @@ namespace SimpleAdminSetup
             Find<Button>("SaveAtLog").Click += (s, e) => SaveLog();
             Update();
         }
+        public void SelectStep(string name) {
+            foreach (string step in new[] { "GoPrepare", "GoAdb", "GoNetwork", "GoInstall", "GoVerify" }) Find<Button>(step).Style = step == name ? Find<Button>("UnlockAdb").Style : null;
+        }
         void Navigate(bool preparation)
         {
-            Find<FrameworkElement>(preparation ? "PreparePage" : "InstallPage").StartBringIntoView();
+            SelectStep(preparation ? "GoPrepare" : "GoInstall");
+            Find<FrameworkElement>(preparation ? "PreparePage" : "InstallPage").StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false, VerticalAlignmentRatio = 0 });
             Update();
         }
         void Status(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
@@ -190,10 +194,9 @@ namespace SimpleAdminSetup
             Log("USB 配置原始返回：" + response);
             var profile = UsbProfile.Parse(response);
             if (profile.AdbEnabled) { Status("ADB 接口已开启", "未修改配置。请前往安装页刷新设备；若仍未出现，请检查驱动或手动重启模块。", InfoBarSeverity.Success); Log("USB 配置倒数第二项为 " + profile.Adb + "，ADB 已开启，跳过解锁。"); return; }
-            string challenge = await Task.Run(() => Qualcomm.Challenge(Qualcomm.Require(link, "AT+QADBKEY?", token)));
             string command = profile.EnableAdbCommand();
-            if (!await Confirm("启用 ADB", "仅改变 ADB 接口开关；VID、PID 和其他 USB 接口保持原值。成功后如需重启，请点击“重启模块”。", new[] { "AT+QADBKEY=\"<本机计算，不记录密钥>\"", command })) { Status("已取消", "未修改模块配置。"); return; }
-            bool changed = await Task.Run(() => Qualcomm.ApplyAdb(link, profile, challenge, token));
+            if (!await Confirm("启用 ADB", "将 USB 配置倒数第二项从 0 改为 2，开启免授权 ADB；保留原 VID、PID 和其他接口。不计算或发送 ADB 密钥。", new[] { command })) { Status("已取消", "未修改模块配置。"); return; }
+            bool changed = await Task.Run(() => Qualcomm.ApplyAdb(link, profile, token));
             if (!changed) { Status("ADB 接口已开启", "复查时倒数第二项已为 1 或 2，已跳过密钥和 USB 配置写入。", InfoBarSeverity.Success); Log("ADB 已开启，跳过解锁。"); return; }
             Status("ADB 配置已验证", "USB 配置中的 ADB 已开启。请重启模块后前往安装页刷新；ADB 连接可用后才能安装。", InfoBarSeverity.Success); Log("ADB USB 配置写入并复查通过，未自动重启。");
         });

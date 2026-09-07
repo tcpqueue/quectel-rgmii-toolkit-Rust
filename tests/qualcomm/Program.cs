@@ -42,57 +42,41 @@ static class Tests
             Console.WriteLine("ADB field: " + profile.Adb + "; skip unlock: " + profile.AdbEnabled);
             return;
         }
-        Case("md5-crypt OpenSSL independent vectors", () => {
-            Check(Qualcomm.UnlockKey("12345678") == "0jXKXQwSwMxYoegx0S.I.1".Substring(0,15));
-            Check(Qualcomm.UnlockKey("1234") == "DYRcQGIywMfppi0mNc/qc1".Substring(0,15));
-            Check(Qualcomm.UnlockKey("0") == "Uznjfx7C6nIVY6.IT8gJV1".Substring(0,15));
-        });
-        Case("invalid challenge rejected", () => { foreach(var value in new[]{"", "123456789", "1x","12\n"}) Reject<ArgumentException>(()=>Qualcomm.UnlockKey(value)); });
         Case("USB field preservation", () => {
             var original=UsbProfile.Parse(Closed); Check(!original.AdbEnabled);
-            Check(original.EnableAdbCommand()=="AT+QCFG=\"usbcfg\",0x2C7C,0x0801,1,0,1,1,0,1,1");
+            Check(original.EnableAdbCommand()=="AT+QCFG=\"usbcfg\",0x2C7C,0x0801,1,0,1,1,0,2,1");
             Check(UsbProfile.Parse(Closed.Replace("0801","0800")).Fields[1]=="0x0800");
         });
         foreach (int adb in new[]{1,2}) Case("ADB " + adb + " skips every write and key query", () => {
             var link=new Link().Add(Query,Profile(adb));
             Check(UsbProfile.Parse(Profile(adb)).AdbEnabled);
-            Check(!Qualcomm.ApplyAdb(link,UsbProfile.Parse(Profile(adb)),"1234",Token)); link.Done();
+            Check(!Qualcomm.ApplyAdb(link,UsbProfile.Parse(Profile(adb)),Token)); link.Done();
         });
         Case("ADB enabled while dialog open skips unlock", () => {
             var link=new Link().Add(Query,Profile(2));
-            Check(!Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
+            Check(!Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),Token)); link.Done();
         });
         Case("unknown USB profiles rejected", () => {
             foreach(var response in new[]{Closed.Replace("0801","100000"), Closed.Replace("2C7C","1234"),Closed+",1",Profile(3),"ERROR"})
                 Reject<InvalidOperationException>(()=>UsbProfile.Parse(response));
         });
-        string key="AT+QADBKEY=\"" + Qualcomm.UnlockKey("1234") + "\"";
         string setter=UsbProfile.Parse(Closed).EnableAdbCommand();
-        Case("successful unlock checks exact readback", () => {
-            var link=new Link().Add(Query,Closed).Add("AT+QADBKEY?","+QADBKEY: 1234").Add(key).Add(setter).Add(Query,Profile(1));
-            Check(Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
-        });
-        Case("rejected key never changes USB", () => {
-            var link=new Link().Add(Query,Closed).Add("AT+QADBKEY?","+QADBKEY: 1234").Add(key,"",false);
-            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
-        });
-        Case("changed challenge never sends key", () => {
-            var link=new Link().Add(Query,Closed).Add("AT+QADBKEY?","+QADBKEY: 5678");
-            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
-        });
-        Case("changed USB never sends key", () => {
+        Case("direct ADB 2 write without key commands", () => {
+            var link=new Link().Add(Query,Closed).Add(setter).Add(Query,Profile(2));
+            Check(Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),Token)); link.Done();
+        });        Case("changed USB never sends key", () => {
             var link=new Link().Add(Query,Closed.Replace("0801","0800"));
-            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
+            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),Token)); link.Done();
         });
         Case("rejected USB setter stops before readback", () => {
-            var link=new Link().Add(Query,Closed).Add("AT+QADBKEY?","+QADBKEY: 1234").Add(key).Add(setter,"",false);
-            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
+            var link=new Link().Add(Query,Closed).Add(setter,"",false);
+            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),Token)); link.Done();
         });
         Case("USB readback mismatch is failure", () => {
-            var link=new Link().Add(Query,Closed).Add("AT+QADBKEY?","+QADBKEY: 1234").Add(key).Add(setter).Add(Query,Closed);
-            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),"1234",Token)); link.Done();
+            var link=new Link().Add(Query,Closed).Add(setter).Add(Query,Closed);
+            Reject<InvalidOperationException>(()=>Qualcomm.ApplyAdb(link,UsbProfile.Parse(Closed),Token)); link.Done();
         });
-        Case("canceled unlock sends nothing", () => Reject<OperationCanceledException>(()=>Qualcomm.ApplyAdb(new Link(),UsbProfile.Parse(Closed),"1234",new CancellationToken(true))));
+        Case("canceled unlock sends nothing", () => Reject<OperationCanceledException>(()=>Qualcomm.ApplyAdb(new Link(),UsbProfile.Parse(Closed),new CancellationToken(true))));
         Case("device identity verified", () => {
             var link=Identity(); var identity=Qualcomm.Identify(link,Token); Check(identity.Supported); link.Done();
             var other=Identity("999999999999999");

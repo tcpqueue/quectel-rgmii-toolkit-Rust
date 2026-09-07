@@ -501,8 +501,9 @@
 <div class="sa-page-app sa-single-column" id="settingsApp" v-cloak="">
 <div class="sa-section-stack">
 <section aria-labelledby="accountSecurityHeading" class="sa-stack-item sa-account-security">
-<h2 id="accountSecurityHeading" class="sa-panel-header">账户安全 · Web 登录密码</h2>
+<h2 id="accountSecurityHeading" class="sa-panel-header">WebUI 账号与密码</h2>
 <form @submit.prevent="changeLoginPassword()" class="sa-panel-body">
+<div class="mb-3"><label class="form-label" for="webUsernameInput">Web 账号</label><input id="webUsernameInput" class="form-control" autocomplete="username" required maxlength="64" pattern="[A-Za-z0-9_.-]+" v-model="webUsername" :disabled="isSavingPassword"/><div class="form-text">新密码留空时保留原密码，修改后需要重新登录</div></div>
 <div class="sa-password-fields">
 <div>
 <label class="form-label" for="currentPasswordInput">当前密码</label>
@@ -510,18 +511,30 @@
 </div>
 <div>
 <label class="form-label" for="newPasswordInput">新密码</label>
-<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="newPasswordInput" placeholder="请输入新的登录密码" required type="password" v-model="newPassword"/>
+<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="newPasswordInput" placeholder="请输入新的登录密码" type="password" v-model="newPassword"/>
 </div>
 <div>
 <label class="form-label" for="confirmPasswordInput">确认新密码</label>
-<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="confirmPasswordInput" placeholder="请再次输入新的登录密码" required type="password" v-model="confirmPassword"/>
+<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="confirmPasswordInput" placeholder="请再次输入新的登录密码" type="password" v-model="confirmPassword"/>
 </div>
 </div>
 <button :disabled="isSavingPassword" class="btn btn-primary" type="submit">修改密码</button>
 <div aria-live="polite" class="form-text" role="status" v-show="passwordSaveMessage" v-text="passwordSaveMessage"></div>
 </form>
 </section>
-<section class="sa-stack-item sa-account-security" aria-labelledby="rootSecurityHeading">
+<section class="sa-stack-item sa-account-security" aria-labelledby="webuiPortHeading">
+<h2 id="webuiPortHeading" class="sa-panel-header">WebUI HTTP 端口</h2>
+<form @submit.prevent="saveWebuiPort()" class="sa-panel-body">
+<div class="sa-password-fields">
+<div><label for="webuiPortInput" class="form-label">HTTP 端口</label><input id="webuiPortInput" class="form-control" type="number" min="1" max="65535" required v-model="webHttpPort" :disabled="isSavingWebui || !webHttpEnabled"/></div>
+<div><label for="webuiCurrentPassword" class="form-label">当前 Web 密码</label><input id="webuiCurrentPassword" class="form-control" type="password" autocomplete="current-password" required v-model="webuiCurrentPassword" :disabled="isSavingWebui || !webHttpEnabled"/></div>
+</div>
+<div class="form-text mb-3">端口保存后立即生效，不重启模块；请使用新端口重新访问</div>
+<button type="submit" class="btn btn-primary" :disabled="isSavingWebui || !webHttpEnabled">保存端口</button>
+<div class="form-text" role="status" aria-live="polite" v-text="webuiSaveMessage"></div>
+<a v-if="webuiNewUrl" :href="webuiNewUrl" class="btn btn-outline-primary mt-3">打开新地址</a>
+</form>
+</section><section class="sa-stack-item sa-account-security" aria-labelledby="rootSecurityHeading">
 <h2 id="rootSecurityHeading" class="sa-panel-header">系统 root 密码</h2>
 <form @submit.prevent="changeRootPassword()" class="sa-panel-body">
 <div class="sa-password-fields">

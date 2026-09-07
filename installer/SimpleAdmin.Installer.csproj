@@ -29,5 +29,7 @@
     <ApplicationDefinition Include="App.xaml" />
     <Compile Remove="Bootstrap.cs" />
     <Page Include="MainWindow.xaml" />
+    <Content Include="BRANDING.md" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="quectel-logo.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

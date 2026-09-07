@@ -1,15 +1,82 @@
 <UserControl x:Class="SimpleAdminSetup.InstallerView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" FontFamily="Microsoft YaHei UI" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-  <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
-    <Grid.Resources>
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="CanvasBrush" Color="#F2F5FA" />
+          <LinearGradientBrush x:Key="NavigationBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFFFFF" Offset="0" />
+            <GradientStop Color="#EEF2FF" Offset="0.65" />
+            <GradientStop Color="#FFF0F2" Offset="1" />
+          </LinearGradientBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="CanvasBrush" Color="#151922" />
+          <LinearGradientBrush x:Key="NavigationBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#202634" Offset="0" />
+            <GradientStop Color="#1A2030" Offset="0.65" />
+            <GradientStop Color="#30212B" Offset="1" />
+          </LinearGradientBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Default">
+          <SolidColorBrush x:Key="CanvasBrush" Color="#F2F5FA" />
+          <SolidColorBrush x:Key="NavigationBrush" Color="#F8FAFF" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
       <Style x:Key="Card" TargetType="Border">
         <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="20" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="24" />
       </Style>
-    </Grid.Resources>
-    <Grid>
+    </ResourceDictionary>
+  </UserControl.Resources>
+  <Grid Background="{ThemeResource CanvasBrush}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition x:Name="NavigationColumn" Width="236" />
+      <ColumnDefinition />
+    </Grid.ColumnDefinitions>
+    <Border x:Name="NavigationPanel" Padding="22,30,22,22" BorderThickness="0,0,1,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource NavigationBrush}">
+      <Grid RowSpacing="30">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="0" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Spacing="16">
+          <Border Background="White" CornerRadius="12" Padding="12,16">
+            <Image Height="24" Stretch="Uniform">
+              <Image.Source>
+                <SvgImageSource UriSource="ms-appx:///quectel-logo.svg" />
+              </Image.Source>
+            </Image>
+          </Border>
+          <TextBlock Text="5G MODULE" FontSize="12" CharacterSpacing="180" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="配置与维护" FontSize="23" FontWeight="SemiBold" />
+          <TextBlock Text="移远高通系列 · SimpleAdmin" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="4">
+            <Button x:Name="GoPrepare" Content="01   识别模块" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,14" Style="{StaticResource AccentButtonStyle}" />
+            <TextBlock Text="│" Margin="26,0" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Button x:Name="GoAdb" Content="02   ADB 连接" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,14" />
+            <TextBlock Text="│" Margin="26,0" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Button x:Name="GoNetwork" Content="03   联网配置" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,14" />
+            <TextBlock Text="│" Margin="26,0" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Button x:Name="GoInstall" Content="04   安装升级" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,14" />
+            <TextBlock Text="│" Margin="26,0" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Button x:Name="GoVerify" Content="05   检查完成" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,14" />
+          </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="3" Spacing="8">
+          <TextBlock Text="本地连接 · 离线部署" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="Monologue&amp;蓝天科技&#xA;版权所有" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Column="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
@@ -17,28 +84,6 @@
       <StackPanel Spacing="12" Margin="28,20,28,12">
         <TextBlock Text="移远高通系列5G模块配置与维护" FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap" />
         <TextBlock Text="从连接模块到安装后台，按步骤完成配置；已有 ADB 可直接进入安装。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition />
-          </Grid.ColumnDefinitions>
-          <Button x:Name="GoPrepare" HorizontalAlignment="Stretch" Content="① 识别模块" />
-          <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" />
-          <Button x:Name="GoAdb" Grid.Column="2" HorizontalAlignment="Stretch" Content="② ADB 连接" />
-          <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center" />
-          <Button x:Name="GoNetwork" Grid.Column="4" HorizontalAlignment="Stretch" Content="③ 联网配置" />
-          <TextBlock Grid.Column="5" Text="→" VerticalAlignment="Center" />
-          <Button x:Name="GoInstall" Grid.Column="6" HorizontalAlignment="Stretch" Content="④ 安装升级" />
-          <TextBlock Grid.Column="7" Text="→" VerticalAlignment="Center" />
-          <Button x:Name="GoVerify" Grid.Column="8" HorizontalAlignment="Stretch" Content="⑤ 检查完成" />
-        </Grid>
       </StackPanel>
       <ScrollViewer x:Name="MainPage" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,8,28,24" Spacing="16">
@@ -67,7 +112,7 @@
             <Border Style="{StaticResource Card}" x:Name="AdbSection">
               <StackPanel Spacing="12">
                 <TextBlock Text="2. 开启 ADB 连接" FontSize="17" FontWeight="SemiBold" />
-                <TextBlock Text="先检查 USB 配置倒数第二项：1 或 2 表示 ADB 已开启，直接跳过解锁；仅在值为 0 时计算密钥并启用 ADB。保留其他 USB 设置，重启需单独确认。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="先检查 USB 配置倒数第二项：1 或 2 表示 ADB 已开启，直接跳过解锁；仅在值为 0 时直接置为 2，启用免授权 ADB。保留其他 USB 设置，重启需单独确认。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="10">
                   <Button x:Name="UnlockAdb" Content="检查并解锁 ADB" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
                   <Button x:Name="RestartModule" Content="重启模块" IsEnabled="False" />
@@ -129,7 +174,7 @@
               <Button x:Name="SaveAtLog" Grid.Column="2" Content="保存记录" />
             </Grid>
             <TextBox x:Name="AtLog" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="140" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" />
-            <TextBlock Text="操作记录仅保存在电脑内存，点击保存后写入电脑。解锁密钥不显示也不写入记录。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="操作记录仅保存在电脑内存，点击保存后写入电脑。无需计算 ADB 密钥。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <StackPanel Spacing="16" Margin="0,24,0,0" x:Name="InstallPage">
             <StackPanel Spacing="6" Margin="0,0,0,4">

@@ -26,6 +26,7 @@ namespace SimpleAdminSetup
         public InstallerView()
         {
             InitializeComponent();
+            SizeChanged += (s, e) => { NavigationColumn.Width = new GridLength(e.NewSize.Width < 950 ? 180 : 236); NavigationPanel.Padding = new Thickness(e.NewSize.Width < 950 ? 12 : 22, 28, e.NewSize.Width < 950 ? 12 : 22, 22); };
 
         }
     }
@@ -88,7 +89,7 @@ namespace SimpleAdminSetup
                             content.RequestedTheme = state.EndsWith("dark", StringComparison.Ordinal) ? ElementTheme.Dark : ElementTheme.Light;
                             controller.Preview(state);
                             if (state.StartsWith("prepare", StringComparison.Ordinal)) preparation.Preview();
-                            if (!state.StartsWith("prepare", StringComparison.Ordinal)) ((FrameworkElement)content.FindName("InstallPage")).StartBringIntoView();
+                            if (!state.StartsWith("prepare", StringComparison.Ordinal)) { preparation.SelectStep("GoInstall"); ((FrameworkElement)content.FindName("InstallPage")).StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false, VerticalAlignmentRatio = 0 }); }
                             await Task.Delay(600);
                             var bitmap = new RenderTargetBitmap();
                             await bitmap.RenderAsync(content);

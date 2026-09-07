@@ -96,7 +96,7 @@ bash scripts/checksums.sh
 sha256sum development/simpleadmin/simpleadmin-httpd.armv7 windows-test/bin/simpleadmin-httpd.exe SimpleAdmin-Setup.exe > SHA256SUMS
 node tests/installer.cjs
 bash scripts/package.sh
-unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.3-offline.zip
+unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.4-offline.zip
 ```
 
 安装包只包含 `SimpleAdmin-Setup.exe`，ADB、设备程序、离线前端及安装逻辑均内嵌其中。`packages/`、开发缓存及运行状态不提交到 Git。发布时可直接提供 EXE，或将 ZIP 作为 GitHub Release 附件。
@@ -117,7 +117,7 @@ systemctl restart simpleadmin-httpd.service
 
 ### 移远高通串口测试
 
-运行 tests/qualcomm-windows.ps1 可验证串口核心逻辑。测试会在 Windows 临时目录编译独立控制台，使用模拟 AT 链路，不打开物理串口。覆盖 MD5-crypt 的 OpenSSL 对照向量、USB 字段保留、倒数第二项 1/2 跳过解锁、确认期间配置变化、密钥拒绝、读回不一致、取消、设备身份变化、批量中止、QMAPWAC 方案与安装凭据校验。
+运行 tests/qualcomm-windows.ps1 可验证串口核心逻辑。测试会在 Windows 临时目录编译独立控制台，使用模拟 AT 链路，不打开物理串口。覆盖直接启用 ADB 模式 2、USB 字段保留、倒数第二项 1/2 跳过解锁、确认期间配置变化、配置写入拒绝、读回不一致、取消、设备身份变化、批量中止、QMAPWAC 方案与安装凭据校验。
 
 依赖 System.IO.Ports 8.0.0 随正式单文件分发，电脑无需安装 Python、passlib 或串口运行库；设备 USB 驱动按系统识别情况安装。
 经用户授权进行真机只读检查时，可运行 tests/qualcomm-windows.ps1 -ReadOnlyPort COM7；该入口只读取型号、身份与 USB 配置，不解锁或修改密码。WinUI 测试构建另提供只读白名单入口，正式 EXE 不包含该入口。
