@@ -50,6 +50,11 @@ namespace SimpleAdminSetup
         readonly ProgressBar progress;
         readonly bool preview;
         bool busy;
+        bool preparing;
+        public bool IsBusy => busy;
+        public event Action StateChanged;
+        public void SetPreparationBusy(bool value) { preparing = value; UpdateActions(); }
+        public Task RefreshAfterPreparation() => RefreshDevices();
         bool scanning;
         bool closed;
         bool completed;
@@ -83,7 +88,7 @@ namespace SimpleAdminSetup
             Find<CheckBox>("ChangeHttpPort").Unchecked += (s, e) => UpdateActions();
             devices.SelectionChanged += (s, e) => UpdateActions();
             window.AppWindow.Closing += (s, e) => {
-                if (busy && !preview) {
+                if ((busy || preparing) && !preview) {
                     e.Cancel = true;
                     _ = ShowMessage("操作进行中", "当前操作尚未结束，请等待结果。安装过程中关闭工具可能中断文件传输。");
                 } else { closed = true; timer.Stop(); }
@@ -141,16 +146,17 @@ namespace SimpleAdminSetup
 
         void UpdateActions()
         {
+            StateChanged?.Invoke();
             var device = devices.SelectedItem as Device;
-            bool ready = !busy && device != null && device.State == "device" && (preview || PackageAvailable());
+            bool ready = !busy && !preparing && device != null && device.State == "device" && (preview || PackageAvailable());
             Find<Button>("Install").IsEnabled = ready && (preview || File.Exists(Path.Combine(root, "development", "SHA256SUMS")));
             Find<Button>("Diagnose").IsEnabled = ready;
             Find<Button>("OpenWeb").IsEnabled = ready;
-            Find<Button>("Refresh").IsEnabled = !busy && !scanning;
-            devices.IsEnabled = !busy;
-            Find<CheckBox>("ChangeHttpPort").IsEnabled = !busy;
-            Find<TextBox>("HttpPort").IsEnabled = !busy && Find<CheckBox>("ChangeHttpPort").IsChecked == true;
-            if (busy) return;
+            Find<Button>("Refresh").IsEnabled = !busy && !preparing && !scanning;
+            devices.IsEnabled = !busy && !preparing;
+            Find<CheckBox>("ChangeHttpPort").IsEnabled = !busy && !preparing;
+            Find<TextBox>("HttpPort").IsEnabled = !busy && !preparing && Find<CheckBox>("ChangeHttpPort").IsChecked == true;
+            if (busy || preparing) return;
             if (!preview && !PackageAvailable()) {
                 Text("DeviceBadge", "安装包不完整");
                 Text("DeviceHint", "内置安装资源不完整，请重新下载单文件设备助手。");
@@ -217,7 +223,7 @@ namespace SimpleAdminSetup
 
         async Task RefreshDevices()
         {
-            if (busy || scanning || closed || preview) return;
+            if (busy || preparing || scanning || closed || preview) return;
             if (!PackageAvailable()) { UpdateActions(); return; }
             scanning = true; Find<Button>("Refresh").IsEnabled = false;
             try {
@@ -232,7 +238,7 @@ namespace SimpleAdminSetup
                 if (result.Code != 0) Text("DeviceHint", "设备检测失败或超时。请检查 USB 和 ADB 驱动，再点击刷新。");
             } catch (Exception e) {
                 Text("DeviceBadge", "检测失败"); Text("DeviceHint", "无法运行 ADB，请完整解压安装包后重试。"); Append(e.Message);
-            } finally { scanning = false; Find<Button>("Refresh").IsEnabled = !busy; }
+            } finally { scanning = false; Find<Button>("Refresh").IsEnabled = !busy && !preparing; }
         }
 
         void Append(string line)
@@ -292,7 +298,7 @@ namespace SimpleAdminSetup
         async Task Run(string operation)
         {
             var device = devices.SelectedItem as Device;
-            if (busy || device == null || device.State != "device") return;
+            if (busy || preparing || device == null || device.State != "device") return;
             if (preview) return;
             string requestedPort = null;
             if (operation == "install" && Find<CheckBox>("ChangeHttpPort").IsChecked == true) {
@@ -373,7 +379,7 @@ namespace SimpleAdminSetup
 
         public void Preview(string state)
         {
-            if (state == "small") { window.AppWindow.Resize(new Windows.Graphics.SizeInt32(920, 760)); }
+            if (state.EndsWith("small", StringComparison.Ordinal)) { window.AppWindow.Resize(new Windows.Graphics.SizeInt32(920, 760)); }
             devices.ItemsSource = new[] { new Device { Serial = "DEMO-DEVICE", State = "device", Model = "RM520N-EU" } };
             devices.SelectedIndex = 0; mode = "install"; UpdateActions();
             if (state == "running") {

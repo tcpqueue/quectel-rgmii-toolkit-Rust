@@ -38,6 +38,7 @@ namespace SimpleAdminSetup
     {
         Window window;
         Controller controller;
+        Preparation preparation;
         readonly string[] args;
         public InstallerApp(string[] arguments)
         {
@@ -60,6 +61,7 @@ namespace SimpleAdminSetup
                 window.AppWindow.Move(new PointInt32(area.X + (area.Width - width) / 2, area.Y + (area.Height - height) / 2));
                 bool preview = args.Length >= 2 && args[0] == "--preview";
                 controller = new Controller(window, AppContext.BaseDirectory, preview);
+                preparation = new Preparation(window, controller, preview);
                 window.Closed += (s, ev) => Exit();
 #if GUI_TEST_HARNESS
                 if (args.Length == 3 && args[0] == "--test-run") {
@@ -78,8 +80,9 @@ namespace SimpleAdminSetup
                     content.Loaded += async (s, ev) => {
                         try {
                             string state = args.Length > 2 ? args[2] : "ready";
-                            content.RequestedTheme = state == "dark" ? ElementTheme.Dark : ElementTheme.Light;
+                            content.RequestedTheme = state.EndsWith("dark", StringComparison.Ordinal) ? ElementTheme.Dark : ElementTheme.Light;
                             controller.Preview(state);
+                            if (state.StartsWith("prepare", StringComparison.Ordinal)) preparation.Preview();
                             await Task.Delay(600);
                             var bitmap = new RenderTargetBitmap();
                             await bitmap.RenderAsync(content);

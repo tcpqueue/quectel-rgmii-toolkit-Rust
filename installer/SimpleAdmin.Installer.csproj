@@ -25,6 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.260803003" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <ApplicationDefinition Include="App.xaml" />
     <Compile Remove="Bootstrap.cs" />
     <Page Include="MainWindow.xaml" />

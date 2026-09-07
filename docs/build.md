@@ -114,3 +114,9 @@ systemctl restart simpleadmin-httpd.service
 默认服务为 HTTP `:80`。手动启动可使用 `--no-tls=false` 启用 HTTPS，证书路径支持 `--cert`、`--key`、`--ca-cert`、`--ca-key`。支持 Go 版单横线参数写法。
 
 服务运行期间通过 WebUI 的 AT 终端执行命令。独立 `at` 子命令需要先停止服务，防止两个持久读取线程争抢 SMD 响应。不要同时启动 Go 和 Rust 后端。
+
+### 移远高通串口测试
+
+运行 tests/qualcomm-windows.ps1 可验证串口核心逻辑。测试会在 Windows 临时目录编译独立控制台，使用模拟 AT 链路，不打开物理串口。覆盖 MD5-crypt 的 OpenSSL 对照向量、USB 字段保留、倒数第二项 1/2 跳过解锁、确认期间配置变化、密钥拒绝、读回不一致、取消、设备身份变化、批量中止与网口方案。
+
+依赖 System.IO.Ports 8.0.0 随正式单文件分发，电脑无需安装 Python、passlib 或串口运行库；设备 USB 驱动按系统识别情况安装。

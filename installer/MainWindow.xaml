@@ -26,7 +26,7 @@
       <Border Grid.Row="1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6" Padding="12">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <FontIcon Glyph="&#xE8B7;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-          <TextBlock Text="安装与维护" FontWeight="SemiBold"/>
+          <TextBlock x:Name="SidebarSection" Text="安装与维护" FontWeight="SemiBold"/>
         </StackPanel>
       </Border>
       <StackPanel Grid.Row="3" Spacing="6">
@@ -36,7 +36,92 @@
       </StackPanel>
     </Grid>
   </Border>
-  <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <Grid Grid.Column="1">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <StackPanel Orientation="Horizontal" Spacing="10" Margin="28,18,28,0">
+      <Button x:Name="GoPrepare" Content="① 连接与准备"/>
+      <Button x:Name="GoInstall" Content="② 安装与维护"/>
+    </StackPanel>
+    <ScrollViewer x:Name="PreparePage" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="28,22,28,24" Spacing="16">
+        <TextBlock Text="先让模块准备好" Style="{ThemeResource TitleTextBlockStyle}"/>
+        <TextBlock Text="仅适配已识别的移远高通 RG/RM 型号。已有 ADB 连接可直接前往安装。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <Border Style="{StaticResource Card}">
+          <StackPanel Spacing="12">
+            <TextBlock Text="1. 选择 AT 串口" FontSize="17" FontWeight="SemiBold"/>
+            <TextBlock Text="优先选择名称中含 Quectel 和 AT 的端口。请先关闭其他串口软件。选择端口不会自动发送指令。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <ComboBox x:Name="AtPorts" PlaceholderText="请选择 AT 串口" HorizontalAlignment="Stretch" AutomationProperties.Name="AT 串口"/>
+              <Button x:Name="ScanPorts" Grid.Column="1" Content="刷新"/>
+              <Button x:Name="IdentifyModule" Grid.Column="2" Content="识别模块" Style="{StaticResource AccentButtonStyle}"/>
+            </Grid>
+            <InfoBar x:Name="PrepareStatus" IsOpen="True" IsClosable="False" Severity="Informational" Title="尚未识别" Message="连接模块后刷新串口，选择端口并点击识别。"/>
+            <ProgressBar x:Name="AtProgress" IsIndeterminate="False" Visibility="Collapsed"/>
+            <TextBlock x:Name="ModuleSummary" Text="型号、固件和连接建议将在这里显示。" IsTextSelectionEnabled="True" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+          <StackPanel Spacing="12">
+            <TextBlock Text="2. 开启 ADB 连接" FontSize="17" FontWeight="SemiBold"/>
+            <TextBlock Text="先检查 USB 配置倒数第二项：1 或 2 表示 ADB 已开启，直接跳过解锁；仅在值为 0 时计算密钥并启用 ADB。保留其他 USB 设置，重启需单独确认。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button x:Name="UnlockAdb" Content="检查并解锁 ADB" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"/>
+              <Button x:Name="RestartModule" Content="重启模块" IsEnabled="False"/>
+              <Button x:Name="ContinueInstall" Content="前往安装 →"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Expander Header="网口配置 · 需要使用 RJ45 时设置" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+          <StackPanel Spacing="12">
+            <TextBlock Text="网卡型号以转接板为准；指令返回 OK 仅表示配置被接受，网口是否联网仍需检查网线、SIM 和 APN。" TextWrapping="Wrap"/>
+            <ComboBox x:Name="EthernetDriver" Header="转接板网卡" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <ComboBoxItem Content="RTL8125 · 2.5G 网卡" Tag="r8125"/><ComboBoxItem Content="RTL8168 · 千兆网卡" Tag="r8168"/>
+            </ComboBox>
+            <ComboBox x:Name="EthernetProfile" Header="配置方案" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <ComboBoxItem Content="RM520N：PCIe 数据接口 + MPDN NAT"/>
+              <ComboBoxItem Content="USB 数据接口 + MPDN NAT（转接板要求时选）"/>
+              <ComboBoxItem Content="参考工具兼容方案（同时修改 USB 网卡和 SIM 检测）"/>
+            </ComboBox>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button x:Name="EnableEthernet" Content="预览开启网口" IsEnabled="False"/>
+              <Button x:Name="DisableEthernet" Content="预览关闭网口" IsEnabled="False"/>
+            </StackPanel>
+          </StackPanel>
+        </Expander>
+        <Expander Header="设备信息 · 手动读取，不持续轮询" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+          <StackPanel Spacing="12">
+            <Button x:Name="ReadModuleInfo" Content="读取设备信息" IsEnabled="False"/>
+            <TextBlock Text="SIM、信号、温度、USB 和网口配置分项显示。不支持的查询会标记为“固件未提供”。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><StackPanel x:Name="ModuleInfo" Spacing="8"/>
+          </StackPanel>
+        </Expander>
+        <Expander Header="高级 AT 工具" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+          <StackPanel Spacing="12">
+            <TextBlock Text="每行一条指令，最多 32 条。执行前确认完整列表；遇到错误立即停止。不会自动运行或循环发送。" TextWrapping="Wrap"/>
+            <ComboBox x:Name="AtPreset" Header="常用查询" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <ComboBoxItem Content="选择后填入编辑框" Tag=""/>
+              <ComboBoxItem Content="查询信号和服务小区" Tag="AT+QENG=&quot;servingcell&quot;&#xA;AT+QRSRP&#xA;AT+QSINR"/>
+              <ComboBoxItem Content="查询 USB 和网口配置" Tag="AT+QCFG=&quot;usbcfg&quot;&#xA;AT+QETH=&quot;eth_driver&quot;&#xA;AT+QCFG=&quot;pcie/mode&quot;"/>
+              <ComboBoxItem Content="查询固件和温度" Tag="AT+QGMR&#xA;AT+QTEMP"/>
+            </ComboBox>
+            <TextBox x:Name="CustomAt" AcceptsReturn="True" TextWrapping="Wrap" Height="140" MaxLength="16416" PlaceholderText="例如 AT+QNWINFO" AutomationProperties.Name="自定义 AT 指令"/>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button x:Name="RunCustomAt" Content="预览并执行" IsEnabled="False"/>
+              <Button x:Name="SaveAtPreset" Content="保存到此电脑"/>
+              <Button x:Name="LoadAtPreset" Content="读取已保存指令"/>
+            </StackPanel>
+            <Button x:Name="FactoryReset" Content="恢复模块出厂设置…" IsEnabled="False"/>
+          </StackPanel>
+        </Expander>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock Text="操作记录" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <Button x:Name="StopAt" Grid.Column="1" Content="停止后续操作" IsEnabled="False" Margin="0,0,8,0"/>
+          <Button x:Name="SaveAtLog" Grid.Column="2" Content="保存记录"/>
+        </Grid>
+        <TextBox x:Name="AtLog" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="200" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"/>
+        <TextBlock Text="操作记录仅保存在电脑内存，点击保存后写入电脑。解锁密钥不显示也不写入记录。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+      </StackPanel>
+    </ScrollViewer>
+  <ScrollViewer x:Name="InstallPage" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Spacing="16" Margin="28,28,28,20">
       <StackPanel Spacing="6" Margin="0,0,0,4">
         <TextBlock Text="让设备准备就绪" Style="{ThemeResource TitleTextBlockStyle}"/>
@@ -102,5 +187,6 @@
       </Grid>
     </StackPanel>
   </ScrollViewer>
+  </Grid>
 </Grid>
 </UserControl>

@@ -1,0 +1,251 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Ports;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using Microsoft.Win32;
+
+namespace SimpleAdminSetup
+{
+    sealed class AtReply
+    {
+        public string Text;
+        public bool Ok;
+        public static bool IsTerminal(string line) => line == "OK" || line == "ERROR" ||
+            line.StartsWith("+CME ERROR:", StringComparison.Ordinal) || line.StartsWith("+CMS ERROR:", StringComparison.Ordinal);
+    }
+
+    interface IAtLink : IDisposable { AtReply Send(string command, CancellationToken cancel); }
+
+    sealed class SerialAtLink : IAtLink
+    {
+        readonly SerialPort serial;
+        bool failed;
+        public SerialAtLink(string port)
+        {
+            if (!Regex.IsMatch(port, @"^COM[1-9][0-9]*$")) throw new ArgumentException("串口名称无效。");
+            serial = new SerialPort(port, 115200, Parity.None, 8, StopBits.One) {
+                ReadTimeout = 150, WriteTimeout = 2000, DtrEnable = false, RtsEnable = false,
+                Handshake = Handshake.None, Encoding = Encoding.ASCII
+            };
+            try { serial.Open(); } catch { serial.Dispose(); throw; }
+        }
+        public AtReply Send(string command, CancellationToken cancel)
+        {
+            Qualcomm.ValidateCommand(command);
+            if (failed) throw new IOException("上一条指令未完成，请重新识别模块后再试。");
+            cancel.ThrowIfCancellationRequested();
+            try {
+                serial.DiscardInBuffer();
+                serial.Write(command + "\r");
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                var output = new StringBuilder();
+                var line = new StringBuilder();
+                while (timer.Elapsed < TimeSpan.FromSeconds(8)) {
+                    cancel.ThrowIfCancellationRequested();
+                    string chunk = serial.ReadExisting();
+                    foreach (char c in chunk) {
+                        if (c == '\r' || c == '\n') {
+                            string value = line.ToString().Trim(); line.Clear();
+                            if (value.Length == 0 || value.Equals(command, StringComparison.OrdinalIgnoreCase)) continue;
+                            output.AppendLine(value);
+                            if (AtReply.IsTerminal(value)) return new AtReply { Ok = value == "OK", Text = output.ToString() };
+                        } else line.Append(c);
+                        if (output.Length + line.Length > 32768) throw new IOException("串口响应过长，已停止接收。");
+                    }
+                    if (cancel.WaitHandle.WaitOne(20)) cancel.ThrowIfCancellationRequested();
+                }
+                throw new TimeoutException("模块未在 8 秒内返回完整结果。请确认选择的是 AT 串口，并关闭其他占用串口的软件。");
+            } catch { failed = true; serial.Close(); throw; }
+        }
+        public void Dispose() => serial.Dispose();
+    }
+
+    sealed class AtPort
+    {
+        public string Name;
+        public string Description;
+        public override string ToString() => Name + (string.IsNullOrEmpty(Description) ? "" : " · " + Description);
+        public static List<AtPort> List()
+        {
+            var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using (var usb = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\USB")) {
+                if (usb != null) foreach (var hardware in usb.GetSubKeyNames().Where(n => n.StartsWith("VID_2C7C", StringComparison.OrdinalIgnoreCase))) {
+                    using (var group = usb.OpenSubKey(hardware)) {
+                        if (group == null) continue;
+                        foreach (var instance in group.GetSubKeyNames()) {
+                            using (var device = group.OpenSubKey(instance))
+                            using (var parameters = device?.OpenSubKey("Device Parameters")) {
+                                string name = parameters?.GetValue("PortName") as string;
+                                if (name != null) labels[name] = device.GetValue("FriendlyName") as string ?? "Quectel USB 串口";
+                            }
+                        }
+                    }
+                }
+            }
+            return SerialPort.GetPortNames().Where(n => Regex.IsMatch(n, @"^COM[1-9][0-9]*$"))
+                .OrderBy(n => int.Parse(n.Substring(3))).Select(n => new AtPort { Name = n, Description = labels.TryGetValue(n, out var label) ? label : "" }).ToList();
+        }
+    }
+
+    sealed class ModuleIdentity
+    {
+        public string Manufacturer;
+        public string Model;
+        public string Firmware;
+        public string Imei;
+        public bool Supported => Manufacturer.Contains("QUECTEL", StringComparison.OrdinalIgnoreCase) &&
+            Regex.IsMatch(Model, @"^(RM500Q|RM502Q|RM520N|RM521F|RG500Q|RG502Q|RG520N|RG520F|RG521F)([-\s]|$)", RegexOptions.IgnoreCase);
+        public bool SameDevice(ModuleIdentity other) => other != null && Manufacturer == other.Manufacturer && Model == other.Model && Imei == other.Imei && !string.IsNullOrEmpty(Imei);
+    }
+
+    sealed class UsbProfile
+    {
+        public string[] Fields;
+        public int Adb => int.Parse(Fields[Fields.Length - 2]);
+        public bool AdbEnabled => Adb == 1 || Adb == 2;
+        public string EnableAdbCommand()
+        {
+            var copy = (string[])Fields.Clone(); copy[7] = "1";
+            return "AT+QCFG=\"usbcfg\"," + string.Join(",", copy);
+        }
+        public static UsbProfile Parse(string response)
+        {
+            var match = Regex.Match(response, @"\+QCFG:\s*""usbcfg""\s*,([^\r\n]+)", RegexOptions.IgnoreCase);
+            var fields = match.Groups[1].Value.Split(',').Select(s => s.Trim()).ToArray();
+            if (!match.Success || fields.Length != 9 || !fields[0].Equals("0x2C7C", StringComparison.OrdinalIgnoreCase) ||
+                !Regex.IsMatch(fields[1], @"^0x080[01]$", RegexOptions.IgnoreCase) ||
+                fields.Skip(2).Any(s => !Regex.IsMatch(s, "^[012]$")))
+                throw new InvalidOperationException("USB 配置不符合已核对的移远高通格式（VID 2C7C、PID 0800/0801），未生成修改指令。");
+            return new UsbProfile { Fields = fields };
+        }
+    }
+
+    static class Qualcomm
+    {
+        public static readonly string[] InfoCommands = {
+            "AT+CPIN?", "AT+CFUN?", "AT+QTEMP", "AT+QUIMSLOT?", "AT+QSIMDET?", "AT+QSIMSTAT?",
+            "AT+QCFG=\"usbcfg\"", "AT+QCFG=\"pcie/mode\"", "AT+QCFG=\"data_interface\"", "AT+QCFG=\"usbnet\"",
+            "AT+QETH=\"eth_driver\"", "AT+QMAP=\"WWAN\"", "AT+QMAP=\"LANIP\"", "AT+QMAP=\"MPDN_rule\"",
+            "AT+CGDCONT?", "AT+QSPN", "AT+QNWINFO", "AT+QENG=\"servingcell\"", "AT+QCAINFO",
+            "AT+QRSRP", "AT+QRSRQ", "AT+QSINR", "AT+CSQ", "AT+QNWPREFCFG=\"mode_pref\"",
+            "AT+QNWPREFCFG=\"nr5g_disable_mode\"", "AT+QNWPREFCFG=\"lte_band\"",
+            "AT+QNWPREFCFG=\"nsa_nr5g_band\"", "AT+QNWPREFCFG=\"nr5g_band\"",
+            "AT+QNWLOCK=\"common/4g\"", "AT+QNWLOCK=\"common/5g\"", "AT+QMAPWAC?"
+        };
+        public static void ValidateCommand(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command) || command.Length > 512 || !command.StartsWith("AT", StringComparison.OrdinalIgnoreCase) ||
+                command.Any(c => c < 32 || c > 126) || command.Contains(';'))
+                throw new ArgumentException("每行只填一条 AT 指令（最多 512 个字符），不使用分号拼接或控制字符。");
+        }
+        public static string Body(AtReply reply) => string.Join("\n", reply.Text.Split('\n').Select(s => s.Trim())
+            .Where(s => s.Length > 0 && !AtReply.IsTerminal(s) && !s.StartsWith("AT", StringComparison.OrdinalIgnoreCase)));
+        public static string Require(IAtLink link, string command, CancellationToken cancel)
+        {
+            var reply = link.Send(command, cancel);
+            if (!reply.Ok) throw new InvalidOperationException(command.StartsWith("AT+QADBKEY=", StringComparison.Ordinal) ? "模块拒绝了解锁密钥，未继续修改 USB 配置。" : command + " 返回错误：" + reply.Text.Trim());
+            return Body(reply);
+        }
+        public static ModuleIdentity Identify(IAtLink link, CancellationToken cancel)
+        {
+            Require(link, "AT", cancel);
+            var manufacturer = Require(link, "AT+CGMI", cancel);
+            var model = Require(link, "AT+GMM", cancel).Replace("+GMM:", "").Trim().Trim('"');
+            var firmware = Require(link, "AT+GMR", cancel);
+            var imei = Regex.Match(Require(link, "AT+CGSN", cancel), @"(?<!\d)\d{15}(?!\d)").Value;
+            return new ModuleIdentity { Manufacturer = manufacturer, Model = model, Firmware = firmware, Imei = imei };
+        }
+        public static void VerifyIdentity(IAtLink link, ModuleIdentity expected, CancellationToken cancel)
+        {
+            var current = Identify(link, cancel);
+            if (!current.Supported || !current.SameDevice(expected))
+                throw new InvalidOperationException("串口上的模块与刚才识别的不一致或型号未适配，请重新识别；未执行配置修改。");
+        }
+        public static string Challenge(string response)
+        {
+            var m = Regex.Match(response, @"\+QADBKEY:\s*([0-9]{1,8})\s*(?:\r?\n|$)");
+            if (!m.Success) throw new InvalidOperationException("未读到有效的 QADBKEY 挑战码，此固件可能不支持该解锁方式。");
+            return m.Groups[1].Value;
+        }
+        public static bool ApplyAdb(IAtLink link, UsbProfile profile, string challenge, CancellationToken token)
+        {
+            var latest = UsbProfile.Parse(Require(link, "AT+QCFG=\"usbcfg\"", token));
+            if (latest.AdbEnabled) return false;
+            if (!latest.Fields.SequenceEqual(profile.Fields))
+                throw new InvalidOperationException("USB 配置已变化，请重新检查 ADB；未发送密钥或修改配置。");
+            string current = Challenge(Require(link, "AT+QADBKEY?", token));
+            if (current != challenge) throw new InvalidOperationException("挑战码已变化，请重新检查 ADB，未发送解锁密钥。");
+            Require(link, "AT+QADBKEY=\"" + UnlockKey(challenge) + "\"", token);
+            string command = profile.EnableAdbCommand();
+            Require(link, command, token);
+            var verified = UsbProfile.Parse(Require(link, "AT+QCFG=\"usbcfg\"", token));
+            if (verified.Adb != 1 || verified.EnableAdbCommand() != command)
+                throw new InvalidOperationException("USB 配置复查不一致，请重新识别模块；不要重复发送指令。");
+            return true;
+        }
+        public static string[] ParseCustom(string text)
+        {
+            var commands = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
+            if (commands.Length == 0 || commands.Length > 32) throw new ArgumentException("请输入 1–32 条 AT 指令，每行一条。");
+            foreach (string command in commands) {
+                ValidateCommand(command);
+                if (Regex.IsMatch(command, @"^AT\+(?:CMGS|CMSS|CMGW|CMGD|CMGC|QCMGS|QCMGD|QADBKEY)\b", RegexOptions.IgnoreCase))
+                    throw new ArgumentException("此工具不提供短信发送/删除。ADB 密钥请通过专用解锁流程处理，不在自定义指令中记录。");
+            }
+            return commands;
+        }
+        public static string[] EthernetPlan(string driver, int dataInterface, bool enable, bool legacy)
+        {
+            if (driver != "r8125" && driver != "r8168") throw new ArgumentException("请选择网卡型号。");
+            if (dataInterface != 0 && dataInterface != 1) throw new ArgumentException("数据接口无效。");
+            if (legacy) return new[] { "AT+QCFG=\"data_interface\",0,0", "AT+QCFG=\"pcie/mode\"," + (enable ? 1 : 0),
+                "AT+QETH=\"eth_driver\",\"" + driver + "\"," + (enable ? 1 : 0), "AT+QCFG=\"usbnet\"," + (enable ? 1 : 0),
+                "AT+QSIMDET=" + (enable ? "1,1" : "0,0"), "AT+QMAPWAC=" + (enable ? 1 : 0) };
+            return enable ? new[] { "AT+QCFG=\"data_interface\"," + dataInterface + ",0", "AT+QCFG=\"pcie/mode\",1",
+                "AT+QETH=\"eth_driver\",\"" + driver + "\",1", "AT+QMAP=\"MPDN_rule\",0,1,0,0,1" }
+                : new[] { "AT+QETH=\"eth_driver\",\"" + driver + "\",0" };
+        }
+        public static void ExecutePlan(IAtLink link, IEnumerable<string> commands, CancellationToken cancel, Action<string> progress)
+        {
+            int done = 0;
+            foreach (string command in commands) {
+                cancel.ThrowIfCancellationRequested();
+                progress("发送：" + command);
+                try { string result = Require(link, command, cancel); if (result.Length > 0) progress(result); }
+                catch (Exception e) when (!(e is OperationCanceledException)) {
+                    throw new InvalidOperationException("已完成 " + done + " 条，后续已停止。已执行的配置不会自动回滚。" + e.Message, e);
+                }
+                done++; progress("已确认：" + command);
+            }
+        }
+        public static string UnlockKey(string salt)
+        {
+            if (!Regex.IsMatch(salt, @"\A[0-9]{1,8}\z")) throw new ArgumentException("挑战码格式无效。");
+            byte[] password = Encoding.ASCII.GetBytes("SH_adb_quectel"), saltBytes = Encoding.ASCII.GetBytes(salt);
+            byte[] Hash(params byte[][] arrays) { using var md5 = MD5.Create(); return md5.ComputeHash(arrays.SelectMany(a => a).ToArray()); }
+            var seed = new List<byte>(); seed.AddRange(password); seed.AddRange(Encoding.ASCII.GetBytes("$1$")); seed.AddRange(saltBytes);
+            byte[] alternate = Hash(password, saltBytes, password);
+            for (int n = password.Length; n > 0; n -= 16) seed.AddRange(alternate.Take(Math.Min(16, n)));
+            for (int n = password.Length; n > 0; n >>= 1) seed.Add((n & 1) != 0 ? (byte)0 : password[0]);
+            byte[] digest = Hash(seed.ToArray());
+            for (int i = 0; i < 1000; i++) {
+                var input = new List<byte>(); input.AddRange((i & 1) != 0 ? password : digest);
+                if (i % 3 != 0) input.AddRange(saltBytes);
+                if (i % 7 != 0) input.AddRange(password);
+                input.AddRange((i & 1) != 0 ? digest : password); digest = Hash(input.ToArray());
+            }
+            const string alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+            var output = new StringBuilder();
+            void Encode(int a, int b, int c, int count) { int n = (a << 16) | (b << 8) | c; while (count-- > 0) { output.Append(alphabet[n & 63]); n >>= 6; } }
+            Encode(digest[0], digest[6], digest[12], 4); Encode(digest[1], digest[7], digest[13], 4);
+            Encode(digest[2], digest[8], digest[14], 4); Encode(digest[3], digest[9], digest[15], 4);
+            Encode(digest[4], digest[10], digest[5], 4); Encode(0, 0, digest[11], 2);
+            return output.ToString().Substring(0, 15);
+        }
+    }
+}
