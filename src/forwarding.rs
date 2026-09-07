@@ -188,17 +188,18 @@ struct Detector {
     seen: HashSet<[u8; 16]>,
 }
 pub(crate) fn identity(v: &Value) -> [u8; 16] {
-    let digest = Sha256::digest(
-        serde_json::to_vec(&json!([
-            v["sender"],
-            v["date"],
-            v["text"],
-            v["indices"],
-            v["concatRef"],
-            v["concatSeq"]
-        ]))
-        .unwrap(),
-    );
+    let mut fields = json!([
+        v["sender"],
+        v["date"],
+        v["text"],
+        v["indices"],
+        v["concatRef"],
+        v["concatSeq"]
+    ]);
+    if sms::Storage::of(v) == sms::Storage::SM {
+        fields.as_array_mut().unwrap().push(json!("SM"));
+    }
+    let digest = Sha256::digest(serde_json::to_vec(&fields).unwrap());
     digest[..16].try_into().unwrap()
 }
 impl Detector {
@@ -223,7 +224,11 @@ impl Detector {
             let key = if parser::text(&v, "concatRef").is_empty() {
                 hex::encode(identity(&v))
             } else {
-                parser::text(&v, "concatRef").to_owned()
+                format!(
+                    "{}:{}",
+                    sms::Storage::of(&v).name(),
+                    parser::text(&v, "concatRef")
+                )
             };
             groups.entry(key).or_default().push(v);
         }
@@ -267,6 +272,7 @@ impl Detector {
                     .iter()
                     .filter_map(|v| {
                         Some(Part {
+                            storage: sms::Storage::of(v),
                             index: u16::try_from(v["indices"][0].as_u64()?).ok()?,
                             fingerprint: identity(v),
                         })
@@ -277,7 +283,7 @@ impl Detector {
         Ok(result)
     }
 }
-fn split_fragments(mut entries: Vec<Value>) -> Vec<Vec<Value>> {
+pub(crate) fn split_fragments(mut entries: Vec<Value>) -> Vec<Vec<Value>> {
     entries.sort_by(|a, b| {
         parser::text(a, "date")
             .cmp(parser::text(b, "date"))
@@ -508,7 +514,10 @@ impl Forwarder {
             let mut tick = tokio::time::interval(Duration::from_secs(10));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
-                tick.tick().await;
+                let force = tokio::select! {
+                    _ = tick.tick() => false,
+                    _ = at.sms_changed.notified() => true,
+                };
                 let (enabled, generation, device) = {
                     let s = this.state.lock().unwrap();
                     (
@@ -520,7 +529,7 @@ impl Forwarder {
                 if !enabled {
                     continue;
                 }
-                let raw = at.page("sms", false).await;
+                let raw = at.page("sms", force).await;
                 let mut s = this.state.lock().unwrap();
                 if s.generation != generation {
                     continue;
@@ -897,12 +906,15 @@ impl Forwarder {
                 )
                 .await;
             match result {
-                Ok(raw) if parser::ok(&raw) && (raw.contains("+CMGS:") || at.mock) => (),
+                Ok(raw) if sms::sent(&raw) => (),
                 _ => bail!(
                     "SMS segment {} of {} was not confirmed; no automatic retry",
                     index + 1,
                     parts.len()
                 ),
+            }
+            if index + 1 < parts.len() {
+                tokio::time::sleep(Duration::from_millis(500)).await;
             }
         }
         at.invalidate().await;

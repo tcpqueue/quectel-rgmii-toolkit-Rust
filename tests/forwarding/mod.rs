@@ -366,6 +366,7 @@ fn cleanup_requires_every_channel_to_confirm() {
     let (f, _dir) = forwarder();
     let mut n = notification();
     n.parts = vec![Part {
+        storage: sms::Storage::ME,
         index: 1,
         fingerprint: [1; 16],
     }];

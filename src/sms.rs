@@ -3,48 +3,124 @@ use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::{collections::HashMap, sync::LazyLock};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Storage {
+    #[default]
+    ME,
+    SM,
+}
+impl Storage {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::ME => "ME",
+            Self::SM => "SM",
+        }
+    }
+    pub fn is_me(&self) -> bool {
+        *self == Self::ME
+    }
+    pub fn parse(raw: &str) -> Result<Self> {
+        match raw {
+            "" | "ME" => Ok(Self::ME),
+            "SM" => Ok(Self::SM),
+            _ => bail!("invalid SMS storage"),
+        }
+    }
+    pub fn of(entry: &Value) -> Self {
+        if entry["storage"] == "SM" {
+            Self::SM
+        } else {
+            Self::ME
+        }
+    }
+}
+
+fn storage_blocks(raw: &str) -> Option<Vec<(Storage, &str)>> {
+    if !raw.starts_with("+SASTORE:") {
+        return None;
+    }
+    Some(
+        raw.split("+SASTORE:")
+            .skip(1)
+            .filter_map(|block| {
+                let (bank, data) = block.split_once('\n')?;
+                Some((Storage::parse(bank.trim()).ok()?, data))
+            })
+            .collect(),
+    )
+}
+
 pub fn normalize_number(number: &str, imsi: &str) -> Result<String> {
     let clean: String = number
         .chars()
         .filter(|c| c.is_ascii_digit() || *c == '+')
         .collect();
-    let value = if let Some(rest) = clean.strip_prefix("00") {
-        format!("+{}", digits(rest))
-    } else if clean.starts_with('+') {
-        format!("+{}", digits(&clean))
-    } else {
-        let clean = digits(&clean);
-        if clean.is_empty() {
-            bail!("missing number")
-        }
-        let imsi = imsi
-            .lines()
-            .map(digits)
-            .find(|v| (10..=20).contains(&v.len()))
-            .context("AT+CIMI did not return a valid IMSI; enter an international number")?;
-        static CODES: LazyLock<HashMap<String, String>> =
-            LazyLock::new(|| serde_json::from_str(include_str!("calling-codes.json")).unwrap());
-        let code = CODES
-            .get(&imsi[..3])
-            .context("unknown MCC; enter an international number")?;
-        format!("+{code}{clean}")
-    };
-    if !(2..=21).contains(&value.len()) {
+    let value =
+        if !clean.is_empty() && clean.len() <= 6 && clean.bytes().all(|b| b.is_ascii_digit()) {
+            clean
+        } else if let Some(rest) = clean.strip_prefix("00") {
+            format!("+{}", digits(rest))
+        } else if clean.starts_with('+') {
+            format!("+{}", digits(&clean))
+        } else {
+            let clean = digits(&clean);
+            if clean.is_empty() {
+                bail!("missing number")
+            }
+            let imsi = imsi
+                .lines()
+                .map(digits)
+                .find(|v| (10..=20).contains(&v.len()))
+                .context("AT+CIMI did not return a valid IMSI; enter an international number")?;
+            static CODES: LazyLock<HashMap<String, String>> =
+                LazyLock::new(|| serde_json::from_str(include_str!("calling-codes.json")).unwrap());
+            let code = CODES
+                .get(&imsi[..3])
+                .context("unknown MCC; enter an international number")?;
+            format!("+{code}{clean}")
+        };
+    if !(1..=21).contains(&value.len()) {
         bail!("invalid phone number")
     }
     Ok(value)
+}
+pub fn sent(raw: &str) -> bool {
+    crate::parser::ok(raw)
+        && raw.lines().any(|line| {
+            line.trim()
+                .strip_prefix("+CMGS:")
+                .and_then(|v| v.trim().split(',').next())
+                .is_some_and(|v| v.trim().parse::<u32>().is_ok())
+        })
 }
 pub fn submit(number: &str, message: &str, reference: u8) -> Result<Vec<(String, usize)>> {
     let number_digits = digits(number);
     if number_digits.is_empty() || number_digits.len() > 20 {
         bail!("invalid number")
     }
+    let gsm_units = message.chars().try_fold(0usize, |n, c| {
+        gsm7_character(c).map(|(_, second)| n + 1 + usize::from(second.is_some()))
+    });
+    let gsm = gsm_units.is_some();
+    let units = gsm_units.unwrap_or_else(|| message.encode_utf16().count());
+    let limit = match (gsm, units) {
+        (true, 0..=160) => 160,
+        (true, _) => 153,
+        (false, 0..=70) => 70,
+        (false, _) => 67,
+    };
     let mut segments = Vec::<Vec<u16>>::new();
     let mut segment = Vec::new();
     for c in message.chars() {
         let mut buf = [0; 2];
-        let units = c.encode_utf16(&mut buf);
-        if segment.len() + units.len() > 67 {
+        let units = if gsm {
+            let (first, second) = gsm7_character(c).unwrap();
+            buf = [u16::from(first), u16::from(second.unwrap_or(0))];
+            &buf[..1 + usize::from(second.is_some())]
+        } else {
+            c.encode_utf16(&mut buf)
+        };
+        if segment.len() + units.len() > limit {
             segments.push(std::mem::take(&mut segment))
         }
         segment.extend_from_slice(units)
@@ -75,27 +151,60 @@ pub fn submit(number: &str, message: &str, reference: u8) -> Result<Vec<(String,
         if total > 1 {
             user.extend([5, 0, 3, reference.max(1), total as u8, (i + 1) as u8])
         }
-        for n in units {
-            user.extend(n.to_be_bytes())
-        }
+        let udl = if gsm {
+            let skip = (user.len() * 8).div_ceil(7);
+            let count = skip + units.len();
+            user.resize((count * 7).div_ceil(8), 0);
+            for (offset, n) in units.into_iter().enumerate() {
+                for bit in 0..7 {
+                    let position = (skip + offset) * 7 + bit;
+                    user[position / 8] |= (((n >> bit) & 1) as u8) << (position % 8);
+                }
+            }
+            count
+        } else {
+            for n in units {
+                user.extend(n.to_be_bytes())
+            }
+            user.len()
+        };
         let mut data = vec![
             0,
-            if total > 1 { 0x51 } else { 0x11 },
-            0,
+            if total > 1 { 0x41 } else { 0x01 },
+            (i + 1) as u8,
             number_digits.len() as u8,
             if number.starts_with('+') { 0x91 } else { 0x81 },
         ];
         data.extend(&address);
-        data.extend([0, 8, 0xAA, user.len() as u8]);
+        data.extend([0, if gsm { 0 } else { 8 }, udl as u8]);
         data.extend(user);
         let len = data.len() - 1;
         out.push((hex::encode_upper(data), len));
     }
     Ok(out)
 }
+const GSM7_TABLE: &str = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+fn gsm7_character(c: char) -> Option<(u8, Option<u8>)> {
+    if let Some(index) = GSM7_TABLE.chars().position(|v| v == c) {
+        return Some((index as u8, None));
+    }
+    let extension = match c {
+        '\x0c' => 10,
+        '^' => 20,
+        '{' => 40,
+        '}' => 41,
+        '\\' => 47,
+        '[' => 60,
+        '~' => 61,
+        ']' => 62,
+        '|' => 64,
+        '€' => 101,
+        _ => return None,
+    };
+    Some((27, Some(extension)))
+}
 fn gsm7(data: &[u8], count: usize, skip: usize) -> String {
-    const TABLE: &str = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
-    let table: Vec<char> = TABLE.chars().collect();
+    let table: Vec<char> = GSM7_TABLE.chars().collect();
     let mut result = String::new();
     let mut escape = false;
     for i in 0..count {
@@ -256,6 +365,17 @@ fn newlines(raw: &str) -> String {
 }
 // Forward only received messages; keep UDH fragments separate until all parts arrive.
 pub fn received(raw: &str) -> Vec<Value> {
+    if let Some(blocks) = storage_blocks(raw) {
+        return blocks
+            .into_iter()
+            .flat_map(|(storage, data)| {
+                received(data).into_iter().map(move |mut entry| {
+                    entry["storage"] = json!(storage);
+                    entry
+                })
+            })
+            .collect();
+    }
     let mut messages = Vec::new();
     for block in raw.split("+CMGL:").skip(1) {
         let mut lines = block.lines();
@@ -320,6 +440,9 @@ fn merge(mut group: Vec<Value>) -> Value {
     message
 }
 fn adjacent_fragment(a: &Value, b: &Value) -> bool {
+    if a["_pdu"] == true || b["_pdu"] == true {
+        return false;
+    }
     if text(a, "sender").is_empty() || text(a, "sender") != text(b, "sender") {
         return false;
     }
@@ -343,6 +466,19 @@ fn adjacent_fragment(a: &Value, b: &Value) -> bool {
             .is_some_and(|last| b["indices"][0].as_i64() == Some(last + 1))
 }
 pub fn list(raw: &str) -> Value {
+    if let Some(blocks) = storage_blocks(raw) {
+        let mut messages = Vec::new();
+        let mut centers = Vec::new();
+        for (storage, data) in blocks {
+            let mut bank = list(data);
+            for mut entry in bank["messages"].as_array_mut().unwrap().drain(..) {
+                entry["storage"] = json!(storage);
+                messages.push(entry);
+            }
+            centers.append(bank["serviceCenters"].as_array_mut().unwrap());
+        }
+        return json!({"messages":messages,"serviceCenters":centers});
+    }
     let lines: Vec<_> = raw.lines().map(str::trim).collect();
     let mut entries = Vec::new();
     let mut centers = Vec::new();
@@ -373,10 +509,11 @@ pub fn list(raw: &str) -> Value {
                 body.push(l)
             }
         }
-        if let Some((v, center)) = body.first().and_then(|v| deliver(v, index)) {
+        if let Some((mut v, center)) = body.first().and_then(|v| deliver(v, index)) {
             if !center.is_empty() {
                 centers.push(center)
             }
+            v["_pdu"] = json!(true);
             entries.push(v);
             continue;
         }
@@ -405,7 +542,9 @@ pub fn list(raw: &str) -> Value {
                 if !fragments.is_empty() {
                     messages.push(merge(std::mem::take(&mut fragments)));
                 }
-                messages.push(merge(group))
+                for parts in crate::forwarding::split_fragments(group) {
+                    messages.push(merge(parts));
+                }
             }
         } else {
             if fragments
@@ -421,6 +560,7 @@ pub fn list(raw: &str) -> Value {
         messages.push(merge(fragments));
     }
     for v in &mut messages {
+        v.as_object_mut().unwrap().remove("_pdu");
         let normalized = newlines(text(v, "text"));
         v["textLines"] = json!(normalized.split('\n').collect::<Vec<_>>());
         v["text"] = json!(normalized)
@@ -430,6 +570,105 @@ pub fn list(raw: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn vohive_submit_corpus_matches_byte_for_byte() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/vohive-sms-submit.json")).unwrap();
+        for case in cases {
+            let parts = submit(text(&case, "number"), text(&case, "message"), 1).unwrap();
+            let expected = case["tpdus"].as_array().unwrap();
+            assert_eq!(parts.len(), expected.len());
+            for (i, (pdu, len)) in parts.iter().enumerate() {
+                assert_eq!(
+                    &pdu[2..].to_lowercase(),
+                    expected[i].as_str().unwrap(),
+                    "case {} part {i}",
+                    text(&case, "message")
+                );
+                assert_eq!(*len as u64, case["lengths"][i].as_u64().unwrap());
+            }
+        }
+    }
+    #[test]
+    fn short_codes_do_not_require_or_gain_an_imsi_country_code() {
+        for number in ["10086", "888", "1"] {
+            assert_eq!(normalize_number(number, "ERROR").unwrap(), number);
+        }
+        assert_eq!(
+            normalize_number("13800138000", "460001234567890").unwrap(),
+            "+8613800138000"
+        );
+    }
+    #[test]
+    fn modem_acknowledgement_is_required() {
+        assert!(sent("+CMGS: 12\r\nOK\r\n"));
+        for raw in [
+            "OK",
+            ">",
+            "+CMGS: 1\r\n+CMS ERROR: 302",
+            "+CMGS: nope\r\nOK",
+            "+CMGS: 1",
+        ] {
+            assert!(!sent(raw));
+        }
+    }
+    #[test]
+    fn storage_indices_are_kept_separate() {
+        let pdu = "00000D91683108108300F0000862908021436500044F60597D";
+        let bank = format!("+CMGL: 1,0,,23\n{pdu}\nOK\n");
+        let raw = format!("+SASTORE: ME\n{bank}+SASTORE: SM\n{bank}");
+        let items = received(&raw);
+        assert_eq!(items.len(), 2);
+        assert_eq!(Storage::of(&items[0]), Storage::ME);
+        assert_eq!(Storage::of(&items[1]), Storage::SM);
+        assert_ne!(
+            crate::forwarding::identity(&items[0]),
+            crate::forwarding::identity(&items[1])
+        );
+        assert_eq!(list(&raw)["messages"].as_array().unwrap().len(), 2);
+    }
+    #[test]
+    fn separate_pdus_from_same_sender_are_not_merged() {
+        let pdu = "00000D91683108108300F0000862908021436500044F60597D";
+        let raw = format!("+CMGL: 1,0,,23\n{pdu}\n+CMGL: 2,0,,23\n{pdu}\nOK\n");
+        let data = list(&raw);
+        assert_eq!(data["messages"].as_array().unwrap().len(), 2);
+        assert!(data["messages"][0].get("_pdu").is_none());
+    }
+    #[test]
+    fn submit_uses_default_smsc_and_tpdu_octet_length() {
+        let parts = submit("+8613800138000", "你好", 7).unwrap();
+        assert_eq!(
+            parts,
+            [("0001010D91683108108300F00008044F60597D".into(), 18)]
+        );
+    }
+    #[test]
+    fn vohive_gsm7_receive_fixture_handles_spare_bits_and_storage_padding() {
+        // VoHive fork pkg/smscodec/pdu_trim_test.go, pinned in docs/sms-compatibility.md.
+        let pdu = "0004038101F100006250724190410A3754747A0E4ABBCD6F793B4C4FBFDDA0F41CE47ED341617B38CD0E8BD96590F92D07E5DF7539283C1EBFEB6E3A889E87971B";
+        for suffix in [String::new(), "00".repeat(128)] {
+            let raw = format!("+CMGL: 7,1,,69\r\n{pdu}{suffix}\r\nOK\r\n");
+            let items = received(&raw);
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0]["sender"], "101");
+            assert_eq!(
+                items[0]["text"],
+                "This information is not available for your account type"
+            );
+            assert_eq!(items[0]["indices"], json!([7]));
+            assert!(items[0].get("concatRef").is_none());
+        }
+    }
+    #[test]
+    fn ucs2_receive_preserves_number_text_and_timestamp() {
+        let raw = "+CMGL: 4,0,,23\r\n00000D91683108108300F0000862908021436500044F60597D\r\nOK\r\n";
+        let items = received(raw);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["sender"], "+8613800138000");
+        assert_eq!(items[0]["text"], "你好");
+        assert_eq!(items[0]["date"], "26/09/08,12:34:56+00");
+    }
     #[test]
     fn utf16_segments_fit_sms() {
         let result = submit("+8613800138000", &"😀".repeat(100), 1).unwrap();

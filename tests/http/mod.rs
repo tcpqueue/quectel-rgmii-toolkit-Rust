@@ -13,6 +13,67 @@ fn application() -> (Arc<App>, tempfile::TempDir) {
     (App::new(cfg).unwrap(), dir)
 }
 #[tokio::test]
+async fn sms_send_segments_acknowledgements_and_storage_validation() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    let form = serde_urlencoded::to_string([
+        ("action", "send"),
+        ("number", "10086"),
+        ("message", &"中".repeat(70)),
+    ])
+    .unwrap();
+    let response = call(&app, "/api/sms_data", &form, &token).await;
+    assert_eq!(response.status(), 200);
+    let data: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+    assert_eq!(data["segments"], 1);
+    assert_eq!(data["number"], "10086");
+    let (pdu, len) = sms::submit("10086", "hello", 1).unwrap().remove(0);
+    assert!(!pdu.is_empty());
+    app.at
+        .overrides
+        .lock()
+        .unwrap()
+        .insert(format!("AT+CMGF=0;+CMGS={len}"), "OK".into());
+    let response = call(
+        &app,
+        "/api/sms_data",
+        "action=send&number=10086&message=hello",
+        &token,
+    )
+    .await;
+    assert_eq!(response.status(), 400);
+    app.at.trace.lock().unwrap().clear();
+    assert_eq!(
+        call(
+            &app,
+            "/api/sms_data",
+            "action=delete_indices&storage=SM&indices=1",
+            &token
+        )
+        .await
+        .status(),
+        200
+    );
+    assert_eq!(
+        *app.at.trace.lock().unwrap(),
+        ["AT+CPMS=\"SM\"", "AT+CMGD=1"]
+    );
+    app.at.trace.lock().unwrap().clear();
+    assert_eq!(
+        call(
+            &app,
+            "/api/sms_data",
+            "action=delete_indices&storage=EVIL&indices=1",
+            &token
+        )
+        .await
+        .status(),
+        400
+    );
+    assert!(app.at.trace.lock().unwrap().is_empty());
+}
+#[tokio::test]
 async fn disabled_sms_rejects_send_and_delete_without_at_commands() {
     let (app, _dir) = application();
     let token = app.auth.create();

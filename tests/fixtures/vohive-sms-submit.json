@@ -1,0 +1,128 @@
+[
+  {
+    "lengths": [
+      15
+    ],
+    "message": "hello",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f6000005e8329bfd06"
+    ]
+  },
+  {
+    "lengths": [
+      14
+    ],
+    "message": "你好",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f60008044f60597d"
+    ]
+  },
+  {
+    "lengths": [
+      146
+    ],
+    "message": "中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f60008884e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d"
+    ]
+  },
+  {
+    "lengths": [
+      150
+    ],
+    "message": "中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f600088c4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d"
+    ]
+  },
+  {
+    "lengths": [
+      150,
+      24
+    ],
+    "message": "中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中",
+    "number": "10086",
+    "tpdus": [
+      "410105810180f600088c0500030102014e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d4e2d",
+      "410205810180f600080e0500030102024e2d4e2d4e2d4e2d"
+    ]
+  },
+  {
+    "lengths": [
+      150
+    ],
+    "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f60000a0e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3"
+    ]
+  },
+  {
+    "lengths": [
+      150,
+      24
+    ],
+    "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "number": "10086",
+    "tpdus": [
+      "410105810180f60000a0050003010201c2e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3",
+      "410205810180f600000f050003010202c2e170381c0e8701"
+    ]
+  },
+  {
+    "lengths": [
+      150,
+      27
+    ],
+    "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa^bbbbbbbbbb",
+    "number": "10086",
+    "tpdus": [
+      "410105810180f600009f050003010201c2e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e87c3e170381c0e8701",
+      "410205810180f60000130500030102023614b1582c168bc562b118"
+    ]
+  },
+  {
+    "lengths": [
+      26
+    ],
+    "message": "^{}\\[~]|€",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f60000121bca06b5496d5e1bdea6b7f16d809b32"
+    ]
+  },
+  {
+    "lengths": [
+      22
+    ],
+    "message": "Привет",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f600080c041f04400438043204350442"
+    ]
+  },
+  {
+    "lengths": [
+      20
+    ],
+    "message": "مرحبا",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f600080a06450631062d06280627"
+    ]
+  },
+  {
+    "lengths": [
+      20
+    ],
+    "message": "line1\nline2",
+    "number": "10086",
+    "tpdus": [
+      "010105810180f600000becb4bb1c53b0d3eeb20c"
+    ]
+  }
+]

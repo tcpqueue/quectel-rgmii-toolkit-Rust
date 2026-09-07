@@ -14,6 +14,8 @@ const VALID_CLOCK: i64 = 1577836800; // 2020-01-01
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Part {
+    #[serde(default, skip_serializing_if = "sms::Storage::is_me")]
+    pub storage: sms::Storage,
     pub index: u16,
     pub fingerprint: [u8; 16],
 }
@@ -179,18 +181,19 @@ impl Cleanup {
             let verified = receipt.parts.iter().all(|part| {
                 entries.iter().any(|v| {
                     v["indices"][0].as_u64() == Some(part.index as u64)
+                        && sms::Storage::of(v) == part.storage
                         && identity(v) == part.fingerprint
                 })
             });
             let mut failed = false;
             if verified {
                 for part in &receipt.parts {
-                    let raw = at.run(&format!("AT+CMGD={}", part.index)).await?;
+                    let raw = at.delete_sms(part.storage, &[part.index], false).await?;
                     if !parser::ok(&raw) {
                         failed = true;
                         break;
                     }
-                    remaining.retain(|p| p.index != part.index);
+                    remaining.retain(|p| p.index != part.index || p.storage != part.storage);
                 }
                 at.invalidate().await;
             } else {
@@ -217,6 +220,20 @@ impl Cleanup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn old_receipts_default_to_me_and_sm_remains_explicit() {
+        let raw = serde_json::json!({"index":1,"fingerprint":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]});
+        let mut part: Part = serde_json::from_value(raw).unwrap();
+        assert_eq!(part.storage, sms::Storage::ME);
+        assert!(
+            serde_json::to_value(&part)
+                .unwrap()
+                .get("storage")
+                .is_none()
+        );
+        part.storage = sms::Storage::SM;
+        assert_eq!(serde_json::to_value(part).unwrap()["storage"], "SM");
+    }
     fn age(c: &Cleanup, now: i64) {
         let mut s = c.state.lock().unwrap();
         s.clock = (now, Instant::now());
@@ -257,6 +274,7 @@ mod tests {
             id: "test".into(),
             delivered: VALID_CLOCK + 1000,
             parts: vec![Part {
+                storage: sms::Storage::ME,
                 index: 1,
                 fingerprint: identity(v),
             }],

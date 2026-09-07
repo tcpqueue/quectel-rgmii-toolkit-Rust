@@ -28,10 +28,13 @@ pub fn response(
     } else {
         command
     };
-    let mut value = fixtures
-        .get(source)
-        .cloned()
-        .unwrap_or_else(|| "\r\nOK\r\n".into());
+    let mut value = fixtures.get(source).cloned().unwrap_or_else(|| {
+        if command.contains("+CMGS=") {
+            "\r\n+CMGS: 1\r\nOK\r\n".into()
+        } else {
+            "\r\nOK\r\n".into()
+        }
+    });
     if source == crate::at::SMS_LIST
         && let Some(sms) = overrides.get("sms")
     {
