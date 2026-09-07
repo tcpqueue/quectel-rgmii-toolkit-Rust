@@ -51,6 +51,48 @@ async fn disabled_sms_rejects_send_and_delete_without_at_commands() {
         serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
     assert_eq!(data["disabled"], true);
 }
+
+#[tokio::test]
+async fn cell_lock_mutations_require_login_post_and_valid_parameters() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    let params = "action=lock_nr_manual&pci=0&earfcn=633984&scs=30&band=78&persistence=persistent&auto_unlock=1";
+    assert_eq!(
+        call(&app, "/api/network_data", params, "").await.status(),
+        401
+    );
+    let response = app
+        .router()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/network_data?{params}"))
+                .header("cookie", format!("{}={token}", auth::COOKIE))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 405);
+    assert_eq!(
+        call(
+            &app,
+            "/api/network_data",
+            &params.replace("scs=30", "scs=17"),
+            &token
+        )
+        .await
+        .status(),
+        400
+    );
+    assert!(app.at.trace.lock().unwrap().is_empty());
+    assert_eq!(
+        call(&app, "/api/network_data", params, &token)
+            .await
+            .status(),
+        200
+    );
+    assert_eq!(app.cell_lock.snapshot()["radios"][1]["persistent"], true);
+}
 async fn call(app: &Arc<App>, uri: &str, body: &str, token: &str) -> Response {
     app.router()
         .oneshot(

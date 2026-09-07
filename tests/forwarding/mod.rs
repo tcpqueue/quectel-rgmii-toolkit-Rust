@@ -12,6 +12,126 @@ fn notification() -> Notification {
         parts: Vec::new(),
     }
 }
+
+#[test]
+fn five_channel_settings_migrate_without_writes_or_losing_credentials() {
+    let (f, _dir) = forwarder();
+    let mut settings = Settings::default();
+    settings.channels.pop();
+    settings.channels[0].token = "SCT123456789".into();
+    std::fs::write(&f.path, serde_json::to_vec(&settings).unwrap()).unwrap();
+    let before = std::fs::read(&f.path).unwrap();
+    let loaded = Forwarder::new(f.path.clone(), Arc::new(Store::new(true)));
+    assert_eq!(loaded.snapshot()["channels"].as_array().unwrap().len(), 6);
+    assert_eq!(
+        loaded.state.lock().unwrap().settings.channels[0].token,
+        "SCT123456789"
+    );
+    assert_eq!(std::fs::read(&f.path).unwrap(), before);
+}
+
+#[tokio::test]
+async fn sim_forwarding_splits_messages_and_never_sends_when_disabled_or_looping() {
+    let (f, _dir) = forwarder();
+    let at = At::start(true, vec![]).unwrap();
+    assert!(f.at.set(at.clone()).is_ok());
+    let c = Channel {
+        platform: "sim".into(),
+        enabled: true,
+        number: "+8613800138000".into(),
+        ..Channel::default()
+    };
+    let mut note = notification();
+    note.text = "短信转发".repeat(60);
+    {
+        let mut state = f.state.lock().unwrap();
+        state.settings.enabled = true;
+        state.settings.channels[5] = c.clone();
+    }
+    f.send_sim(&c, &note, RETRY_WINDOW, 0).await.unwrap();
+    assert!(
+        at.trace
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|cmd| cmd.contains("+CMGS="))
+            .count()
+            > 1
+    );
+    assert!(f.client.get().is_none());
+    at.trace.lock().unwrap().clear();
+    note.sender = c.number.clone();
+    assert!(f.send_sim(&c, &note, RETRY_WINDOW, 0).await.is_err());
+    assert!(
+        !at.trace
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|cmd| cmd.contains("+CMGS="))
+    );
+    f.sms_settings(false, false).await.unwrap();
+    at.trace.lock().unwrap().clear();
+    assert!(
+        f.send_sim(&c, &notification(), RETRY_WINDOW, 0)
+            .await
+            .is_err()
+    );
+    assert!(at.trace.lock().unwrap().is_empty());
+    assert!(f.test("sim").await.is_err());
+}
+
+#[tokio::test]
+async fn unconfirmed_sim_segment_is_not_retried_or_deleted() {
+    let (f, _dir) = forwarder();
+    let at = At::start(true, vec![]).unwrap();
+    assert!(f.at.set(at.clone()).is_ok());
+    let note = notification();
+    let c = Channel {
+        platform: "sim".into(),
+        enabled: true,
+        number: "+8613800138000".into(),
+        ..Channel::default()
+    };
+    let content = format!(
+        "[{}] SMS\nFrom: {}\nTime: {}\n\n{}",
+        note.device, note.sender, note.received_at, note.text
+    );
+    for (_, len) in sms::submit(&c.number, &content, 1).unwrap() {
+        at.overrides
+            .lock()
+            .unwrap()
+            .insert(format!("AT+CMGF=0;+CMGS={len}"), "+CMS ERROR: 500".into());
+    }
+    {
+        let mut s = f.state.lock().unwrap();
+        s.settings.channels[5] = c;
+        s.settings.enabled = true;
+        s.settings.delete_after_day = true;
+        s.outcomes.insert(note.id.clone(), (1, false));
+        s.queue.push_back(Job {
+            notification: Arc::new(note),
+            channel: 5,
+            part: 0,
+            attempts: 0,
+            created: Instant::now(),
+            next: Instant::now(),
+        });
+    }
+    f.deliver_next().await;
+    f.deliver_next().await;
+    assert_eq!(
+        at.trace
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|cmd| cmd.contains("+CMGS="))
+            .count(),
+        1
+    );
+    assert_eq!(f.snapshot()["queued"], 0);
+    assert_eq!(f.snapshot()["records"][0]["status"], "failed");
+    assert_eq!(f.snapshot()["cleanup"]["pending"], 0);
+}
 fn forwarder() -> (Forwarder, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     (

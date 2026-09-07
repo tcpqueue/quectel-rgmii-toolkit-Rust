@@ -100,6 +100,7 @@ remove_simpleadmin_files() {
     rm -f "$SIMPLEADMIN_DIR/at_devices.conf"
     rm -f "$SIMPLEADMIN_DIR/ttlvalue"
     rm -f "$SIMPLEADMIN_DIR/monitor.json"
+    rm -f "$SIMPLEADMIN_DIR/cell-lock.json"
     rm -f /tmp/simpleadmin-httpd.pid
     rm -f "$SIMPLEADMIN_DIR/bridge0_mac"
     rm -f "$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"

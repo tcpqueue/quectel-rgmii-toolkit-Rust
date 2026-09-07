@@ -177,6 +177,9 @@ impl At {
     pub async fn transaction(&self, command: &str, sms: Option<String>) -> Result<String> {
         self.transaction_timeout(command, sms, None).await
     }
+    pub async fn wait_ready(&self) {
+        tokio::time::sleep_until(self.ready.into()).await;
+    }
     pub async fn transaction_timeout(
         &self,
         command: &str,

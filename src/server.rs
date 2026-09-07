@@ -44,6 +44,7 @@ pub struct App {
     pub consoles: Arc<tokio::sync::Semaphore>,
     ttl_lock: tokio::sync::Mutex<()>,
     pub webui: crate::webui::ListenerState,
+    pub cell_lock: Arc<crate::cell_lock::CellLock>,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap(), axum::Json(value)).into_response()
@@ -118,6 +119,10 @@ impl App {
             config.auth_file.with_file_name("forwarding.json"),
             store.clone(),
         ));
+        let cell_lock = Arc::new(crate::cell_lock::CellLock::new(
+            config.auth_file.with_file_name("cell-lock.json"),
+            store.clone(),
+        ));
         Ok(Arc::new(Self {
             config,
             at,
@@ -130,12 +135,14 @@ impl App {
             consoles: Arc::new(tokio::sync::Semaphore::new(2)),
             ttl_lock: tokio::sync::Mutex::new(()),
             webui: crate::webui::ListenerState::default(),
+            cell_lock,
         }))
     }
     pub fn start(self: &Arc<Self>) {
         self.at.start_refresh();
         self.monitor.start(self.at.clone());
         self.forwarding.start(self.at.clone());
+        self.cell_lock.start(self.at.clone());
         let app = self.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(30));
@@ -328,6 +335,12 @@ pub async fn api(
     }
     let force = p.flag("force", false);
     let action = p.get("action");
+    if path == "/api/network_data"
+        && crate::cell_lock::CellLock::handles(action)
+        && method != "POST"
+    {
+        return error(405, "method not allowed");
+    }
     let result:Result<Response>=async {
         let value=match path {
             "/api/sms/settings"=>{
@@ -363,10 +376,12 @@ pub async fn api(
             },
 "/api/device_info_data"=>match action{""|"get"=>{let raw=app.at.page("device",force).await?;let mut data=parser::device(&raw);data["appVersion"]=json!(concat!("SimpleAdmin Rust v", env!("CARGO_PKG_VERSION")));let model=app.at.page("model",force).await?;let name=parser::model(&model);if name!="-"{data["modelName"]=json!(name)}data["pending"]=json!(raw.contains(crate::at_policy::PENDING)||model.contains(crate::at_policy::PENDING));data},"set_imei"=>run_action(app,&actions::imei(&p)?).await?,_=>bail!("unsupported action")},
             "/api/network_data"=>match action {
-                ""|"settings"=>parser::network(&app.at.page("network",force).await?),
+                ""|"settings"=>{let mut data=parser::network(&app.at.page("network",force).await?);data["cell_lock"]=app.cell_lock.snapshot();data},
+                "cell_lock_status"=>app.cell_lock.snapshot(),
                 "model"=>{let raw=app.at.page("model",force).await?;json!({"model":parser::model(&raw),"pending":raw.contains(crate::at_policy::PENDING)})},
                 "bands"=>{let command=if p.get("mode").is_empty(){crate::at::commands("bands")[0].to_owned()}else{format!("AT+QNWPREFCFG=\"{}\"",actions::band_mode(p.get("mode"))?)};let raw=app.at.fetch_wait(&command,force,p.flag("wait",true)).await?;let mut v=parser::bands(&raw);if raw.contains(crate::at_policy::PENDING){v["pending"]=json!(true)}else if raw.to_ascii_lowercase().contains("error"){v["error"]=json!(raw)}v},
                 "scan"=>parser::scan(&app.at.run(actions::scan_mode(p.get("mode"))?).await?),
+                action if crate::cell_lock::CellLock::handles(action)=>{let lock=app.cell_lock.clone();let at=app.at.clone();let params=Params(p.0.clone());tokio::spawn(async move{lock.apply(&at,&params).await}).await??},
                 _=>run_action(app,&actions::network(&p)?).await?
             },
             "/api/settings_data"=>if action.is_empty()||action=="status"{parser::settings(&app.at.page("settings",force).await?)}else{

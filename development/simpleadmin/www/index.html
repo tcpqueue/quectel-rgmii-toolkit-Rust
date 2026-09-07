@@ -75,10 +75,6 @@
 <i data-lucide="info" aria-hidden="true"></i>
 <span data-simpleadmin-i18n-key="设备信息">设备信息</span>
 </a>
-<a class="sa-menu-link" data-page-link="forwarding" href="#forwarding">
-<i data-lucide="message-square" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="短信转发">短信转发</span>
-</a>
 <a class="sa-menu-link" data-page-link="console" href="#console">
 <i data-lucide="terminal" aria-hidden="true"></i>
 <span data-simpleadmin-i18n-key="控制台">控制台</span>
@@ -347,6 +343,13 @@
 <div class="sa-stack-item">
 <div class="sa-panel">
 <div class="sa-panel-header">小区锁定</div>
+<div class="sa-panel-body sa-lock-policy">
+<fieldset class="sa-lock-mode"><legend>生效方式</legend><label><input type="radio" name="cell-lock-mode" value="temporary" v-model="lockPersistence"/> 临时锁频</label><label><input type="radio" name="cell-lock-mode" value="persistent" v-model="lockPersistence"/> 持久化锁频</label></fieldset>
+<label v-if="lockPersistence==='persistent'" class="form-check form-switch"><input class="form-check-input" type="checkbox" v-model="lockAutoUnlock"/> 锁频后 3 分钟未拨号成功则取消，并停用开机恢复</label>
+<p class="form-text">临时锁频重启后失效；持久化锁频在应用启动后自动恢复，适用于下方手动或扫描小区锁定。</p>
+<p v-if="lockMessage" role="status" class="sa-forward-message" v-text="lockMessage"></p>
+<div v-for="state in lockRadios" :key="state.radio" class="sa-lock-status"><strong>{{ state.radio==='lte' ? 'LTE' : 'NR5G-SA' }}</strong><span>{{ lockStatusText(state) }}</span><span v-if="state.remaining_seconds!==null">{{ state.remaining_seconds }} s</span><code v-if="state.values">{{ state.values.join(', ') }}</code><button v-if="state.values && !state.persistent" type="button" class="btn btn-outline-primary btn-sm" @click="restoreSavedLock(state)" :disabled="lockBusy">重新启用</button><button v-if="state.persistent" type="button" class="btn btn-outline-danger btn-sm" @click="cancelSavedLock(state)" :disabled="lockBusy">取消锁频</button><small v-if="state.error" class="text-danger">{{ state.error }}</small></div>
+</div>
 <div class="sa-panel-body">
 <div class="sa-panel-text">
 <table class="table">
@@ -454,38 +457,6 @@
 </div>
 </div>
 </div>
-</div>
-</section>
-<section aria-labelledby="page-title-forwarding" class="sa-page" data-page="forwarding" id="page-forwarding">
-<div class="sa-page-titlebar"><div class="sa-page-title-main"><h1 id="page-title-forwarding" data-simpleadmin-i18n-key="短信转发">短信转发</h1></div></div>
-<div id="forwardingApp" class="sa-page-app" v-cloak>
-<form @submit.prevent="save" class="sa-forward-form">
-<div class="sa-forward-toolbar">
-<label class="form-check form-switch"><input id="forwardEnabled" type="checkbox" class="form-check-input" v-model="enabled" @change="changed" :disabled="busy || !loaded"/><span>{{ t('启用转发') }}</span></label>
-<div class="sa-forward-device"><label for="forwardDevice">{{ t('设备名称') }}</label><input id="forwardDevice" class="form-control" v-model="device_name" @input="changed" maxlength="64" required :disabled="busy || !loaded"/></div>
-<button class="btn btn-primary" type="submit" :disabled="busy || !dirty || !loaded">{{ t(busy ? '保存中…' : '保存') }}</button>
-</div>
-<div class="sa-forward-facts"><span>{{ t('所有新短信') }}</span><span>{{ t('重试上限') }} <b>3 {{ t('分钟') }}</b></span><span>{{ t('等待推送') }} <b>{{ queued }}</b></span><span>{{ t(enabled ? (ready ? '运行中' : '等待首次读取') : '已停用') }}</span></div>
-<p v-if="message" class="sa-forward-message" :class="{'text-danger':failed}" role="status">{{ t(message) }}</p>
-<p v-if="error" class="sa-forward-message text-danger" role="status">{{ t(error) }}</p>
-<div class="sa-forward-layout" v-if="loaded">
-<div class="sa-forward-platforms" role="tablist" :aria-label="t('推送平台')">
-<button v-for="c in channels" :key="c.platform" type="button" role="tab" :id="'forward-tab-'+c.platform" :aria-controls="'forward-panel-'+c.platform" :aria-selected="selected===c.platform" :class="{active:selected===c.platform}" @click="selected=c.platform"><span>{{ platform(c.platform) }}</span><span class="sa-forward-dot" :class="{enabled:c.enabled}" :title="t(c.enabled ? '已启用' : '已停用')"></span></button>
-</div>
-<section v-for="c in channels" v-show="selected===c.platform" :key="c.platform" class="sa-forward-editor" role="tabpanel" :id="'forward-panel-'+c.platform" :aria-labelledby="'forward-tab-'+c.platform">
-<div class="sa-forward-editor-heading"><h2>{{ platform(c.platform) }}</h2><label class="form-check form-switch"><input :id="'forward-channel-'+c.platform" class="form-check-input" type="checkbox" v-model="c.enabled" @change="changed" :disabled="busy"/><span>{{ t('启用') }}</span></label></div>
-<div class="sa-forward-fields">
-<div v-if="c.platform!=='serverchan'"><label class="form-label" :for="'forward-url-'+c.platform">Webhook URL</label><input :id="'forward-url-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.url" @input="changed" :placeholder="c.has_url ? t('已保存') : 'https://'" maxlength="2048" :disabled="busy"/></div>
-<div v-if="c.platform==='serverchan' || c.platform==='webhook'"><label class="form-label" :for="'forward-token-'+c.platform">{{ c.platform==='serverchan' ? 'SendKey (SCT)' : 'Authorization' }}</label><input :id="'forward-token-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.token" @input="changed" :placeholder="c.has_token ? t('已保存') : (c.platform==='serverchan' ? 'SCT...' : t('可选'))" maxlength="512" :disabled="busy"/></div>
-<div v-if="c.platform==='dingtalk' || c.platform==='feishu'"><label class="form-label" :for="'forward-secret-'+c.platform">{{ t('签名密钥') }}</label><input :id="'forward-secret-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.secret" @input="changed" :placeholder="c.has_secret ? t('已保存') : t('可选')" maxlength="256" :disabled="busy"/></div>
-</div>
-<div class="sa-forward-editor-actions"><button class="btn btn-outline-primary" type="button" @click="test(c.platform)" :disabled="busy || dirty || testing!=='' || !(c.has_url || c.has_token)">{{ t(testing===c.platform ? '推送中…' : '测试推送') }}</button><button class="btn btn-outline-secondary" type="button" @click="clear(c)" :disabled="busy">{{ t('清除凭据') }}</button><span v-if="c.clear" class="text-danger">{{ t('待清除') }}</span></div>
-</section>
-</div>
-</form>
-<section class="sa-forward-history" aria-labelledby="forwardHistoryTitle"><div class="sa-forward-editor-heading"><h2 id="forwardHistoryTitle">{{ t('近期推送') }}</h2><span>{{ t('最近 50 条') }}</span></div>
-<div class="sa-forward-table-wrap"><table class="table sa-forward-table"><thead><tr><th>{{ t('时间') }}</th><th>{{ t('推送平台') }}</th><th>{{ t('发送号码') }}</th><th>{{ t('结果') }}</th></tr></thead><tbody><tr v-for="(record,index) in records" :key="record.time+':'+index"><td>{{ time(record.time) }}</td><td>{{ platform(record.platform) }}</td><td>{{ record.sender }}</td><td><span :class="'sa-forward-result '+record.status">{{ t(record.status) }}</span><small v-if="record.detail">{{ t(record.detail) }}</small></td></tr><tr v-if="!records.length"><td colspan="4" class="sa-forward-empty">{{ t('暂无推送记录') }}</td></tr></tbody></table></div>
-</section>
 </div>
 </section>
 <section aria-labelledby="page-title-settings" class="sa-page" data-page="settings" id="page-settings">
@@ -831,7 +802,8 @@
 <p v-if="deleteAfterDay" class="small text-muted">重启或时间异常后，自动删除会延后至少 24 小时。</p>
 <p v-if="smsSettingsMessage" role="status" class="sa-forward-message" v-text="smsSettingsMessage"></p>
 <p v-if="smsSettingsLoaded && !smsEnabled" class="sa-forward-message">短信功能已关闭</p>
-<div class="sa-section-stack" v-if="smsSettingsLoaded && smsEnabled">
+<nav class="sa-sms-tabs" role="tablist" aria-label="短信"><button type="button" role="tab" :aria-selected="smsView==='inbox'" :class="{active:smsView==='inbox'}" @click="selectSmsView('inbox')">收件箱</button><button type="button" role="tab" :aria-selected="smsView==='compose'" :class="{active:smsView==='compose'}" @click="selectSmsView('compose')">发送短信</button><button type="button" role="tab" :aria-selected="smsView==='forwarding'" :class="{active:smsView==='forwarding'}" @click="selectSmsView('forwarding')">转发设置</button></nav>
+<div class="sa-section-stack sa-sms-inbox" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='inbox'">
 <div class="sa-stack-item">
 <div class="sa-panel">
 <div class="sa-panel-header">收件箱</div>
@@ -887,7 +859,7 @@
 </div>
 </div>
 </div>
-<div class="sa-section-stack" v-if="smsSettingsLoaded && smsEnabled">
+<div class="sa-section-stack sa-sms-compose" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='compose'">
 <div class="sa-stack-item">
 <div class="sa-panel">
 <div class="sa-panel-header">发信息</div>
@@ -929,6 +901,37 @@
 </div>
 </div>
 </teleport>
+</div>
+<div id="forwardingApp" class="sa-page-app" v-cloak>
+<form @submit.prevent="save" class="sa-forward-form">
+<div class="sa-forward-toolbar">
+<label class="form-check form-switch"><input id="forwardEnabled" type="checkbox" class="form-check-input" v-model="enabled" @change="changed" :disabled="busy || !loaded"/><span>{{ t('启用转发') }}</span></label>
+<div class="sa-forward-device"><label for="forwardDevice">{{ t('设备名称') }}</label><input id="forwardDevice" class="form-control" v-model="device_name" @input="changed" maxlength="64" required :disabled="busy || !loaded"/></div>
+<button class="btn btn-primary" type="submit" :disabled="busy || !dirty || !loaded">{{ t(busy ? '保存中…' : '保存') }}</button>
+</div>
+<div class="sa-forward-facts"><span>{{ t('所有新短信') }}</span><span>{{ t('重试上限') }} <b>3 {{ t('分钟') }}</b></span><span>{{ t('等待推送') }} <b>{{ queued }}</b></span><span>{{ t(enabled && sms_enabled ? (ready ? '运行中' : '等待首次读取') : '已停用') }}</span></div>
+<p v-if="message" class="sa-forward-message" :class="{'text-danger':failed}" role="status">{{ t(message) }}</p>
+<p v-if="error" class="sa-forward-message text-danger" role="status">{{ t(error) }}</p>
+<div class="sa-forward-layout" v-if="loaded">
+<div class="sa-forward-platforms" role="tablist" :aria-label="t('推送平台')">
+<button v-for="c in channels" :key="c.platform" type="button" role="tab" :id="'forward-tab-'+c.platform" :aria-controls="'forward-panel-'+c.platform" :aria-selected="selected===c.platform" :class="{active:selected===c.platform}" @click="selected=c.platform"><span>{{ platform(c.platform) }}</span><span class="sa-forward-dot" :class="{enabled:c.enabled}" :title="t(c.enabled ? '已启用' : '已停用')"></span></button>
+</div>
+<section v-for="c in channels" v-show="selected===c.platform" :key="c.platform" class="sa-forward-editor" role="tabpanel" :id="'forward-panel-'+c.platform" :aria-labelledby="'forward-tab-'+c.platform">
+<div class="sa-forward-editor-heading"><h2>{{ platform(c.platform) }}</h2><label class="form-check form-switch"><input :id="'forward-channel-'+c.platform" class="form-check-input" type="checkbox" v-model="c.enabled" @change="changed" :disabled="busy"/><span>{{ t('启用') }}</span></label></div>
+<div class="sa-forward-fields">
+<div v-if="c.platform==='sim'"><label class="form-label" for="forward-number-sim">{{ t('收件人号码') }}</label><input id="forward-number-sim" class="form-control" type="tel" autocomplete="off" v-model="c.number" @input="changed" placeholder="+8613800138000" maxlength="21" :disabled="busy"/><p class="form-text">{{ t('使用本卡发送，运营商可能按短信分段收费') }}</p></div>
+<div v-if="c.platform!=='serverchan' && c.platform!=='sim'"><label class="form-label" :for="'forward-url-'+c.platform">Webhook URL</label><input :id="'forward-url-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.url" @input="changed" :placeholder="c.has_url ? t('已保存') : 'https://'" maxlength="2048" :disabled="busy"/></div>
+<div v-if="c.platform==='serverchan' || c.platform==='webhook'"><label class="form-label" :for="'forward-token-'+c.platform">{{ c.platform==='serverchan' ? 'SendKey (SCT)' : 'Authorization' }}</label><input :id="'forward-token-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.token" @input="changed" :placeholder="c.has_token ? t('已保存') : (c.platform==='serverchan' ? 'SCT...' : t('可选'))" maxlength="512" :disabled="busy"/></div>
+<div v-if="c.platform==='dingtalk' || c.platform==='feishu'"><label class="form-label" :for="'forward-secret-'+c.platform">{{ t('签名密钥') }}</label><input :id="'forward-secret-'+c.platform" class="form-control" type="password" autocomplete="new-password" v-model="c.secret" @input="changed" :placeholder="c.has_secret ? t('已保存') : t('可选')" maxlength="256" :disabled="busy"/></div>
+</div>
+<div class="sa-forward-editor-actions"><button v-if="c.platform!=='sim'" class="btn btn-outline-primary" type="button" @click="test(c.platform)" :disabled="busy || dirty || testing!=='' || !(c.has_url || c.has_token)">{{ t(testing===c.platform ? '推送中…' : '测试推送') }}</button><button class="btn btn-outline-secondary" type="button" @click="clear(c)" :disabled="busy">{{ t('清除凭据') }}</button><span v-if="c.clear" class="text-danger">{{ t('待清除') }}</span></div>
+<aside class="sa-forward-guide"><h3>{{ t('对接说明') }}</h3><ol><li v-for="(step,index) in guide(c.platform).steps" :key="index">{{ step }}</li></ol><p>{{ guide(c.platform).note }}</p><a v-if="guide(c.platform).url" :href="guide(c.platform).url" target="_blank" rel="noopener noreferrer">{{ t('平台网站') }}</a><pre v-if="c.platform==='webhook'" dir="ltr">{{ webhookExample }}</pre></aside>
+</section>
+</div>
+</form>
+<section class="sa-forward-history" aria-labelledby="forwardHistoryTitle"><div class="sa-forward-editor-heading"><h2 id="forwardHistoryTitle">{{ t('近期推送') }}</h2><span>{{ t('最近 50 条') }}</span></div>
+<div class="sa-forward-table-wrap"><table class="table sa-forward-table"><thead><tr><th>{{ t('时间') }}</th><th>{{ t('推送平台') }}</th><th>{{ t('发送号码') }}</th><th>{{ t('结果') }}</th></tr></thead><tbody><tr v-for="(record,index) in records" :key="record.time+':'+index"><td>{{ time(record.time) }}</td><td>{{ platform(record.platform) }}</td><td>{{ record.sender }}</td><td><span :class="'sa-forward-result '+record.status">{{ t(record.status) }}</span><small v-if="record.detail">{{ t(record.detail) }}</small></td></tr><tr v-if="!records.length"><td colspan="4" class="sa-forward-empty">{{ t('暂无推送记录') }}</td></tr></tbody></table></div>
+</section>
 </div>
 </section>
 <section aria-labelledby="page-title-deviceinfo" class="sa-page" data-page="deviceinfo" id="page-deviceinfo">
@@ -1105,7 +1108,8 @@
 <script src="js/pages/network.js?v=2.94"></script>
 <script src="js/pages/settings.js?v=3.3"></script>
 <script src="js/pages/sms.js?v=2.94"></script>
-<script src="js/pages/forwarding.js?v=0.2.0"></script>
+<script src="js/pages/forwarding-guides.js?v=0.2.5"></script>
+<script src="js/pages/forwarding.js?v=0.2.5"></script>
 <script src="js/pages/deviceinfo.js?v=2.94"></script>
 <script src="js/simpleadmin-spa.js?v=2.94"></script>
 <script src="js/dark-mode.js?v=2.94"></script>

@@ -18,7 +18,7 @@ using Windows.UI;
 
 [assembly: AssemblyTitle("移远高通系列5G模块配置与维护")]
 [assembly: AssemblyDescription("Quectel RGMII Toolkit Windows installer")]
-[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
 
 namespace SimpleAdminSetup
 {

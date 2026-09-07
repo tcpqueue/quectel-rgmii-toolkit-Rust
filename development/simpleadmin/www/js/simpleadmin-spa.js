@@ -7,7 +7,6 @@
     { id: 'network', selector: '#networkApp', factoryName: 'network', title: '网络' },
     { id: 'settings', selector: '#settingsApp', factoryName: 'settings', title: '设置' },
     { id: 'sms', selector: '#smsApp', factoryName: 'sms', title: '短信' },
-    { id: 'forwarding', selector: '#forwardingApp', factoryName: 'forwarding', title: '短信转发' },
     { id: 'deviceinfo', selector: '#deviceinfoApp', factoryName: 'deviceinfo', title: '设备信息' },
     { id: 'console', selector: null, factoryName: null, title: '控制台', frameSelector: '#consoleFrame', frameSrc: '/console' }
   ];
@@ -98,6 +97,7 @@
 
   function normalizePage(value) {
     const id = String(value || '').replace(/^#/, '');
+    if (id === 'forwarding') return 'sms';
     return pageIds.has(id) ? id : 'dashboard';
   }
 
@@ -200,6 +200,7 @@
       return;
     }
     root.Vue.mount(factory, page.selector);
+    if (id === 'sms') root.Vue.mount(root.Pages.forwarding, '#forwardingApp');
     mountedPages.add(id);
   }
 
@@ -224,6 +225,7 @@
     setActiveSection(id);
     setActiveLink(id);
     mountPage(id);
+    if (String(value).replace(/^#/, '') === 'forwarding') root.Vue.apps['#smsApp'].selectSmsView('forwarding');
     applyTitle(id);
     closeMobileSidebar();
     if (!options || options.updateHash !== false) {

@@ -1,6 +1,15 @@
 function fetchSMS() {
   return {
     smsEnabled: false,
+    smsView: 'inbox',
+    selectSmsView(view) {
+      if (!['inbox','compose','forwarding'].includes(view)) return;
+      this.smsView=view;
+      document.querySelector('[data-page="sms"]').dataset.smsView=view;
+      this.closeMessageDetail();
+      if (view==='inbox') { this.requestSMS(); this.startSMSAutoRefresh(); } else this.stopSMSAutoRefresh();
+      window.dispatchEvent(new CustomEvent('simpleadmin:sms-view',{detail:{view}}));
+    },
     deleteAfterDay: false,
     smsSettingsLoaded: false,
     smsSettingsLoading: false,
@@ -25,6 +34,7 @@ function fetchSMS() {
         if (!response.ok) throw new Error(data.error || '保存失败');
         this.smsEnabled=data.sms_enabled;this.deleteAfterDay=data.delete_after_day;this.pendingDeletes=data.cleanup.pending;
         this.smsSettingsMessage=SimpleAdmin.Lang.t('已保存');
+        window.dispatchEvent(new CustomEvent('simpleadmin:sms-settings'));
         if (this.smsEnabled) {await this.requestSMS({force:true});this.startSMSAutoRefresh();} else {this.stopSMSAutoRefresh();this.clearData();}
       } catch(error) {this.smsSettingsMessage=error.message;} finally {this.smsSettingsSaving=false;}
     },
@@ -255,7 +265,7 @@ function fetchSMS() {
 
     isSMSPageActive() {
       const page = document.querySelector('.sa-page[data-page="sms"]');
-      return !!page && page.classList.contains('active');
+      return !!page && page.classList.contains('active') && this.smsView==='inbox';
     },
 
     startSMSAutoRefresh() {

@@ -52,9 +52,11 @@
         const index=['en','ru','ar'].indexOf(this.language);
         return (words[key] && words[key][index]) || root.Lang.t(key);
       },
-      platform(key) {return ({serverchan:'Server酱 Turbo',wecom:'企业微信',dingtalk:'钉钉',feishu:'飞书',webhook:'Webhook'})[key] && (this.language==='zh-CN' ? ({serverchan:'Server酱 Turbo',wecom:'企业微信',dingtalk:'钉钉',feishu:'飞书',webhook:'Webhook'})[key] : ({serverchan:'ServerChan Turbo',wecom:'WeCom',dingtalk:'DingTalk',feishu:'Feishu',webhook:'Webhook'})[key]) || key;},
+      webhookExample: '{"event":"sms.received","id":"...","device":"RM520N-EU","sender":"10086","received_at":"...","text":"...","part":1,"parts":1}',
+      guide(key) { return root.ForwardingGuides.get(key,this.language); },
+      platform(key) {if(key==='sim') return this.t('本卡短信');return ({serverchan:'Server酱 Turbo',wecom:'企业微信',dingtalk:'钉钉',feishu:'飞书',webhook:'Webhook'})[key] && (this.language==='zh-CN' ? ({serverchan:'Server酱 Turbo',wecom:'企业微信',dingtalk:'钉钉',feishu:'飞书',webhook:'Webhook'})[key] : ({serverchan:'ServerChan Turbo',wecom:'WeCom',dingtalk:'DingTalk',feishu:'Feishu',webhook:'Webhook'})[key]) || key;},
       time(value) {return new Intl.DateTimeFormat(this.language,{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(value));},
-      changed() {for(const c of this.channels) {if(c.clear && (c.url || c.token || c.secret)) c.clear=false;}this.dirty=true;this.message='';},
+      changed() {for(const c of this.channels) {if(c.clear && (c.url || c.token || c.secret || c.number)) c.clear=false;}this.dirty=true;this.message='';},
       async request(path,data) {
         const response=await root.Api.request(path,data ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)} : {});
         const result=await response.json();
@@ -74,7 +76,8 @@
       async save() {
         this.busy=true;this.message='';
         try {
-          const channels=this.channels.map(({platform,enabled,url,token,secret,clear})=>({platform,enabled,url:url.trim(),token:token.trim(),secret:secret.trim(),clear}));
+          const channels=this.channels.map(({platform,enabled,url,token,secret,number,clear})=>({platform,enabled,url:url.trim(),token:token.trim(),secret:secret.trim(),number:(number||'').trim(),clear}));
+          const current=await this.request('/api/forwarding');this.sms_enabled=current.sms_enabled;this.delete_after_day=current.delete_after_day;
           this.apply(await this.request('/api/forwarding/save',{enabled:this.enabled,sms_enabled:this.sms_enabled,delete_after_day:this.delete_after_day,device_name:this.device_name,channels}),true);
           this.message='已保存';this.failed=false;
         } catch (error) {this.message=error.message;this.failed=true;} finally {this.busy=false;}
@@ -84,13 +87,16 @@
         this.testing=platform;this.message='';
         try {await this.request('/api/forwarding/test',{platform});this.message='测试成功';this.failed=false;} catch (error) {this.message=error.message;this.failed=true;} finally {this.testing='';await this.refresh();}
       },
-      clear(c) {c.clear=true;c.enabled=false;c.url='';c.token='';c.secret='';c.has_url=false;c.has_token=false;c.has_secret=false;this.changed();},
+      clear(c) {c.clear=true;c.enabled=false;c.url='';c.token='';c.secret='';c.number='';c.has_url=false;c.has_token=false;c.has_secret=false;this.changed();},
       init() {
         this.refresh();
         const start=()=>{if (!this.timer) this.timer=setInterval(()=>this.refresh(),5000);};
-        global.addEventListener('simpleadmin:page-changed',event=>{if (event.detail.page==='forwarding') {this.refresh();start();} else {clearInterval(this.timer);this.timer=null;}});
+        const sync=()=>{const page=document.querySelector('[data-page="sms"]');if(page.classList.contains('active') && page.dataset.smsView==='forwarding'){this.refresh();start();}else{clearInterval(this.timer);this.timer=null;}};
+        global.addEventListener('simpleadmin:page-changed',sync);
+        global.addEventListener('simpleadmin:sms-view',sync);
+        global.addEventListener('simpleadmin:sms-settings',()=>this.refresh());
         global.addEventListener('simpleadmin:language-changed',()=>{this.language=root.Lang.getCurrentLanguage();});
-        start();
+        sync();
       }
     };
   };
