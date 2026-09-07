@@ -36,8 +36,10 @@ function cellLocking() {
         cellLockStatus: "未知",
         lockPersistence: 'temporary', lockAutoUnlock: true, lockBusy: false, lockMessage: '', lockRadios: [],
         lockTimer: null, lockEventsBound: false, lockRefreshBusy: false,
+        lockLanguage: SimpleAdmin.Lang.getCurrentLanguage(),
         lockStatusText(state) {
-          return SimpleAdmin.Lang.t(({temporary:'临时锁频',persistent:'持久化锁频',connected:'已拨号，锁频保持',unlocked:'未锁定',fallback:'已超时回退，开机恢复已关闭',fallback_error:'回退失败，正在重试'})[state.phase] || (state.persistent?'等待开机恢复':'未锁定'));
+          const key=({temporary:'临时锁频',persistent:'持久化锁频',connected:'已拨号，锁频保持',unlocked:'未锁定',fallback:'已超时回退，开机恢复已关闭',fallback_error:'回退失败，正在重试'})[state.phase] || (state.persistent?'等待开机恢复':'未锁定');
+          return this.lockLanguage==='zh-CN'?key:SimpleAdmin.Lang.t(key);
         },
         async refreshCellLocks() {
           if(this.lockRefreshBusy) return;
@@ -462,6 +464,7 @@ function cellLocking() {
         async init() {
           if(!this.lockEventsBound){
             this.lockEventsBound=true;
+            window.addEventListener('simpleadmin:language-changed',()=>{this.lockLanguage=SimpleAdmin.Lang.getCurrentLanguage();});
             const sync=()=>{const active=document.querySelector('[data-page="network"]').classList.contains('active');if(active){this.refreshCellLocks().catch(()=>{});if(!this.lockTimer)this.lockTimer=setInterval(()=>this.refreshCellLocks().catch(()=>{}),5000);}else{clearInterval(this.lockTimer);this.lockTimer=null;}};
             window.addEventListener('simpleadmin:page-changed',sync);sync();
           }
