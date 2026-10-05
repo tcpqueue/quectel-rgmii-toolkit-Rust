@@ -604,6 +604,44 @@ mod tests {
         );
     }
     #[test]
+    fn traffic_direction_survives_parser_sampling_and_summary() {
+        let dir = tempfile::tempdir().unwrap();
+        let monitor = Monitor::new(
+            dir.path().join("monitor.json"),
+            true,
+            Arc::new(Store::new(true)),
+        );
+        let start = Instant::now();
+        let time = now();
+        let mut history = monitor.history.lock().unwrap();
+        for (seconds, raw) in [(0, "+QGDNRCNT: 100,200"), (5, "+QGDNRCNT: 200,1200")] {
+            let data = parser::dashboard(raw);
+            let counters = Some((
+                data["nr_rx_bytes"].as_u64().unwrap(),
+                data["nr_tx_bytes"].as_u64().unwrap(),
+            ));
+            let point = history
+                .traffic_sampler
+                .sample(
+                    Some(start + Duration::from_secs(seconds)),
+                    time - (5 - seconds) * 1000,
+                    counters,
+                )
+                .unwrap();
+            history.traffic.add(point);
+        }
+        drop(history);
+        let snapshot = monitor.snapshot();
+        assert_eq!(snapshot["traffic"][1]["download"], 200.0);
+        assert_eq!(snapshot["traffic"][1]["upload"], 20.0);
+        assert_eq!(snapshot["trafficSummary"]["downloadBytes"], 1000);
+        assert_eq!(snapshot["trafficSummary"]["uploadBytes"], 100);
+        assert_eq!(snapshot["trafficSummary"]["downloadShare"], 90.9);
+        assert_eq!(snapshot["trafficSummary"]["uploadShare"], 9.1);
+        assert_eq!(monitor.traffic_rates()["nr_dl_speed"], "200 B/s");
+        assert_eq!(monitor.traffic_rates()["nr_ul_speed"], "20 B/s");
+    }
+    #[test]
     fn traffic_window_is_bounded_and_share_uses_bytes() {
         let dir = tempfile::tempdir().unwrap();
         let monitor = Monitor::new(
