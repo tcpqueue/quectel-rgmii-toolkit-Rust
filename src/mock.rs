@@ -84,7 +84,7 @@ pub fn response(
             .lines()
             .map(|line| {
                 if line.trim().starts_with("+QGDNRCNT:") {
-                    format!("+QGDNRCNT: {},{}", rx as u64, tx as u64)
+                    format!("+QGDNRCNT: {},{}", tx as u64, rx as u64)
                 } else {
                     line.to_owned()
                 }
@@ -177,4 +177,22 @@ pub async fn handle(at: &At, p: &Params) -> Result<Value> {
         ])
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mock_traffic_preserves_download_and_upload_direction() {
+        let fixtures =
+            serde_json::from_str(include_str!("../tests/fixtures/mock-at.json")).unwrap();
+        let raw = response(DASHBOARD, &fixtures, &HashMap::new());
+        let data = parser::dashboard(&raw);
+        let received = data["nr_rx_bytes"].as_u64().unwrap();
+        let sent = data["nr_tx_bytes"].as_u64().unwrap();
+        assert!(received >= 536_870_912);
+        assert!(sent >= 67_108_864);
+        assert!(received > sent);
+    }
 }

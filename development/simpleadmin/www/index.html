@@ -361,7 +361,7 @@
 <div class="sa-stack-item">
 <div class="form-group">
 <label for="exampleFormControlSelect1">选择扫描模式</label>
-<select class="form-select" id="cellSelect" v-model="cellScanMode">
+<select class="form-select" id="cellSelect" v-model="cellScanMode" @change="clearTableRowsBodyCellScan()" :disabled="isLoading || lockBusy">
 <option disabled="" value="Unspecified">当前：选择扫描模式</option>
 <option value="Full Scan">全面扫描</option>
 <option value="LTE Only">仅LTE</option>
@@ -370,12 +370,12 @@
 </div>
 </div>
 <div class="sa-inline-actions sa-cell-scan-actions">
-<button :disabled='isLoading || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'">
+<button :disabled='isLoading || lockBusy || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'">
 </button>
-<button :disabled="selectedCells.length === 0 || isLoading" @click="lockSelectedCells()" class="btn btn-secondary" type="button">
+<button :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-secondary" type="button">
                       锁定
                     </button>
-<button :disabled="isLoading || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">
+<button :disabled="isLoading || lockBusy || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">
                       清除
                     </button>
 </div>

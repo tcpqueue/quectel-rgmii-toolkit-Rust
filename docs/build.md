@@ -48,6 +48,9 @@ npm install --prefix work/browser playwright
 work/browser/node_modules/.bin/playwright install chromium
 cargo build --locked
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/browser.cjs
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/cell-lock-ui.cjs
+node tests/traffic-ui.cjs
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/traffic-direction-browser.cjs
 node tests/tls.cjs
 ```
 
@@ -96,7 +99,7 @@ bash scripts/checksums.sh
 sha256sum development/simpleadmin/simpleadmin-httpd.armv7 windows-test/bin/simpleadmin-httpd.exe SimpleAdmin-Setup.exe > SHA256SUMS
 node tests/installer.cjs
 bash scripts/package.sh
-unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.6-offline.zip
+unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.7-offline.zip
 ```
 
 安装包只包含 `SimpleAdmin-Setup.exe`，ADB、设备程序、离线前端及安装逻辑均内嵌其中。`packages/`、开发缓存及运行状态不提交到 Git。发布时可直接提供 EXE，或将 ZIP 作为 GitHub Release 附件。

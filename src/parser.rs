@@ -420,9 +420,10 @@ pub fn dashboard(raw: &str) -> Value {
                 }
             }
             "+QGDNRCNT" if p.len() >= 2 => {
+                // Quectel reports bytes_sent first, then bytes_recv.
                 for (i, key, human) in [
-                    (0, "nr_rx_bytes", "nr_rx_human"),
-                    (1, "nr_tx_bytes", "nr_tx_human"),
+                    (1, "nr_rx_bytes", "nr_rx_human"),
+                    (0, "nr_tx_bytes", "nr_tx_human"),
                 ] {
                     d[key] = json!(number(&p[i]));
                     d[human] = json!(human_bytes(number(&p[i]) as f64));
@@ -767,6 +768,19 @@ pub fn scan(raw: &str) -> Value {
 mod tests {
     use super::*;
     #[test]
+    fn traffic_direction_follows_quectel_sent_received_order() {
+        for (sent, received) in [(1024, 8192), (0, 4096), (4096, 0), (0, 0)] {
+            let data = dashboard(&format!("+QGDNRCNT: {sent},{received}\r\nOK\r\n"));
+            assert_eq!(data["nr_tx_bytes"], sent, "upload is the first counter");
+            assert_eq!(
+                data["nr_rx_bytes"], received,
+                "download is the second counter"
+            );
+            assert_eq!(data["nr_tx_human"], human_bytes(sent as f64));
+            assert_eq!(data["nr_rx_human"], human_bytes(received as f64));
+        }
+    }
+    #[test]
     fn go_parser_contracts() {
         let cases: Vec<Value> =
             serde_json::from_str(include_str!("../tests/fixtures/go-parsers.json")).unwrap();
@@ -781,7 +795,18 @@ mod tests {
                 "scan" => scan(raw),
                 _ => unreachable!(),
             };
-            assert_eq!(got, c["expected"], "case {i} {} input: {raw}", c["kind"]);
+            let mut expected = c["expected"].clone();
+            if c["kind"] == "dashboard" {
+                // Preserve the historical Go fixtures, correcting their reversed traffic fields.
+                for (rx, tx) in [
+                    ("nr_rx_bytes", "nr_tx_bytes"),
+                    ("nr_rx_human", "nr_tx_human"),
+                ] {
+                    expected[rx] = c["expected"][tx].clone();
+                    expected[tx] = c["expected"][rx].clone();
+                }
+            }
+            assert_eq!(got, expected, "case {i} {} input: {raw}", c["kind"]);
         }
     }
 }

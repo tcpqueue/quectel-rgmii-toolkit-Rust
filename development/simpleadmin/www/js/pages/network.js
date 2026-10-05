@@ -95,7 +95,7 @@ function cellLocking() {
         resultDoneNeighbourCell: false,
 
         startCellScan() {
-          this.clearCellScanData();
+          this.clearTableRowsBodyCellScan();
 
           this.isLoading = true;
           this.isCellScanning = true;
@@ -121,7 +121,7 @@ function cellLocking() {
         generateTableRow() {
           const tableBody = document.getElementById("cellScanTableBody");
           //tableBody.innerHTML = "";
-          if (tableBody.rows.length === 0) {
+          if (!tableBody.parentElement.querySelector('thead')) {
             // 只在表格为空时插入表头
             const tableHeader = `
               <thead>
@@ -142,24 +142,20 @@ function cellLocking() {
           }
           this.tableRows = [];
 
-          const cells = this.cellScanMode === "Full Scan"
-            ? [...this.nr5g_cells_parsed, ...this.lte_cells_parsed]
-            : this.cellScanMode === "NR5G Only"
-              ? this.nr5g_cells_parsed
-              : this.lte_cells_parsed;
+          const cells = this.scannedCellsForMode();
 
 
-          cells.forEach(cell => {
+          cells.forEach((cell, index) => {
             const signalSvg = this.signalIconSVG(cell.rsrp);
             const isChecked = this.selectedCells.some(selectedCell =>
-              selectedCell.pci === cell.pci && selectedCell.provider === cell.provider
+              this.cellSelectionKey(selectedCell) === this.cellSelectionKey(cell)
             );
 
             this.tableRows.push(`
-              <tr class="table-row" data-pci="${cell.pci}" data-provider="${cell.provider}">
+              <tr class="table-row" data-cell-index="${index}">
                 <th scope="row">
                   <!-- 复选框不可点击，仅用于显示状态 -->
-                  <input type="checkbox" class="checkbox-cell" data-pci="${cell.pci}" data-provider="${cell.provider}"
+                  <input type="checkbox" class="checkbox-cell" data-cell-index="${index}"
                         ${isChecked ? 'checked' : ''} disabled /> <!-- 使用disabled属性使其不可点击 -->
                 </th>
                 <td>${cell.type}</td>
@@ -177,37 +173,38 @@ function cellLocking() {
 
           const rows = tableBody.querySelectorAll('.table-row');
           rows.forEach(row => {
-            row.addEventListener('click', (e) => {
-              const checkbox = row.querySelector('.checkbox-cell');
-
-              if (e.target !== checkbox) {
-                checkbox.checked = !checkbox.checked;
-              }
-
-              this.toggleCellSelection(checkbox.dataset.pci, checkbox.dataset.provider);
+            row.addEventListener('click', () => {
+              this.toggleCellSelection(cells[Number(row.dataset.cellIndex)]);
             });
           });
         },
-        toggleCellSelection(pci, provider) {
+        scannedCellsForMode() {
+          if (this.cellScanMode === 'Full Scan') return [...this.nr5g_cells_parsed, ...this.lte_cells_parsed];
+          if (this.cellScanMode === 'NR5G Only') return this.nr5g_cells_parsed;
+          if (this.cellScanMode === 'LTE Only') return this.lte_cells_parsed;
+          return [];
+        },
+        cellSelectionKey(cell) {
+          return JSON.stringify([cell.type, cell.provider, cell.freq, cell.pci, cell.band].map(String));
+        },
+        toggleCellSelection(cell) {
+          if (this.lockBusy || this.isLoading || !cell) return;
+          const index = this.selectedCells.findIndex(selected => this.cellSelectionKey(selected) === this.cellSelectionKey(cell));
           if (this.cellScanMode === "NR5G Only") {
-            if(this.selectedCells.length!==1){alert('NR5G-SA 每次只能锁定一个小区');return;}
             // 如果是 NR5G Only 模式，只能选择一个小区
-            const index = this.selectedCells.findIndex(cell => cell.pci === pci && cell.provider === provider);
 
             if (index === -1) {
               // 如果没有选择当前小区，则清空之前的选择，只保留当前选择
-              this.selectedCells = [{ pci, provider }];
+              this.selectedCells = [{ ...cell }];
             } else {
               // 如果当前小区已经选择，取消选择
               this.selectedCells = [];
             }
           } else if (this.cellScanMode === "LTE Only") {
             // 如果是 LTE Only 模式，允许选择多个小区
-            const index = this.selectedCells.findIndex(cell => cell.pci === pci && cell.provider === provider);
-
             if (index === -1) {
               // 如果没有选择当前小区，则添加到 selectedCells 数组
-              this.selectedCells.push({ pci, provider });
+              this.selectedCells.push({ ...cell });
             } else {
               // 如果已经选择当前小区，则从 selectedCells 数组中删除
               this.selectedCells.splice(index, 1);
@@ -218,12 +215,11 @@ function cellLocking() {
           this.updateTableRowSelection();
         },
         updateTableRowSelection() {
-          const checkboxes = document.querySelectorAll("input.checkbox-cell");
+          const cells = this.scannedCellsForMode();
+          const checkboxes = document.querySelectorAll("#cellScanTableBody input.checkbox-cell");
           checkboxes.forEach(checkbox => {
-            const pci = checkbox.getAttribute("data-pci");
-            const provider = checkbox.getAttribute("data-provider");
-
-            const isChecked = this.selectedCells.some(cell => cell.pci === pci && cell.provider === provider);
+            const cell = cells[Number(checkbox.dataset.cellIndex)];
+            const isChecked = cell && this.selectedCells.some(selected => this.cellSelectionKey(selected) === this.cellSelectionKey(cell));
             checkbox.checked = isChecked;
           });
         },
@@ -238,6 +234,7 @@ function cellLocking() {
           return level ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${level.svg}</svg>` : '';
         },
         clearCellScanData() {
+          this.selectedCells = [];
           this.nr5g_cells = [];
           this.lte_cells = [];
           this.nr5g_cells_parsed = [];
@@ -262,73 +259,45 @@ function cellLocking() {
           `;
         },
         async lockSelectedCells() {
+          if (this.lockBusy || this.isLoading) return;
           if (this.selectedCells.length === 0) {
             alert("请至少选择一个小区进行锁定.");
             return;
           }
 
-          if (this.cellScanMode === "NR5G Only") {
-            // 仅 NR5G 模式
-            for (const { pci, provider } of this.selectedCells) {
-              const { earfcn1: earfcn, pci1: cellPci, scs, band } = this.getCellDetails(pci, provider,"NR5G");
-
-              await this.requestCellLock({ action: 'lock_scanned_cells', mode: this.cellScanMode, pci: cellPci, earfcn, scs, band })
-                .catch(error => { console.error('发送锁定命令失败:', error); });
+          try {
+            let params;
+            if (this.cellScanMode === "NR5G Only") {
+              if (this.selectedCells.length !== 1) {
+                alert('NR5G-SA 每次只能锁定一个小区');
+                return;
+              }
+              const { earfcn1: earfcn, pci1: pci, scs, band } = this.getCellDetails(this.selectedCells[0]);
+              params = { pci, earfcn, scs, band };
+            } else if (this.cellScanMode === "LTE Only") {
+              if (this.selectedCells.length > 10) {
+                alert("最多只能选择 10 条小区进行锁定");
+                return;
+              }
+              const cells = this.selectedCells.map(cell => this.getCellDetails(cell));
+              params = { earfcn: cells.map(cell => cell.earfcn1).join(','), pci: cells.map(cell => cell.pci1).join(',') };
+            } else {
+              return;
             }
-          } else if (this.cellScanMode === "LTE Only") {
-            // 仅 LTE 模式
-            if (this.selectedCells.length > 10) {
-              alert("最多只能选择 10 条小区进行锁定");
-              return; // 如果选择超过 10 条小区，提示并退出
-            }
-            const pairs = [];
-            const pcias = [];
-
-            // 使用 getCellDetails 来获取 LTE 小区的详细信息
-            for (const { pci, provider } of this.selectedCells) {
-              const { earfcn1: earfcn, pci1: cellPci } = this.getCellDetails(pci, provider,"LTE");
-
-              pairs.push(earfcn);  // 收集频段（earfcn）
-              pcias.push(cellPci); // 收集 PCI
-            }
-
-            // 确保频段（earfcn）和 PCI 交替排列
-            const orderedPairs = [];
-            for (let i = 0; i < pairs.length; i++) {
-              orderedPairs.push(pairs[i]);
-              orderedPairs.push(pcias[i]);
-            }
-
-            const cellNum = pairs.length;  // 设置正确的小区数
-            // 提交小区锁定参数，由后端生成锁定指令
-            await this.requestCellLock({
-              action: 'lock_scanned_cells',
-              mode: this.cellScanMode,
-              earfcn: pairs.join(','),
-              pci: pcias.join(',')
-            })
-              .catch(error => { console.error('发送锁定命令失败:', error); });
+            await this.requestCellLock({ action: 'lock_scanned_cells', mode: this.cellScanMode, ...params });
+            await this.startModalCountdown(3);
+            await this.init();
+          } catch (error) {
+            this.lockMessage = error.message;
+            console.error('发送锁定命令失败:', error);
           }
-
-          await this.startModalCountdown(3);
-          await this.init();
         },
 
-        getCellDetails(pci, provider, type) {
-          // 根据传递的 type 参数决定从哪个数据源查找
-          let cell;
-          if (type === "NR5G") {
-            // 如果 type 为 NR5G，则从 nr5g_cells_parsed 查找
-            cell = this.nr5g_cells_parsed.find(c => c.pci === pci && c.provider === provider);
-          } else if (type === "LTE") {
-            // 如果 type 为 LTE，则从 lte_cells_parsed 查找
-            cell = this.lte_cells_parsed.find(c => c.pci === pci && c.provider === provider);
-          }
-
-          // 如果找不到对应的小区数据，输出错误并返回默认值
+        getCellDetails(selectedCell) {
+          const type = this.cellScanMode === 'NR5G Only' ? 'NR5G' : 'LTE';
+          const cell = this.scannedCellsForMode().find(c => c.type === type && this.cellSelectionKey(c) === this.cellSelectionKey(selectedCell));
           if (!cell) {
-            console.error(`找不到对应的 cell 数据: PCI=${pci}, Provider=${provider}, Type=${type}`);
-            return { earfcn1: undefined, pci1: undefined, scs: undefined, band: undefined };
+            throw new Error('找不到对应的小区，请重新扫描后选择');
           }
 
           // 返回找到的小区的详细信息
