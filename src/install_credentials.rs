@@ -70,7 +70,7 @@ pub fn run(check_only: bool) -> Result<()> {
     if let (Some(user), Some(password)) = (&value.web_username, &value.web_password) {
         store.write(
             Path::new("/usrdata/simpleadmin/simpleadmin.auth"),
-            format!("{user}:{password}\n").as_bytes(),
+            auth::record(user, password)?.as_bytes(),
             0o600,
         )?;
     }

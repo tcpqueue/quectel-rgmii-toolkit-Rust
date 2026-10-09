@@ -4,13 +4,18 @@ use axum::extract::ws::{Message, WebSocket};
 use futures_util::SinkExt;
 use std::{sync::Arc, time::Duration};
 
-pub async fn run(app: Arc<App>, mut socket: WebSocket, token: String) {
+pub async fn run(
+    app: Arc<App>,
+    mut socket: WebSocket,
+    token: String,
+    peer: Option<std::net::IpAddr>,
+) {
     let Some(mut revoked) = app.auth.watch(&token) else {
         return;
     };
     tokio::select! {
         _=revoked.changed()=>{},
-        _=session(app,&mut socket,&token)=>{}
+        _=session(app,&mut socket,&token,peer)=>{}
     }
     let _ = socket.close().await;
 }
@@ -63,10 +68,24 @@ async fn line(socket: &mut WebSocket, prompt: &str, hidden: bool) -> Result<Stri
         }
     }
 }
-async fn session(app: Arc<App>, socket: &mut WebSocket, token: &str) -> Result<()> {
+async fn session(
+    app: Arc<App>,
+    socket: &mut WebSocket,
+    token: &str,
+    peer: Option<std::net::IpAddr>,
+) -> Result<()> {
     send(socket, b"Terminal login required\r\n").await?;
     let mut valid = false;
     for _ in 0..3 {
+        // Reconnecting does not reset the shared per-client password backoff.
+        if let Some(wait) = app.auth.throttle.check(peer) {
+            let message = format!(
+                "Too many failed login attempts; retry in {} seconds\r\n",
+                wait.as_secs().max(1)
+            );
+            send(socket, message.as_bytes()).await?;
+            return Ok(());
+        }
         let user = line(socket, "login: ", false).await?;
         let password = line(socket, "Password: ", true).await?;
         let copy = app.clone();
@@ -76,8 +95,10 @@ async fn session(app: Arc<App>, socket: &mut WebSocket, token: &str) -> Result<(
         })
         .await?;
         if valid {
+            app.auth.throttle.succeeded(peer);
             break;
         }
+        app.auth.throttle.failed(peer);
         send(socket, b"\r\nLogin incorrect\r\n").await?;
     }
     if !valid {

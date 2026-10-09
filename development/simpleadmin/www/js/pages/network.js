@@ -80,7 +80,6 @@ function cellLocking() {
         nr5g_cells_parsed: [],
         lte_cells_parsed: [],
         atcmd: "",
-        tableRows: [],
         nr5g_neighbourCells: [],
         lte_neighbourCells: [],
         nr5g_neighbourCellsParsed: [],
@@ -104,7 +103,6 @@ function cellLocking() {
             .then(data => {
               this.nr5g_cells_parsed = data.nr5g_cells_parsed || [];
               this.lte_cells_parsed = data.lte_cells_parsed || [];
-              this.generateTableRow();
             })
             .then(() => {
               this.isLoading = false;
@@ -117,66 +115,6 @@ function cellLocking() {
               this.isCellScanning = false;
             });
 
-        },
-        generateTableRow() {
-          const tableBody = document.getElementById("cellScanTableBody");
-          //tableBody.innerHTML = "";
-          if (!tableBody.parentElement.querySelector('thead')) {
-            // 只在表格为空时插入表头
-            const tableHeader = `
-              <thead>
-                <tr>
-                  <th scope="col">选择</th>
-                  <th scope="col">网络</th>
-                  <th scope="col">运营商</th>
-                  <th scope="col">频段</th>
-                  <th scope="col">频点</th>
-                  <th scope="col">PCI</th>
-                  <th scope="col">RSRP</th>
-                  <th scope="col">信号</th>
-                </tr>
-              </thead>
-            `;
-            // 插入表头，只在表格为空时插入
-            tableBody.insertAdjacentHTML("beforebegin", tableHeader);
-          }
-          this.tableRows = [];
-
-          const cells = this.scannedCellsForMode();
-
-
-          cells.forEach((cell, index) => {
-            const signalSvg = this.signalIconSVG(cell.rsrp);
-            const isChecked = this.selectedCells.some(selectedCell =>
-              this.cellSelectionKey(selectedCell) === this.cellSelectionKey(cell)
-            );
-
-            this.tableRows.push(`
-              <tr class="table-row" data-cell-index="${index}">
-                <th scope="row">
-                  <!-- 复选框不可点击，仅用于显示状态 -->
-                  <input type="checkbox" class="checkbox-cell" data-cell-index="${index}"
-                        ${isChecked ? 'checked' : ''} disabled /> <!-- 使用disabled属性使其不可点击 -->
-                </th>
-                <td>${cell.type}</td>
-                <td>${cell.provider}</td>
-                <td>${cell.band}</td>
-                <td>${cell.freq}</td>
-                <td>${cell.pci}</td>
-                <td>${cell.rsrp}</td>
-                <td>${signalSvg}</td>
-              </tr>
-            `);
-          });
-
-          tableBody.innerHTML = this.tableRows.join('');
-
-          const rows = tableBody.querySelectorAll('.table-row');
-          rows.forEach(row => {
-            row.addEventListener('click', () => {
-              this.toggleCellSelection(cells[Number(row.dataset.cellIndex)]);
-            });
-          });
         },
         scannedCellsForMode() {
           if (this.cellScanMode === 'Full Scan') return [...this.nr5g_cells_parsed, ...this.lte_cells_parsed];
@@ -211,27 +149,16 @@ function cellLocking() {
             }
           }
 
-          // 更新复选框的选择状态
-          this.updateTableRowSelection();
         },
-        updateTableRowSelection() {
-          const cells = this.scannedCellsForMode();
-          const checkboxes = document.querySelectorAll("#cellScanTableBody input.checkbox-cell");
-          checkboxes.forEach(checkbox => {
-            const cell = cells[Number(checkbox.dataset.cellIndex)];
-            const isChecked = cell && this.selectedCells.some(selected => this.cellSelectionKey(selected) === this.cellSelectionKey(cell));
-            checkbox.checked = isChecked;
-          });
+        isCellSelected(cell) {
+          const key = this.cellSelectionKey(cell);
+          return this.selectedCells.some(selected => this.cellSelectionKey(selected) === key);
         },
-        signalIconSVG(rsrp) {
-          const levels = [
-            { min: -55, svg: `<line x1="2" y1="20" x2="2" y2="20" /><line x1="7" y1="20" x2="7" y2="16" /><line x1="12" y1="20" x2="12" y2="12" /><line x1="17" y1="20" x2="17" y2="8" /><line x1="22" y1="20" x2="22" y2="4" />` },
-            { min: -85, svg: `<line x1="2" y1="20" x2="2" y2="20" /><line x1="7" y1="20" x2="7" y2="16" /><line x1="12" y1="20" x2="12" y2="12" /><line x1="17" y1="20" x2="17" y2="8" />` },
-            { min: -95, svg: `<line x1="2" y1="20" x2="2" y2="20" /><line x1="7" y1="20" x2="7" y2="16" /><line x1="12" y1="20" x2="12" y2="12" />` },
-            { min: -Infinity, svg: `<line x1="2" y1="20" x2="2" y2="20" /><line x1="7" y1="20" x2="7" y2="16" />` }
-          ];
-          const level = levels.find(l => rsrp >= l.min);
-          return level ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${level.svg}</svg>` : '';
+        // Bars drawn in the scan table; stronger RSRP lights more bars.
+        signalBars(rsrp) {
+          const value = Number(rsrp);
+          const count = value >= -55 ? 5 : value >= -85 ? 4 : value >= -95 ? 3 : 2;
+          return [[2, 20], [7, 16], [12, 12], [17, 8], [22, 4]].slice(0, count).map(([x, y]) => ({ x, y }));
         },
         clearCellScanData() {
           this.selectedCells = [];
@@ -239,24 +166,10 @@ function cellLocking() {
           this.lte_cells = [];
           this.nr5g_cells_parsed = [];
           this.lte_cells_parsed = [];
-          this.tableRows = [];
         },
         clearTableRowsBodyCellScan() {
           this.clearCellScanData();
           this.resultDoneCell = false;
-          const tableBody = document.getElementById("cellScanTableBody");
-          tableBody.innerHTML = `
-            <tr>
-              <th scope="row">空</th>
-              <td>空</td>
-              <td>空</td>
-              <td>空</td>
-              <td>空</td>
-              <td>空</td>
-              <td>空</td>
-              <td>空</td>
-            </tr>
-          `;
         },
         async lockSelectedCells() {
           if (this.lockBusy || this.isLoading) return;

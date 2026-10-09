@@ -89,13 +89,14 @@ pub async fn serve(app: Arc<App>) -> Result<()> {
         let _ = crate::http::serve(redirect, router).await;
     });
     let permits = Arc::new(tokio::sync::Semaphore::new(32));
+    let router = app.router();
     loop {
-        let (stream, _) = listener.accept().await?;
+        let (stream, peer) = listener.accept().await?;
         let Ok(permit) = permits.clone().try_acquire_owned() else {
             continue;
         };
         let acceptor = acceptor.clone();
-        let router = app.router();
+        let router = crate::http::with_peer(router.clone(), peer);
         tokio::spawn(async move {
             let _permit = permit;
             if let Ok(Ok(stream)) =

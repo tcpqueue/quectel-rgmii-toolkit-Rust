@@ -19,6 +19,10 @@ use std::{
 };
 
 const RETRY_WINDOW: Duration = Duration::from_secs(180);
+/// Inbox poll interval while no +CMTI notification has been observed on the AT port.
+const BLIND_POLL: Duration = Duration::from_secs(10);
+/// Safety poll once notifications are known to work; it also re-arms CNMI after a modem reset.
+const URC_FALLBACK_POLL: Duration = Duration::from_secs(60);
 const MAX_JOBS: usize = 64;
 const MAX_QUEUED_BYTES: usize = 256 * 1024;
 const MAX_SEEN: usize = 4096;
@@ -511,12 +515,21 @@ impl Forwarder {
         });
         let this = self.clone();
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(Duration::from_secs(10));
-            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            // New-message URCs trigger an immediate read. Some firmware routes URCs to another
+            // AT port, so keep a fast poll until this port has proven it delivers +CMTI.
+            let mut urc_seen = false;
             loop {
+                let fallback = if urc_seen {
+                    URC_FALLBACK_POLL
+                } else {
+                    BLIND_POLL
+                };
                 let force = tokio::select! {
-                    _ = tick.tick() => false,
-                    _ = at.sms_changed.notified() => true,
+                    _ = tokio::time::sleep(fallback) => false,
+                    _ = at.sms_changed.notified() => {
+                        urc_seen = true;
+                        true
+                    }
                 };
                 let (enabled, generation, device) = {
                     let s = this.state.lock().unwrap();

@@ -12,6 +12,7 @@ pub fn kind(raw: &str) -> Option<&'static str> {
         "qca" | "qcainfo" | "qca-test" | "qcainfo-test" | "qcainfo_test_payload" => Some("qcainfo"),
         "qeng" | "qeng-test" | "qeng_test_payload" => Some("qeng"),
         "sms" => Some("sms"),
+        "scan_delay" | "scan-delay" => Some("scan_delay_ms"),
         _ => None,
     }
 }
@@ -20,6 +21,14 @@ pub fn response(
     fixtures: &HashMap<String, String>,
     overrides: &HashMap<String, String>,
 ) -> String {
+    // Real cell scans hold the AT port for up to two minutes; previews can reproduce that.
+    if command.to_ascii_uppercase().contains("+QSCAN")
+        && let Some(ms) = overrides
+            .get("scan_delay_ms")
+            .and_then(|v| v.parse::<u64>().ok())
+    {
+        std::thread::sleep(std::time::Duration::from_millis(ms.min(130000)));
+    }
     if let Some(raw) = overrides.get(command) {
         return envelope(command, raw);
     }

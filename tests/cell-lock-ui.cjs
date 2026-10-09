@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const assets = path.join(root, 'development/simpleadmin/www');
 const html = fs.readFileSync(path.join(assets, 'index.html'), 'utf8');
 const scanMode = html.match(/<select[^>]*id="cellSelect"[\s\S]*?<\/select>/)[0];
+const scanTable = html.match(/<table class="table">\s*<thead>[\s\S]*?id="cellScanTableBody"[\s\S]*?<\/table>/)[0];
 const lockButton = html.match(/<button[^>]*@click="lockSelectedCells\(\)"[\s\S]*?<\/button>/)[0];
 const nr = {type: 'NR5G', provider: '中国联通', band: '78', freq: '627264', pci: '317', rsrp: '-72'};
 const samePci = {...nr, freq: '633984'};
@@ -25,7 +26,7 @@ const lte = Array.from({length: 11}, (_, i) => ({
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.setContent(`<div id="app"><table><tbody id="cellScanTableBody"></tbody></table>${scanMode}${lockButton}</div>`);
+    await page.setContent(`<div id="app">${scanTable}${scanMode}${lockButton}</div>`);
     await page.addScriptTag({path: path.join(assets, 'js/vue.global.prod.js')});
     await page.evaluate(() => {
       window.SimpleAdminSpaMode = true;

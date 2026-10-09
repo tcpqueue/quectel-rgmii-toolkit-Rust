@@ -355,13 +355,20 @@ impl At {
         }
         Ok(responses.join("\n"))
     }
-    pub async fn dashboard_sample(&self) -> Result<(String, Option<Instant>)> {
-        self.fetch(DASHBOARD, true).await?;
-        let cache = self.cache.lock().unwrap();
-        let entry = cache
-            .get(DASHBOARD)
-            .context("dashboard sample unavailable")?;
-        Ok((entry.response.to_string(), entry.updated))
+    /// Cached query result together with the instant the modem answered it.
+    pub async fn fetch_stamped(
+        &self,
+        command: &str,
+        force: bool,
+    ) -> Result<(String, Option<Instant>)> {
+        let response = self.fetch(command, force).await?;
+        let updated = self
+            .cache
+            .lock()
+            .unwrap()
+            .get(command)
+            .and_then(|entry| entry.updated);
+        Ok((response, updated))
     }
     pub async fn invalidate(&self) {
         for entry in self.cache.lock().unwrap().values_mut() {
@@ -610,18 +617,22 @@ impl Port {
     fn receive(&mut self, timeout: Duration, prompt: bool) -> Result<String> {
         let deadline = Instant::now() + timeout;
         let mut out = Vec::new();
+        let mut error = false;
         while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
             match self.rx.recv_timeout(remaining) {
                 Ok(chunk) => {
                     if out.len() + chunk.len() > 512 * 1024 {
                         bail!("AT response too large")
                     }
+                    // Completed lines were already checked; rescan only from the last line start.
+                    let start = out.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
                     out.extend(chunk);
-                    let raw = String::from_utf8_lossy(&out);
-                    if (terminal(&raw) && (!prompt || raw.contains("ERROR")))
-                        || (prompt && raw.trim_end().ends_with('>'))
+                    let tail = String::from_utf8_lossy(&out[start..]);
+                    error |= tail.contains("ERROR");
+                    if (terminal(&tail) && (!prompt || error))
+                        || (prompt && tail.trim_end().ends_with('>'))
                     {
-                        return Ok(raw.into_owned());
+                        return Ok(String::from_utf8_lossy(&out).into_owned());
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
