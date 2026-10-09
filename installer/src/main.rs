@@ -1,6 +1,7 @@
 //! SimpleAdmin device assistant: a local web UI for preparing Quectel Qualcomm modules and
 //! installing SimpleAdmin over ADB. Double-clicking the exe starts a server on a random
-//! 127.0.0.1 port and opens it in the default browser; closing the page ends the program.
+//! 127.0.0.1 port and opens it in the default browser. On Windows a small status window stays
+//! open and closing it ends the program; elsewhere the program ends after the page closes.
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
 
 mod adb;
@@ -9,6 +10,8 @@ mod engine;
 mod payload;
 mod qualcomm;
 mod server;
+#[cfg(windows)]
+mod window;
 
 use anyhow::{Context, Result};
 use std::{
@@ -23,6 +26,8 @@ struct Options {
     data_dir: Option<PathBuf>,
     port: u16,
     browser: bool,
+    /// Status window on Windows; without it the program exits after the page closes.
+    window: bool,
     self_test: bool,
 }
 fn options() -> Result<Options> {
@@ -31,6 +36,7 @@ fn options() -> Result<Options> {
         data_dir: None,
         port: 0,
         browser: true,
+        window: cfg!(windows),
         self_test: false,
     };
     let mut args = std::env::args().skip(1);
@@ -40,6 +46,7 @@ fn options() -> Result<Options> {
             "--data-dir" => options.data_dir = args.next().map(PathBuf::from),
             "--port" => options.port = args.next().context("--port needs a value")?.parse()?,
             "--no-browser" => options.browser = false,
+            "--no-window" => options.window = false,
             "--self-test" => options.self_test = true,
             other => anyhow::bail!("unknown option {other}"),
         }
@@ -94,6 +101,8 @@ fn start() -> Result<()> {
         Ok(()) => {}
         Err(TryLockError::WouldBlock) => {
             let url = fs::read_to_string(&url_file).context("设备助手已在运行")?;
+            #[cfg(windows)]
+            window::activate_existing();
             return open_url(url.trim());
         }
         Err(TryLockError::Error(e)) => return Err(e.into()),
@@ -103,26 +112,45 @@ fn start() -> Result<()> {
         .max_blocking_threads(8)
         .enable_all()
         .build()?;
-    runtime.block_on(async move {
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", options.port)).await?;
-        let port = listener.local_addr()?.port();
-        let token = hex::encode(rand::random::<[u8; 32]>());
-        let app = server::App::new(token.clone(), port, adb, development, data_dir.clone());
-        let url = format!("http://127.0.0.1:{port}/?k={token}");
-        write_private(&url_file, &url)?;
-        println!("SimpleAdmin 设备助手：{url}");
-        if options.browser {
-            open_url(&url)?;
-        }
-        tokio::spawn(app.clone().watchdog());
-        let stop = app.clone();
-        axum::serve(listener, app.router())
-            .with_graceful_shutdown(async move { stop.shutdown.notified().await })
-            .await?;
-        let _ = fs::remove_file(&url_file);
-        drop(lock);
+    let listener = runtime.block_on(tokio::net::TcpListener::bind(("127.0.0.1", options.port)))?;
+    let port = listener.local_addr()?.port();
+    let token = hex::encode(rand::random::<[u8; 32]>());
+    let app = server::App::new(token.clone(), port, adb, development, data_dir.clone());
+    let url = format!("http://127.0.0.1:{port}/?k={token}");
+    write_private(&url_file, &url)?;
+    println!("SimpleAdmin 设备助手：{url}");
+    if options.browser {
+        open_url(&url)?;
+    }
+    let stop = app.clone();
+    let server = runtime.spawn(async move {
+        let result = axum::serve(listener, stop.router())
+            .with_graceful_shutdown({
+                let stop = stop.clone();
+                async move { stop.shutdown.notified().await }
+            })
+            .await;
+        #[cfg(windows)]
+        window::server_stopped();
+        result
+    });
+    let result = if options.window {
+        #[cfg(windows)]
+        window::run(app.clone(), url)?;
+        // The window is gone: stop serving, but do not wait long for unfinished adb work.
+        app.shutdown.notify_one();
+        let _ = runtime.block_on(async {
+            tokio::time::timeout(std::time::Duration::from_secs(5), server).await
+        });
         Ok(())
-    })
+    } else {
+        runtime.spawn(app.clone().watchdog());
+        runtime.block_on(server)?.map_err(anyhow::Error::from)
+    };
+    let _ = fs::remove_file(&url_file);
+    drop(lock);
+    runtime.shutdown_timeout(std::time::Duration::from_secs(1));
+    result
 }
 
 /// Writes the launch URL (it contains the session token) readable by the current user only.
