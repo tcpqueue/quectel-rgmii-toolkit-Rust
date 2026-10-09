@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SimpleAdmin 设备助手</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo"><img src="/quectel-logo.svg" alt="Quectel"></div>
+      <span class="brand-kicker">5G MODULE</span>
+      <strong class="brand-title">配置与维护</strong>
+      <span class="brand-sub">移远高通系列 · SimpleAdmin</span>
+    </div>
+    <nav class="steps" aria-label="操作步骤">
+      <a href="#prepare" data-step="prepare" class="active"><span>01</span>识别模块</a>
+      <a href="#adb" data-step="adb"><span>02</span>ADB 连接</a>
+      <a href="#network" data-step="network"><span>03</span>联网配置</a>
+      <a href="#install" data-step="install"><span>04</span>安装升级</a>
+      <a href="#verify" data-step="verify"><span>05</span>检查完成</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span>本地连接 · 离线部署</span>
+      <span>Monologue&amp;蓝天科技 版权所有</span>
+      <span id="version"></span>
+      <button type="button" class="ghost small" id="quit">退出设备助手</button>
+    </div>
+  </aside>
+
+  <main>
+    <header class="page-head">
+      <h1>移远高通系列5G模块配置与维护</h1>
+      <p>从连接模块到安装后台，按步骤完成配置；已有 ADB 可直接进入安装。</p>
+    </header>
+
+    <section id="prepare" class="group" aria-labelledby="prepare-title">
+      <div class="group-head">
+        <h2 id="prepare-title">连接与准备</h2>
+        <p>仅适配已识别的移远高通 RG/RM 型号。已有 ADB 连接可直接前往安装。</p>
+      </div>
+
+      <article class="card">
+        <h3>1. 选择 AT 串口</h3>
+        <p class="muted">优先选择名称中含 Quectel 和 AT 的端口。请先关闭其他串口软件。选择端口不会自动发送指令。</p>
+        <div class="row">
+          <label class="visually-hidden" for="ports">AT 串口</label>
+          <select id="ports" class="grow"><option value="">请选择 AT 串口</option></select>
+          <button type="button" id="scan-ports">刷新</button>
+          <button type="button" class="primary" id="identify">识别模块</button>
+        </div>
+        <div id="prepare-status" class="banner info" role="status">
+          <strong>尚未识别</strong><span>连接模块后刷新串口，选择端口并点击识别。</span>
+        </div>
+        <div class="progress thin" id="at-progress" hidden><span></span></div>
+        <dl id="identity" class="identity" hidden>
+          <div><dt>型号</dt><dd data-field="model"></dd></div>
+          <div><dt>固件</dt><dd data-field="firmware"></dd></div>
+          <div><dt>厂商</dt><dd data-field="manufacturer"></dd></div>
+          <div><dt>设备标识</dt><dd data-field="imei"></dd></div>
+        </dl>
+      </article>
+
+      <article class="card" id="adb">
+        <h3>2. 开启 ADB 连接</h3>
+        <p class="muted">先检查 USB 配置倒数第二项：1 或 2 表示 ADB 已开启，直接跳过解锁；仅在值为 0 时置为 2，启用免授权 ADB。保留其他 USB 设置，重启需单独确认。</p>
+        <div class="row">
+          <button type="button" class="primary" id="unlock-adb" data-needs-module>检查并解锁 ADB</button>
+          <button type="button" id="restart" data-needs-module>重启模块</button>
+          <a class="button link" href="#install">前往安装 →</a>
+        </div>
+      </article>
+
+      <details class="card" id="network" open>
+        <summary><h3>3. 联网配置 · PCIe / ECM / RNDIS</h3></summary>
+        <p class="muted">网卡型号以转接板为准；指令返回 OK 仅表示配置被接受，网口是否联网仍需检查网线、SIM 和 APN。</p>
+        <div class="fields two">
+          <label>连接方案
+            <select id="eth-profile">
+              <option value="pcie">PCIe 转网口 · QMAPWAC 自动拨号</option>
+              <option value="ecm">ECM · USB 网卡 + QMAPWAC 自动拨号</option>
+              <option value="rndis">RNDIS · USB 网卡 + QMAPWAC 自动拨号</option>
+            </select>
+          </label>
+          <label>转接板网卡
+            <select id="eth-driver">
+              <option value="r8125">RTL8125 · 2.5G 网卡</option>
+              <option value="r8168">RTL8168 · 千兆网卡</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button type="button" id="eth-enable" data-needs-module>预览并应用方案</button>
+          <button type="button" id="eth-disable" data-needs-module>停用此方案…</button>
+        </div>
+      </details>
+
+      <details class="card" id="info-card">
+        <summary><h3>设备信息 · 手动读取，不持续轮询</h3></summary>
+        <div class="row">
+          <button type="button" id="read-info" data-needs-module>读取设备信息</button>
+        </div>
+        <p class="muted">SIM、信号、温度、USB 和网口配置分项显示。不支持的查询会标记为“固件未提供”。</p>
+        <div id="info" class="info-grid"></div>
+      </details>
+
+      <details class="card" id="at-tools">
+        <summary><h3>高级 AT 工具</h3></summary>
+        <p class="muted">每行一条指令，最多 32 条。执行前确认完整列表；遇到错误立即停止。不会自动运行或循环发送。</p>
+        <label>常用查询
+          <select id="at-preset">
+            <option value="">选择后填入编辑框</option>
+            <option value="AT+QENG=&quot;servingcell&quot;&#10;AT+QRSRP&#10;AT+QSINR">查询信号和服务小区</option>
+            <option value="AT+QCFG=&quot;usbcfg&quot;&#10;AT+QETH=&quot;eth_driver&quot;&#10;AT+QCFG=&quot;pcie/mode&quot;">查询 USB 和网口配置</option>
+            <option value="AT+QGMR&#10;AT+QTEMP">查询固件和温度</option>
+          </select>
+        </label>
+        <label class="visually-hidden" for="custom-at">自定义 AT 指令</label>
+        <textarea id="custom-at" rows="6" maxlength="16416" spellcheck="false" placeholder="例如 AT+QNWINFO"></textarea>
+        <div class="row">
+          <button type="button" id="run-custom" data-needs-module>预览并执行</button>
+          <button type="button" id="save-preset">保存到此电脑</button>
+          <button type="button" id="load-preset">读取已保存指令</button>
+          <span class="grow"></span>
+          <button type="button" class="danger" id="factory" data-needs-module>恢复模块出厂设置…</button>
+        </div>
+      </details>
+
+      <div class="log-head">
+        <h3>操作记录</h3>
+        <button type="button" id="stop-at" disabled>停止后续操作</button>
+        <button type="button" id="save-at-log">保存记录</button>
+      </div>
+      <pre id="at-log" class="log" tabindex="0" aria-label="串口操作记录"></pre>
+      <p class="muted small">操作记录仅保存在电脑内存，点击保存后写入电脑。无需计算 ADB 密钥。</p>
+    </section>
+
+    <section id="install" class="group" aria-labelledby="install-title">
+      <div class="group-head">
+        <h2 id="install-title">让设备准备就绪</h2>
+        <p>连接模块，一站完成安装、检查与管理。</p>
+      </div>
+
+      <article class="card">
+        <div class="card-title-row">
+          <h3>连接设备</h3>
+          <span id="device-badge" class="badge">正在检测</span>
+        </div>
+        <div class="row">
+          <label class="visually-hidden" for="devices">选择 ADB 设备</label>
+          <select id="devices" class="grow"><option value="">请选择模块</option></select>
+          <button type="button" id="refresh-devices">刷新</button>
+        </div>
+        <p id="device-hint" class="muted small">使用 USB 连接模块，设备会自动出现在这里。</p>
+      </article>
+
+      <article class="card install-card">
+        <div class="install-text">
+          <h3>安装或升级</h3>
+          <p class="muted">安装完整程序与网页，升级保留有效配置和密码。首次安装默认账号密码：admin / admin。</p>
+          <div class="option">
+            <label class="check"><input type="checkbox" id="change-port"> 修改 HTTP 端口</label>
+            <input id="http-port" type="text" inputmode="numeric" maxlength="5" value="80" aria-label="HTTP 服务端口" disabled>
+          </div>
+          <p class="muted small">不勾选：首次使用 80，升级保留原端口。可填 1–65535。</p>
+          <div class="option column">
+            <label class="check"><input type="checkbox" id="change-web"> 设置 Web 账号和密码</label>
+            <div class="fields two">
+              <label>Web 账号<input id="web-username" type="text" maxlength="64" value="admin" autocomplete="off" disabled></label>
+              <label>Web 密码<input id="web-password" type="password" maxlength="128" value="admin" autocomplete="new-password" disabled></label>
+            </div>
+          </div>
+          <div class="option column">
+            <label class="check"><input type="checkbox" id="change-root"> 设置系统 root 密码</label>
+            <label>root 密码<input id="root-password" type="password" maxlength="128" value="admin" autocomplete="new-password" disabled></label>
+          </div>
+          <p class="muted small">首次安装默认端口 80，Web 账号、Web 密码和 root 密码均为 admin。升级不勾选则保留已有值；勾选后使用填写的值。密码只经 USB 传给模块，不写入安装日志。</p>
+        </div>
+        <button type="button" class="primary large" id="install-button" disabled>安装 / 升级</button>
+      </article>
+
+      <article class="card" id="verify">
+        <div class="card-title-row">
+          <h3 id="status-title">等待连接设备</h3>
+          <span id="progress-label" class="muted small">准备就绪后即可开始</span>
+        </div>
+        <div class="progress" id="progress"><span></span></div>
+        <ol class="stage-list" id="stages">
+          <li>① 检查连接</li><li>② 上传文件</li><li>③ 安装程序</li><li>④ 验证网页</li>
+        </ol>
+        <p id="status-detail" class="muted">操作进度和结果会显示在这里。</p>
+        <p id="web-link" hidden><a target="_blank" rel="noopener noreferrer"></a></p>
+      </article>
+
+      <div class="row split">
+        <button type="button" id="diagnose" disabled title="收集只读报告，不重新安装或修改设置。">故障诊断</button>
+        <button type="button" id="open-web" disabled title="检查网页后，通过 USB / ADB 打开设备后台。">打开管理页面</button>
+      </div>
+
+      <details class="card" id="log-card" open>
+        <summary><h3>实时运行日志</h3></summary>
+        <label class="check small"><input type="checkbox" id="follow-log" checked> 自动滚动到最新日志</label>
+        <pre id="log" class="log tall" tabindex="0" aria-label="实时运行日志"></pre>
+      </details>
+
+      <footer class="foot">
+        <span>Monologue&amp;蓝天科技 版权所有 · 诊断不会读取短信或执行 AT 指令</span>
+        <span class="grow"></span>
+        <button type="button" id="view-report" disabled>查看报告</button>
+        <button type="button" class="ghost" id="open-reports">报告文件夹</button>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <h3 id="confirm-title"></h3>
+    <p id="confirm-module" class="muted small"></p>
+    <p id="confirm-description"></p>
+    <pre id="confirm-commands" class="log"></pre>
+    <label class="check" id="confirm-agree-row"><input type="checkbox" id="confirm-agree"> 我确认恢复出厂，已备份需要保留的配置</label>
+    <div class="row end">
+      <button type="button" id="confirm-cancel">取消</button>
+      <button type="button" class="primary" id="confirm-ok">确认执行</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="report" aria-labelledby="report-title">
+  <form method="dialog">
+    <h3 id="report-title">诊断报告</h3>
+    <p id="report-path" class="muted small"></p>
+    <pre id="report-text" class="log tall"></pre>
+    <p class="muted small">报告包含设备序列号和网络地址，分享前可自行遮盖；不包含短信或密码。</p>
+    <div class="row end">
+      <button type="button" id="report-notepad">在记事本中打开</button>
+      <button type="submit" class="primary">关闭</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="overlay" class="overlay" hidden>
+  <div class="card">
+    <h3 id="overlay-title">设备助手已退出</h3>
+    <p id="overlay-text" class="muted">可以关闭此页面。需要时重新双击 SimpleAdmin-Setup.exe。</p>
+  </div>
+</div>
+</body>
+</html>

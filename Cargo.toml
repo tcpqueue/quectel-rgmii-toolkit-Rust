@@ -6,6 +6,9 @@ rust-version = "1.90"
 license = "MIT"
 description = "Quectel RGMII device administration server"
 
+[workspace]
+members = ["installer"]
+
 [dependencies]
 anyhow = "1"
 axum = { version = "0.8", features = ["ws", "form", "json"] }
