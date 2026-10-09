@@ -1,0 +1,39 @@
+[package]
+name = "simpleadmin-installer"
+version = "2.0.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+description = "SimpleAdmin device assistant: local web UI for Quectel module preparation and installation"
+build = "build.rs"
+
+[[bin]]
+name = "SimpleAdmin-Setup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+hex = "0.4"
+miniz_oxide = "0.8"
+rand = "0.8"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serialport = { version = "4", default-features = false }
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
+
+[build-dependencies]
+hex = "0.4"
+miniz_oxide = "0.8"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

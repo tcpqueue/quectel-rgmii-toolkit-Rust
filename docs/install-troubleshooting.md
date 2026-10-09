@@ -6,9 +6,9 @@
 
 若出现 `remote secure_mkdirs failed: Read-only file system`，表示诊断脚本尚未成功上传，网页检查还未开始。模块根目录 `/` 只读是正常状态，`/tmp` 应是可写临时目录。先确认选中了正确模块，再根据报告检查固件的临时目录挂载。不要将手机或模拟器的 `/data/local/tmp` 当成模块安装路径。
 
-连接模块，双击单文件 `SimpleAdmin-Setup.exe`，选择设备后点击 **故障诊断**。完成后点击 **查看报告**。无需先升级或卸载旧版。报告保存在 `%LOCALAPPDATA%/SimpleAdmin/Reports`；目录不可写时改用 Windows 临时目录。
+连接模块，双击单文件 `SimpleAdmin-Setup.exe`，选择设备后点击 **故障诊断**。完成后点击 **查看报告**。无需先升级或卸载旧版。报告保存在 `%LOCALAPPDATA%/SimpleAdmin/Reports`，可在页面中直接查看，或点击“报告文件夹”打开。
 
-设备助手已内置完整资源，可以只复制 EXE。无法启动时先重新下载完整文件并确认临时目录可写。图形界面采用原生 WinUI 3，支持 Windows 10 2004（19041）及以上 / Windows 11 x64；EXE 内置 .NET 和 Windows App SDK，不需要另装 WinUI 运行库。命令行维护入口只保留在源码中，不随单文件分发。
+设备助手已内置完整资源，可以只复制 EXE。它在本机启动一个只监听 127.0.0.1 的网页服务并用默认浏览器打开；浏览器没有自动打开时，可再次双击 EXE。无法启动时会弹出错误并在 `%LOCALAPPDATA%/SimpleAdmin/Reports` 生成 `launcher-*.txt`；请重新下载完整文件，并确认 `%LOCALAPPDATA%` 可写。安全软件拦截本机端口时，请允许 SimpleAdmin-Setup.exe 访问 127.0.0.1。命令行维护脚本 `toolkit.ps1` 只保留在源码中，不随单文件分发。
 
 诊断只查看平台、文件权限、剩余空间、服务状态、监听端口、防火墙和网络地址，再通过临时 ADB 转发访问公开页面。不会登录、打开 AT 串口、读取短信/凭据、修改配置、重启或重新安装。设备上只上传一个临时诊断脚本，结束后删除。
 

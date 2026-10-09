@@ -66,45 +66,63 @@ Windows 上运行 `powershell -ExecutionPolicy Bypass -File scripts/test-windows
 
 ## 打包
 
-### Windows 图形设备助手
+### Windows 设备助手（WebUI）
 
-中文设备助手使用原生 WinUI 3，面向 Windows 10 2004（19041）及以上、Windows 11 x64。界面使用 Windows App SDK WinUI 组件，.NET 8 与 Windows App SDK 均采用自包含部署；不依赖系统预装对应运行库。
+`SimpleAdmin-Setup.exe` 由 `installer/` crate 生成，与后端同属一个 Cargo workspace，用同一套 Rust 工具链在 Linux/WSL 交叉编译，不需要 .NET、Windows App SDK 或 PowerShell。双击后它在 `127.0.0.1` 的随机端口启动本地网页服务，用默认浏览器打开界面；页面关闭后自动退出。
 
-构建电脑需安装 .NET SDK 8.0.424（同 feature band 的更新补丁也可），首次 NuGet 恢复需要联网。`installer/packages.lock.json` 固定依赖，发布时使用锁定模式。可通过 `SIMPLEADMIN_DOTNET` 指定 dotnet.exe；否则优先使用 `%LOCALAPPDATA%/SimpleAdminBuild/dotnet/dotnet.exe`，最后查找 PATH。
-
-在 Windows PowerShell 中重新编译和测试：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
-powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1 -TestBuild
-powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1 -GuiTest
+```sh
+cargo test --locked -p simpleadmin-installer
+cargo build --locked --release --target x86_64-pc-windows-gnu -p simpleadmin-installer
 ```
 
-脚本将源码复制到 Windows 本机临时目录，用 .NET SDK 编译原生界面并生成 XAML 资源索引。系统自带的 .NET Framework C# 编译器仅用于编译单文件解包启动器 `installer/Bootstrap.cs`，没有 WPF 界面。最终产物复制回仓库；构建不在 WSL `/mnt/` 下进行。
+`scripts/build.sh` 会在设备程序和 `development/SHA256SUMS` 更新后再编译安装器，并复制到仓库根目录的 `SimpleAdmin-Setup.exe`（不纳入 Git，作为 Release 附件发布）。
 
-测试专用自包含程序位于 `work/winui-test/`。测试将它复制到 Windows 本地临时目录再运行，避免直接从 WSL UNC 路径启动 WinUI。自动操作入口不包含在正式程序中；UI 测试使用模拟 ADB，不访问真实设备。
+- **内嵌资源**：`installer/build.rs` 将 `adb.exe`、两个 ADB DLL、`LICENSE` 与整个 `development/` 打包、逐文件计算 SHA-256 后用 deflate 压缩进 EXE。首次运行解压到 `%LOCALAPPDATA%\SimpleAdmin\runtime\<资源哈希>`，此后每次启动校验后复用；新版本解压到新目录并尝试清理旧目录，正被 ADB 服务占用的旧文件会跳过。修改 `development/` 后必须重新编译安装器。
+- **本地访问控制**：启动时生成 32 字节随机令牌，通过一次性链接换成 `HttpOnly; SameSite=Strict` Cookie 并从地址栏移除。所有请求要求唯一且正确的 `Host: 127.0.0.1:<端口>`（防 DNS 重绑定）；写操作还要求同源 `Origin`；浏览器标记为跨站的请求一律拒绝。页面使用严格 CSP，不加载任何外部资源。
+- **单实例与退出**：再次双击时直接打开已运行的页面。页面关闭 15 秒后、或 3 分钟没有页面访问时退出；安装或串口操作进行中不会退出，页面上的“退出设备助手”在操作中同样被拒绝。
+- **安装流程**：`installer/src/engine.rs` 按原 `toolkit.ps1` 的步骤直接调用 adb：只读预检（Linux、armv7l、模块特征、root、Bash、可写 /tmp）→ 上传 → 账号密码经 `adb exec-in` 标准输入写入模块 `/tmp` 并校验 SHA-256 → 安装 → 读取结果 → 通过 ADB 通道检查三个页面 → 失败时自动诊断 → 清理临时文件。报告写入 `%LOCALAPPDATA%\SimpleAdmin\Reports`，不包含密码。
+- **串口准备**：`installer/src/qualcomm.rs` 使用 `serialport` crate（115200 8N1、DTR/RTS），按 VID 2C7C 标注移远端口。所有写操作先在服务端生成计划并给出一次性确认编号，执行前重新核对模块身份；联网方案还会重新读取 MPDN 规则，与预览不一致时不执行。
 
-GUI 将所选设备明确传给安装脚本，通过结构化进度事件更新界面；同时核对进程退出码、最终结果与验证后的访问地址，避免从日志中的单个成功字样推断安装完成。主界面仅中文，完整诊断输出保留工具原文。
+维护和测试参数（正式使用无需关心）：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--self-test` | 解压并校验资源、运行内置 `adb version` 后退出，不连接设备 |
+| `--no-browser` | 不打开浏览器，只在 `installer.url` 写入访问地址 |
+| `--port N` / `--data-dir DIR` | 固定端口、改用其他数据目录 |
+| `--payload-dir DIR` | 使用未打包的目录（含 adb 与 `development/`），用于开发 |
+
+`toolkit.ps1`、`toolkit.bat`、`diagnose.bat` 保留为源码包的无界面安装方式，新设备助手不再调用它们；`tests/installer-windows.ps1` 继续用模拟 ADB 验证该脚本。
+
+#### 测试
+
+```sh
+cargo test --locked -p simpleadmin-installer
+cargo build -p simpleadmin-installer
+node tests/web-installer.cjs
+```
+
+Rust 测试覆盖串口逻辑（USB 字段保留、ADB 1/2 跳过、确认期间配置变化、写入拒绝、读回不一致、取消、身份变化、批量中止、联网方案、自定义指令限制）、安装流程（未连接/未授权、手机/模拟器/无 root/无 Bash/只读 /tmp 预检不写设备、上传/安装/结果/网页失败与自动诊断、端口保留与自定义、诊断与打开网页不改设备、凭据只经标准输入）、本地访问控制与资源包校验。
+
+`tests/web-installer.cjs` 在 Linux 上启动真实安装器，用 `tests/fixtures/fake-quectel-modem.py` 创建的伪终端模拟模块 AT 口、脚本模拟 adb，以 Playwright 走完识别、解锁确认、自定义 AT、恢复出厂二次确认、联网方案预览、设备信息、安装成功与失败、输入校验、报告、打开管理页面、深浅色与手机布局，以及页面关闭后的自动退出。设置 `SIMPLEADMIN_NO_OPEN=<文件>` 时，打开浏览器、记事本和文件夹的请求只记录到该文件。
 
 ### 离线包
 
-正式 `SimpleAdmin-Setup.exe` 内嵌 `payload.zip`，包含原生 WinUI 3 程序、Windows App SDK、.NET 运行库、ADB 和 DLL、内部 PowerShell 安装器、`development/` 完整内容及许可证。构建仅引用 WinUI 所需组件，不引入 Windows App SDK 的 AI、ML、Widgets 组件。NuGet 根目录中的许可证和第三方声明随资源包保存至 `licenses/`。每次修改上述资源后必须重新构建 EXE，再更新 SHA256SUMS。发布 ZIP 仅装入该 EXE；源码中的脚本作为内部实现和维护工具保留。
+```sh
+bash scripts/build.sh
+bash scripts/package.sh
+```
 
-可运行 `SimpleAdmin-Setup.exe --verify-payload` 校验内嵌资源能解压、必要文件存在且内置 ADB 能启动；此检查不会连接设备或执行安装。运行时使用随机临时目录，报告单独保存到 LocalAppData；不终止共享 ADB 进程。
+`package.sh` 校验仓库中的二进制与安装文件清单后，生成 `packages/quectel-rgmii-toolkit-Rust-<版本>-offline.zip`（仅含 EXE）、单独的 `packages/SimpleAdmin-Setup.exe` 及其 SHA-256。两者作为 GitHub Release 附件发布；`packages/` 不提交到 Git。
 
-修改前端或安装运行辅助文件后，先更新安装文件校验清单。构建脚本也会自动执行这一步。
+修改前端或安装运行辅助文件后，先更新安装文件校验清单（构建脚本会自动执行）：
 
 ```sh
 bash scripts/checksums.sh
-sha256sum development/simpleadmin/simpleadmin-httpd.armv7 windows-test/bin/simpleadmin-httpd.exe SimpleAdmin-Setup.exe > SHA256SUMS
 node tests/installer.cjs
-bash scripts/package.sh
-unzip -t packages/quectel-rgmii-toolkit-Rust-0.2.7-offline.zip
 ```
 
-安装包只包含 `SimpleAdmin-Setup.exe`，ADB、设备程序、离线前端及安装逻辑均内嵌其中。`packages/`、开发缓存及运行状态不提交到 Git。发布时可直接提供 EXE，或将 ZIP 作为 GitHub Release 附件。
-
-Windows 安装入口可通过 `powershell -ExecutionPolicy Bypass -File tests/installer-windows.ps1` 验证。它使用临时生成的模拟 ADB 和本机 HTTP 服务，不连接真实模块。Linux 安装测试同样使用隔离目录和模拟系统操作，不执行真实挂载、服务管理或 AT 操作。
+Linux 安装测试使用隔离目录和模拟系统操作，不执行真实挂载、服务管理或 AT 操作。
 
 ## 设备命令
 
@@ -117,10 +135,3 @@ systemctl restart simpleadmin-httpd.service
 默认服务为 HTTP `:80`。手动启动可使用 `--no-tls=false` 启用 HTTPS，证书路径支持 `--cert`、`--key`、`--ca-cert`、`--ca-key`。支持 Go 版单横线参数写法。
 
 服务运行期间通过 WebUI 的 AT 终端执行命令。独立 `at` 子命令需要先停止服务，防止两个持久读取线程争抢 SMD 响应。不要同时启动 Go 和 Rust 后端。
-
-### 移远高通串口测试
-
-运行 tests/qualcomm-windows.ps1 可验证串口核心逻辑。测试会在 Windows 临时目录编译独立控制台，使用模拟 AT 链路，不打开物理串口。覆盖直接启用 ADB 模式 2、USB 字段保留、倒数第二项 1/2 跳过解锁、确认期间配置变化、配置写入拒绝、读回不一致、取消、设备身份变化、批量中止、QMAPWAC 方案与安装凭据校验。
-
-依赖 System.IO.Ports 8.0.0 随正式单文件分发，电脑无需安装 Python、passlib 或串口运行库；设备 USB 驱动按系统识别情况安装。
-经用户授权进行真机只读检查时，可运行 tests/qualcomm-windows.ps1 -ReadOnlyPort COM7；该入口只读取型号、身份与 USB 配置，不解锁或修改密码。WinUI 测试构建另提供只读白名单入口，正式 EXE 不包含该入口。
