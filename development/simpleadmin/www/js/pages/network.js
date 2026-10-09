@@ -3,6 +3,7 @@ function cellLocking() {
         // ---------- 状态 ----------
         isLoading: false,
         showModal: false,
+        bandView: "LTE",
         countdown: 0,
         networkModeCell: "-",
         // 兼容现有绑定（10 组 EARFCN/PCI）

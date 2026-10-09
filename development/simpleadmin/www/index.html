@@ -15,14 +15,13 @@
           if (document.body) document.body.scrollTop = 0;
         } catch (e) {}
         try {
-          var theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+          var stored = localStorage.getItem('theme');
+          var theme = stored === 'dark' || stored === 'light' ? stored
+            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
           document.documentElement.setAttribute('data-bs-theme', theme);
-          document.documentElement.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
           document.documentElement.style.colorScheme = theme;
         } catch (e) {
           document.documentElement.setAttribute('data-bs-theme', 'light');
-          document.documentElement.classList.add('theme-light');
-          document.documentElement.style.colorScheme = 'light';
         }
       })();
       window.SimpleAdminSpaMode = true;
@@ -30,85 +29,55 @@
       window.SimpleAdmin.Pages = window.SimpleAdmin.Pages || {};
     </script>
 <style>
-      html[data-bs-theme="dark"], html[data-bs-theme="dark"] body { background-color: #141922; color-scheme: dark; }
-      html[data-bs-theme="light"], html[data-bs-theme="light"] body { background-color: #fff; color-scheme: light; }
-      body { background-color: var(--sa-bg, #fff); }
+      html[data-bs-theme="dark"], html[data-bs-theme="dark"] body { background-color: #0b0b0d; color-scheme: dark; }
+      html[data-bs-theme="light"], html[data-bs-theme="light"] body { background-color: #f2f2f7; color-scheme: light; }
       [v-cloak] { display: none !important; }
     </style>
-<link href="css/bootstrap.min.css" rel="stylesheet"/>
-<link href="css/Poppins.css?v=2.94" rel="stylesheet"/>
-<link href="css/styles.css?v=2.94" rel="stylesheet"/>
-<link href="css/art-device.css?v=3.5" rel="stylesheet"/>
+<link href="css/app.css?v=4.0" rel="stylesheet"/>
 <link href="favicon.ico" rel="icon"/>
 <script src="js/band_map.js?v=2.94"></script>
-<script defer="" src="js/bootstrap.bundle.min.js"></script>
 <script src="js/vue.global.prod.js"></script>
 <script src="js/locales.js?v=3.4"></script>
 <script src="js/simpleadmin-core.js?v=3.4"></script>
 <script src="js/vue-app.js?v=2.94"></script>
 </head>
 <body>
+<svg class="ui-symbols" aria-hidden="true">
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="16.4" cy="12" r="1.4" fill="currentColor"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 <div class="sa-shell">
 <aside aria-label="主导航" class="sa-sidebar" id="simpleadminSidebar">
 <div class="sa-brand">
 <div class="sa-brand-mark" data-simpleadmin-brand-mark="1">--</div>
-<div class="sa-brand-title" data-simpleadmin-brand-title="1">获取中...</div>
+<div class="sa-brand-text"><div class="sa-brand-title" data-simpleadmin-brand-title="1">获取中...</div><div class="sa-brand-sub" data-no-i18n>SimpleAdmin</div></div>
 </div>
 <nav class="sa-menu">
-<a aria-current="page" class="sa-menu-link active" data-page-link="dashboard" href="#dashboard">
-<i data-lucide="layout-dashboard" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="总览">总览</span>
-</a>
-<a class="sa-menu-link" data-page-link="network" href="#network">
-<i data-lucide="radio" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="网络与小区">网络与小区</span>
-</a>
-<a class="sa-menu-link" data-page-link="settings" href="#settings">
-<i data-lucide="settings" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="系统设置">系统设置</span>
-</a>
-<a class="sa-menu-link" data-page-link="sms" href="#sms">
-<i data-lucide="message-square" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="短信服务">短信服务</span>
-</a>
-<a class="sa-menu-link" data-page-link="deviceinfo" href="#deviceinfo">
-<i data-lucide="info" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="设备信息">设备信息</span>
-</a>
-<a class="sa-menu-link" data-page-link="console" href="#console">
-<i data-lucide="terminal" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="控制台">控制台</span>
-</a>
-<a class="sa-menu-link" data-logout-link="1" href="/api/logout">
-<i data-lucide="log-out" aria-hidden="true"></i>
-<span data-simpleadmin-i18n-key="退出登录">退出登录</span>
-</a>
+<p class="sa-menu-section">设备</p>
+<a aria-current="page" class="sa-menu-link active" data-page-link="dashboard" href="#dashboard"><i data-lucide="layout-dashboard" aria-hidden="true"></i><span>总览</span></a>
+<a class="sa-menu-link" data-page-link="network" href="#network"><i data-lucide="radio" aria-hidden="true"></i><span>网络与小区</span></a>
+<a class="sa-menu-link" data-page-link="sms" href="#sms"><i data-lucide="message-square" aria-hidden="true"></i><span>短信服务</span></a>
+<p class="sa-menu-section">系统</p>
+<a class="sa-menu-link" data-page-link="settings" href="#settings"><i data-lucide="settings" aria-hidden="true"></i><span>系统设置</span></a>
+<a class="sa-menu-link" data-page-link="deviceinfo" href="#deviceinfo"><i data-lucide="info" aria-hidden="true"></i><span>设备信息</span></a>
+<a class="sa-menu-link" data-page-link="console" href="#console"><i data-lucide="terminal" aria-hidden="true"></i><span>控制台</span></a>
 </nav>
+<div class="sa-sidebar-foot">
+<label class="sa-pref"><span>外观</span><select class="form-select form-select-sm" data-theme-select aria-label="外观"><option value="auto">自动</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+<label class="sa-pref"><span>语言</span><select id="headerLanguage" class="form-select form-select-sm" data-language-select aria-label="语言" data-no-i18n><option value="zh-CN">中文</option><option value="en">English</option></select></label>
+<a class="sa-menu-link" data-logout-link="1" href="/api/logout"><i data-lucide="log-out" aria-hidden="true"></i><span>退出登录</span></a>
+</div>
 </aside>
-<button aria-label="关闭菜单" class="art-backdrop" hidden id="artSidebarBackdrop" type="button"></button>
 <div class="sa-main">
-<header class="art-header">
-<div class="art-header-left">
-<button aria-label="展开或收起菜单" title="展开或收起菜单" class="art-icon-button" id="artMenuButton" type="button"><i data-lucide="menu" aria-hidden="true"></i></button>
-<button aria-label="刷新页面" title="刷新页面" class="art-icon-button" id="artRefreshButton" type="button"><i data-lucide="rotate-cw" aria-hidden="true"></i></button>
-<span class="art-breadcrumb">设备管理 <i data-lucide="chevron-right" aria-hidden="true"></i> <strong id="artCurrentPage">总览</strong></span>
-</div>
-<div class="art-header-right">
-<button aria-label="切换明暗主题" title="切换明暗主题" class="art-icon-button" id="artThemeButton" type="button"><i data-lucide="moon" aria-hidden="true"></i></button>
-<button aria-label="全屏" title="全屏" class="art-icon-button" id="artFullscreenButton" type="button"><i data-lucide="maximize" aria-hidden="true"></i></button>
-<select id="headerLanguage" class="art-language" aria-label="语言" data-no-i18n dir="ltr"><option value="zh-CN">中文</option><option value="en">English</option><option value="ru">Русский</option><option value="ar">العربية</option></select>
-<a class="art-account" data-page-link="settings" href="#settings" title="账户设置"><span class="art-avatar">A</span><span>管理员</span></a>
-</div>
+<header class="sa-topbar">
+<div class="sa-brand-mark" data-simpleadmin-brand-mark="1">--</div>
+<div class="sa-brand-title" data-simpleadmin-brand-title="1">获取中...</div>
 </header>
 <main class="sa-content">
 <section aria-labelledby="page-title-dashboard" class="sa-page active" data-page="dashboard" id="page-dashboard">
 <div class="sa-page-titlebar">
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="总览" id="page-title-dashboard">总览</h1>
-</div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
 </div>
 <div class="sa-page-app sa-single-column art-device-overview" id="dashboardApp" v-cloak="">
@@ -222,220 +191,149 @@
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="网络与小区" id="page-title-network">网络与小区</h1>
 </div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
+<div class="sa-page-app" id="networkApp" v-cloak="">
+<section class="ui-group" aria-labelledby="bandLockTitle">
+<div class="ui-group-head"><h2 id="bandLockTitle">频段锁定</h2><span class="ui-sub sa-band-query-status" v-show="isGettingBands === true">正在查询当前已锁定频段...</span></div>
+<div class="ui-segmented is-wide sa-band-switch" role="group" aria-label="频段制式" data-no-i18n>
+<button type="button" :class="{active: bandView === 'LTE'}" :aria-pressed="bandView === 'LTE'" @click="bandView = 'LTE'">LTE</button>
+<button type="button" :class="{active: bandView === 'NSA'}" :aria-pressed="bandView === 'NSA'" @click="bandView = 'NSA'">NR5G-NSA</button>
+<button type="button" :class="{active: bandView === 'SA'}" :aria-pressed="bandView === 'SA'" @click="bandView = 'SA'">NR5G-SA</button>
 </div>
-<div class="sa-page-app sa-single-column" id="networkApp" v-cloak="">
-<div class="sa-section-stack">
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">
-<div class="sa-section-stack">
-<div class="sa-stack-item">频段锁定</div>
-<div class="sa-stack-item sa-band-query-status" v-show="isGettingBands === true">
-                正在查询当前已锁定频段...
-              </div>
-</div>
-</div>
-<div class="sa-panel-body">
 <div class="sa-band-mode-grid">
-<div class="sa-band-mode-panel" data-band-mode="LTE">
-<div class="sa-band-mode-title">LTE</div>
-<form class="sa-band-checkboxes" id="checkboxFormLTE">
-<!-- LTE 复选框将会在这里生成 -->
-</form>
-<div class="sa-inline-actions sa-band-actions">
-<button @click="lockSelectedBandsForMode('LTE')" class="btn btn-primary" type="button">
-                    锁定
-                  </button>
-<button @click="toggleBandCheckboxes('LTE')" class="btn btn-info" id="toggleBandsLTE" type="button">
-                    全部选中
-                  </button>
+<div class="ui-card sa-band-mode-panel" data-band-mode="LTE" :class="{'is-current': bandView === 'LTE'}">
+<div class="sa-band-mode-title" data-no-i18n>LTE</div>
+<form class="sa-band-checkboxes" id="checkboxFormLTE"></form>
+<div class="ui-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('LTE')" class="btn btn-primary btn-sm" type="button">锁定</button>
+<button @click="toggleBandCheckboxes('LTE')" class="btn btn-sm" id="toggleBandsLTE" type="button">全部选中</button>
 </div>
 </div>
-<div class="sa-band-mode-panel" data-band-mode="NSA">
-<div class="sa-band-mode-title">NR5G-NSA</div>
-<form class="sa-band-checkboxes" id="checkboxFormNSA">
-<!-- NR5G-NSA 复选框将会在这里生成 -->
-</form>
-<div class="sa-inline-actions sa-band-actions">
-<button @click="lockSelectedBandsForMode('NSA')" class="btn btn-primary" type="button">
-                    锁定
-                  </button>
-<button @click="toggleBandCheckboxes('NSA')" class="btn btn-info" id="toggleBandsNSA" type="button">
-                    全部选中
-                  </button>
+<div class="ui-card sa-band-mode-panel" data-band-mode="NSA" :class="{'is-current': bandView === 'NSA'}">
+<div class="sa-band-mode-title" data-no-i18n>NR5G-NSA</div>
+<form class="sa-band-checkboxes" id="checkboxFormNSA"></form>
+<div class="ui-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('NSA')" class="btn btn-primary btn-sm" type="button">锁定</button>
+<button @click="toggleBandCheckboxes('NSA')" class="btn btn-sm" id="toggleBandsNSA" type="button">全部选中</button>
 </div>
 </div>
-<div class="sa-band-mode-panel" data-band-mode="SA">
-<div class="sa-band-mode-title">NR5G-SA</div>
-<form class="sa-band-checkboxes" id="checkboxFormSA">
-<!-- NR5G-SA 复选框将会在这里生成 -->
-</form>
-<div class="sa-inline-actions sa-band-actions">
-<button @click="lockSelectedBandsForMode('SA')" class="btn btn-primary" type="button">
-                    锁定
-                  </button>
-<button @click="toggleBandCheckboxes('SA')" class="btn btn-info" id="toggleBandsSA" type="button">
-                    全部选中
-                  </button>
+<div class="ui-card sa-band-mode-panel" data-band-mode="SA" :class="{'is-current': bandView === 'SA'}">
+<div class="sa-band-mode-title" data-no-i18n>NR5G-SA</div>
+<form class="sa-band-checkboxes" id="checkboxFormSA"></form>
+<div class="ui-actions sa-band-actions">
+<button @click="lockSelectedBandsForMode('SA')" class="btn btn-primary btn-sm" type="button">锁定</button>
+<button @click="toggleBandCheckboxes('SA')" class="btn btn-sm" id="toggleBandsSA" type="button">全部选中</button>
 </div>
 </div>
 </div>
+<div class="ui-card sa-band-footer">
+<div class="ui-row"><div class="ui-row-text"><span>活动频段</span><small v-text="bands"></small></div><button @click="resetBandLocking" class="btn btn-warning btn-sm" type="button">恢复全部</button></div>
 </div>
-<div class="sa-panel-footer d-flex sa-band-footer">
-<p v-text="'活动频段: ' + bands"></p>
-<button @click="resetBandLocking" class="btn btn-warning" type="button">
-                恢复全部
-              </button>
-</div>
-</div>
-</div>
-</div>
-<div class="sa-section-stack">
-<div class="sa-stack-item">
-<form>
-<div class="sa-panel">
-<div class="sa-panel-header">网络工具</div>
-<div class="sa-panel-body">
-<div class="sa-network-tools-row">
-<!-- APN -->
-<div class="sa-network-tool-item">
-<label class="form-label" for="APN">APN</label>
-<input :placeholder="apn === '-' ? '获取中...' : apn" aria-describedby="APN" class="form-control" id="APN" type="text" v-model="newApn"/>
-</div>
-<!-- PDP 类型（IP 协议） -->
-<div class="sa-network-tool-item">
-<label class="form-label" for="pdpType">IP 协议类型</label>
-<select aria-label="pdpType" class="form-select" id="pdpType" v-model="newPdpType">
+<p class="ui-foot">勾选要保留的频段后点击“锁定”；“恢复全部”会解除所有制式的频段限制。</p>
+</section>
+
+<section class="ui-group" aria-labelledby="networkParamsTitle">
+<div class="ui-group-head"><h2 id="networkParamsTitle">网络参数</h2></div>
+<div class="ui-card">
+<div class="ui-row is-stack"><label for="APN">APN</label><div class="ui-row-control"><input :placeholder="apn === '-' ? '获取中...' : apn" class="form-control" id="APN" type="text" v-model="newApn" autocomplete="off"/></div></div>
+<div class="ui-row is-stack"><label for="pdpType">IP 协议类型</label><div class="ui-row-control"><select class="form-select" id="pdpType" v-model="newPdpType">
 <option :value="null" disabled="" v-text="pdpType === '-' ? '获取中...' : '当前：' + pdpType"></option>
 <option value="IPV4V6">IPv4v6</option>
 <option value="IP">IPv4</option>
 <option value="IPV6">IPv6</option>
-</select>
-</div>
-<!-- 选择首选网络 -->
-<div class="sa-network-tool-item">
-<label class="form-label" for="prefNetworkMode">选择首选网络</label>
-<select aria-label="prefNetworkMode" class="form-select" id="prefNetworkMode" v-model="prefNetworkMode">
+</select></div></div>
+<div class="ui-row is-stack"><label for="prefNetworkMode">选择首选网络</label><div class="ui-row-control"><select class="form-select" id="prefNetworkMode" v-model="prefNetworkMode">
 <option :value="null" disabled="" v-text="prefNetwork === '-' ? '获取中...' : '当前：' + prefNetwork"></option>
 <option value="AUTO">自动</option>
 <option value="LTE">仅LTE</option>
 <option value="LTE:NR5G">NR5G-NSA</option>
 <option value="NR5G">NR5G-SA</option>
-</select>
-</div>
-<!-- NR5G模式控制 -->
-<div class="sa-network-tool-item">
-<label class="form-label" for="nrModeControl">NR5G模式控制</label>
-<select aria-label="nrModeControl" class="form-select" id="nrModeControl" v-model="nrModeControlNew">
-<option :value="null" disabled="" v-text="nrModeControlCurrent === null
-        ? '获取中...'
-        : ('当前：' + (nrModeControlCurrent==='0' ? '启用所有'
-                         : nrModeControlCurrent==='1' ? '禁用NR5G-SA'
-                         : '禁用NR5G-NSA'))">
-</option>
+</select></div></div>
+<div class="ui-row is-stack"><label for="nrModeControl">NR5G模式控制</label><div class="ui-row-control"><select class="form-select" id="nrModeControl" v-model="nrModeControlNew">
+<option :value="null" disabled="" v-text="nrModeControlCurrent === null ? '获取中...' : ('当前：' + (nrModeControlCurrent === '0' ? '启用所有' : nrModeControlCurrent === '1' ? '禁用NR5G-SA' : '禁用NR5G-NSA'))"></option>
 <option value="0">启用所有</option>
 <option value="2">禁用NR5G-NSA</option>
 <option value="1">禁用NR5G-SA</option>
-</select>
+</select></div></div>
+<div class="ui-actions is-end"><button @click="saveChanges()" class="btn btn-primary" type="button">保存更改</button></div>
 </div>
+<p class="ui-foot">只提交修改过的项目，保存后模块会重新注册网络。</p>
+</section>
+
+<section class="ui-group" aria-labelledby="cellLockTitle">
+<div class="ui-group-head"><h2 id="cellLockTitle">小区锁定</h2></div>
+<div class="ui-card sa-lock-policy">
+<div class="ui-row is-stack"><span class="ui-row-label">生效方式</span><div class="ui-row-control"><div class="ui-segmented sa-lock-mode" role="radiogroup" aria-label="生效方式"><label><input type="radio" name="cell-lock-mode" value="temporary" v-model="lockPersistence"/><span>临时锁频</span></label><label><input type="radio" name="cell-lock-mode" value="persistent" v-model="lockPersistence"/><span>持久化锁频</span></label></div></div></div>
+<label v-if="lockPersistence==='persistent'" class="ui-row is-toggle"><span>锁频后 3 分钟未拨号成功则取消，并停用开机恢复</span><input class="form-check-input ui-switch" type="checkbox" role="switch" v-model="lockAutoUnlock"/></label>
+<div v-for="state in lockRadios" :key="state.radio" class="ui-row sa-lock-status"><strong data-no-i18n>{{ state.radio==='lte' ? 'LTE' : 'NR5G-SA' }}</strong><span class="sa-lock-state">{{ lockStatusText(state) }}</span><span v-if="state.remaining_seconds!==null" class="ui-tag is-warn">{{ state.remaining_seconds }} s</span><code v-if="state.values">{{ state.values.join(', ') }}</code><span class="sa-lock-buttons"><button v-if="state.values && !state.persistent" type="button" class="btn btn-outline-primary btn-sm" @click="restoreSavedLock(state)" :disabled="lockBusy">重新启用</button><button v-if="state.persistent" type="button" class="btn btn-outline-danger btn-sm" @click="cancelSavedLock(state)" :disabled="lockBusy">取消锁频</button></span><small v-if="state.error" class="text-danger">{{ state.error }}</small></div>
+<p v-if="lockMessage" role="status" class="ui-note sa-forward-message" v-text="lockMessage"></p>
 </div>
-</div>
-<div class="sa-panel-footer">
-<button @click="saveChanges()" class="btn btn-primary" type="button">
-                  保存更改
-                </button>
-</div>
-</div>
-</form>
-</div>
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">小区锁定</div>
-<div class="sa-panel-body sa-lock-policy">
-<fieldset class="sa-lock-mode"><legend>生效方式</legend><label><input type="radio" name="cell-lock-mode" value="temporary" v-model="lockPersistence"/> 临时锁频</label><label><input type="radio" name="cell-lock-mode" value="persistent" v-model="lockPersistence"/> 持久化锁频</label></fieldset>
-<label v-if="lockPersistence==='persistent'" class="form-check form-switch"><input class="form-check-input" type="checkbox" v-model="lockAutoUnlock"/> 锁频后 3 分钟未拨号成功则取消，并停用开机恢复</label>
-<p class="form-text">临时锁频重启后失效；持久化锁频在应用启动后自动恢复，适用于下方手动或扫描小区锁定。</p>
-<p v-if="lockMessage" role="status" class="sa-forward-message" v-text="lockMessage"></p>
-<div v-for="state in lockRadios" :key="state.radio" class="sa-lock-status"><strong>{{ state.radio==='lte' ? 'LTE' : 'NR5G-SA' }}</strong><span>{{ lockStatusText(state) }}</span><span v-if="state.remaining_seconds!==null">{{ state.remaining_seconds }} s</span><code v-if="state.values">{{ state.values.join(', ') }}</code><button v-if="state.values && !state.persistent" type="button" class="btn btn-outline-primary btn-sm" @click="restoreSavedLock(state)" :disabled="lockBusy">重新启用</button><button v-if="state.persistent" type="button" class="btn btn-outline-danger btn-sm" @click="cancelSavedLock(state)" :disabled="lockBusy">取消锁频</button><small v-if="state.error" class="text-danger">{{ state.error }}</small></div>
-</div>
-<div class="sa-panel-body">
-<div class="sa-panel-text">
-<table class="table">
-<thead>
-<tr><th scope="col">选择</th><th scope="col">网络</th><th scope="col">运营商</th><th scope="col">频段</th><th scope="col">频点</th><th scope="col">PCI</th><th scope="col">RSRP</th><th scope="col">信号</th></tr>
-</thead>
-<tbody id="cellScanTableBody">
-<tr v-if="!scannedCellsForMode().length"><th scope="row">空</th><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td></tr>
-<tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :data-cell-index="index" @click="toggleCellSelection(cell)">
-<th scope="row"><input type="checkbox" class="checkbox-cell" :data-cell-index="index" :checked="isCellSelected(cell)" disabled/></th>
-<td>{{ cell.type }}</td><td>{{ cell.provider }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
-<td><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line v-for="bar in signalBars(cell.rsrp)" :key="bar.x" :x1="bar.x" y1="20" :x2="bar.x" :y2="bar.y"/></svg></td>
-</tr>
-</tbody>
-</table>
-<div>
-<div class="sa-stack-item">
-<div class="form-group">
-<label for="exampleFormControlSelect1">选择扫描模式</label>
+<p class="ui-foot">临时锁频重启后失效；持久化锁频在应用启动后自动恢复，适用于下方手动或扫描小区锁定。</p>
+</section>
+
+<section class="ui-group" aria-labelledby="cellScanTitle">
+<div class="ui-group-head"><h2 id="cellScanTitle">扫描小区</h2></div>
+<div class="ui-card">
+<div class="ui-row is-stack"><label for="cellSelect">扫描模式</label><div class="ui-row-control">
 <select class="form-select" id="cellSelect" v-model="cellScanMode" @change="clearTableRowsBodyCellScan()" :disabled="isLoading || lockBusy">
 <option disabled="" value="Unspecified">当前：选择扫描模式</option>
 <option value="Full Scan">全面扫描</option>
 <option value="LTE Only">仅LTE</option>
 <option value="NR5G Only">仅NR5G</option>
 </select>
+<button :disabled='isLoading || lockBusy || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'"></button>
+</div></div>
+<div class="ui-scroll-x sa-scan-table">
+<table class="table">
+<thead>
+<tr><th scope="col">选择</th><th scope="col">网络</th><th scope="col">运营商</th><th scope="col">频段</th><th scope="col">频点</th><th scope="col">PCI</th><th scope="col">RSRP</th><th scope="col">信号</th></tr>
+</thead>
+<tbody id="cellScanTableBody">
+<tr v-if="!scannedCellsForMode().length"><td colspan="8" class="ui-empty">暂无扫描结果</td></tr>
+<tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :class="{'is-selected': isCellSelected(cell)}" :data-cell-index="index" @click="toggleCellSelection(cell)">
+<th scope="row"><input type="checkbox" class="checkbox-cell" :data-cell-index="index" :checked="isCellSelected(cell)" disabled/></th>
+<td>{{ cell.type }}</td><td>{{ cell.provider }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
+<td><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line v-for="bar in signalBars(cell.rsrp)" :key="bar.x" :x1="bar.x" y1="20" :x2="bar.x" :y2="bar.y"/></svg></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="ui-actions sa-cell-scan-actions">
+<span class="ui-status" id="cellSelectHelper">点选结果行后锁定；扫描需要几分钟，请勿离开此页面。</span>
+<button :disabled="isLoading || lockBusy || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">清除</button>
+<button :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-primary" type="button">锁定所选</button>
 </div>
 </div>
-<div class="sa-inline-actions sa-cell-scan-actions">
-<button :disabled='isLoading || lockBusy || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'">
-</button>
-<button :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-secondary" type="button">
-                      锁定
-                    </button>
-<button :disabled="isLoading || lockBusy || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">
-                      清除
-                    </button>
-</div>
-</div>
-<div class="form-text" id="cellSelectHelper">
-                  小区扫描需要几分钟完成，请勿离开次页面。
-                </div>
-</div>
-</div>
-<div class="sa-panel-body">
-<select @change="onNetworkModeCellChange($event)" aria-label="LTE" class="form-select" id="networkModeCell" v-model="networkModeCell">
+</section>
+
+<section class="ui-group" aria-labelledby="manualLockTitle">
+<div class="ui-group-head"><h2 id="manualLockTitle">手动锁定</h2></div>
+<div class="ui-card">
+<div class="ui-row is-stack"><label for="networkModeCell">操作</label><div class="ui-row-control">
+<select @change="onNetworkModeCellChange($event)" class="form-select" id="networkModeCell" v-model="networkModeCell">
 <option disabled="" v-text="'当前：' + cellLockStatus" value="-"></option>
-<option>LTE</option>
-<option>NR5G-SA</option>
-<option>解锁LTE</option>
-<option>解锁NR5G-SA</option>
-</select>
-<div class="my-3">
-<!-- For LTE -->
+<option value="LTE">锁定LTE小区</option>
+<option value="NR5G-SA">锁定NR5G-SA小区</option>
+<option value="解锁LTE">解锁LTE小区</option>
+<option value="解锁NR5G-SA">解锁NR5G-SA小区</option>
+</select></div></div>
 <div id="lteElementsCell" v-show="networkModeCell == 'LTE'">
-<div class="input-group">
-<span class="input-group-text" id="basic-addon1">小区数量</span>
-<input @change="normalizeLteCellCount()" @input="normalizeLteCellCount()" aria-describedby="basic-addon1" aria-label="NumCells" class="form-control" max="10" min="1" placeholder="1-10" type="number" v-model="cellNum"/>
-</div>
+<div class="ui-row is-stack"><label for="lteCellCount">小区数量</label><div class="ui-row-control"><input id="lteCellCount" @change="normalizeLteCellCount()" @input="normalizeLteCellCount()" class="form-control" max="10" min="1" placeholder="1-10" type="number" v-model="cellNum"/></div></div>
 </div>
 <template v-if="hasLteManualCellCount()">
 <div id="freqNumbersContainer">
-<div :key="'lte-manual-cell-' + index" class="input-group" v-for="index in visibleLteCellIndexes()">
-<input :aria-label="'EARFCN ' + index" :placeholder="'EARFCN ' + index" :value="getLteManualValue(index, 'earfcn')" @input="setLteManualValue(index, 'earfcn', $event.target.value)" class="form-control" type="text"/>
-<input :aria-label="'PCI ' + index" :placeholder="'PCI ' + index" :value="getLteManualValue(index, 'pci')" @input="setLteManualValue(index, 'pci', $event.target.value)" class="form-control" type="text"/>
-</div>
+<div :key="'lte-manual-cell-' + index" class="ui-row is-stack" v-for="index in visibleLteCellIndexes()"><span class="ui-row-label" data-no-i18n>#{{ index }}</span><div class="ui-row-control input-group">
+<input :aria-label="'EARFCN ' + index" :placeholder="'EARFCN ' + index" :value="getLteManualValue(index, 'earfcn')" @input="setLteManualValue(index, 'earfcn', $event.target.value)" class="form-control" type="text" inputmode="numeric"/>
+<input :aria-label="'PCI ' + index" :placeholder="'PCI ' + index" :value="getLteManualValue(index, 'pci')" @input="setLteManualValue(index, 'pci', $event.target.value)" class="form-control" type="text" inputmode="numeric"/>
+</div></div>
 </div>
 </template>
-<!-- For SA -->
 <div id="saElementsCell" v-show="networkModeCell == 'NR5G-SA'">
-<div class="input-group" v-show="networkModeCell == 'NR5G-SA'">
-<input aria-label="EARFCN" class="form-control" placeholder="EARFCN" type="text" v-model="earfcn1"/>
-<input aria-label="PCI" class="form-control" placeholder="PCI" type="text" v-model="pci1"/>
-</div>
-<div class="input-group" v-show="networkModeCell == 'NR5G-SA'">
+<div class="ui-row is-stack"><span class="ui-row-label" data-no-i18n>EARFCN / PCI</span><div class="ui-row-control input-group">
+<input aria-label="EARFCN" class="form-control" placeholder="EARFCN" type="text" inputmode="numeric" v-model="earfcn1"/>
+<input aria-label="PCI" class="form-control" placeholder="PCI" type="text" inputmode="numeric" v-model="pci1"/>
+</div></div>
+<div class="ui-row is-stack"><span class="ui-row-label" data-no-i18n>SCS / Band</span><div class="ui-row-control input-group">
 <select aria-label="SCS" class="form-select" v-model="scs">
 <option :value="null" disabled="">当前：SCS</option>
 <option>15</option>
@@ -444,34 +342,25 @@
 <option>120</option>
 <option>240</option>
 </select>
-<input aria-label="band" class="form-control" placeholder="Band" type="text" v-model="band"/>
+<input aria-label="band" class="form-control" placeholder="Band" type="text" inputmode="numeric" v-model="band"/>
+</div></div>
+</div>
+<div class="ui-actions is-end" v-show="networkModeCell !== '-'">
+<button @click="cellLockEnableLTE()" class="btn btn-primary" type="button" v-show="networkModeCell == 'LTE'">锁定LTE小区</button>
+<button @click="cellLockEnableNR()" class="btn btn-primary" type="button" v-show="networkModeCell == 'NR5G-SA'">锁定NR5G-SA小区</button>
+<button @click="cellLockDisableLTE()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁LTE'">解锁LTE小区</button>
+<button @click="cellLockDisableNR()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁NR5G-SA'">解锁NR5G-SA小区</button>
 </div>
 </div>
-<button @click="cellLockEnableLTE()" class="btn btn-primary" type="button" v-show="networkModeCell == 'LTE'">
-                  锁定LTE小区
-                </button>
-<button @click="cellLockEnableNR()" class="btn btn-primary" type="button" v-show="networkModeCell == 'NR5G-SA'">
-                  锁定NR5G-SA小区
-                </button>
-<button @click="cellLockDisableLTE()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁LTE'">
-                  解锁LTE小区
-                </button>
-<button @click="cellLockDisableNR()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁NR5G-SA'">
-                  解锁NR5G-SA小区
-                </button>
-</div>
-</div>
-</div>
-</div>
-</div>
+</section>
 <div class="modal-overlay" v-show="showModal">
 <div class="loading-modal">
 <div class="loader"></div>
-<div class="loading-text" style="display: flex; flex-direction: column">
+<div class="loading-text">
 <h3>初始化网络...</h3>
-<p style="margin-top: 0.5rem">
+<p>
               请等待
-              <span style="font-weight: 500" v-text="countdown"></span>
+              <b v-text="countdown"></b>
               秒。
             </p>
 </div>
@@ -484,121 +373,53 @@
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="系统设置" id="page-title-settings">系统设置</h1>
 </div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
-</div>
-<div class="sa-page-app sa-single-column" id="settingsApp" v-cloak="">
-<div class="sa-section-stack">
-<section aria-labelledby="accountSecurityHeading" class="sa-stack-item sa-account-security">
-<h2 id="accountSecurityHeading" class="sa-panel-header">WebUI 账号与密码</h2>
-<form @submit.prevent="changeLoginPassword()" class="sa-panel-body">
-<div class="mb-3"><label class="form-label" for="webUsernameInput">Web 账号</label><input id="webUsernameInput" class="form-control" autocomplete="username" required maxlength="64" pattern="[A-Za-z0-9_.-]+" v-model="webUsername" :disabled="isSavingPassword"/><div class="form-text">新密码留空时保留原密码，修改后需要重新登录</div></div>
-<div class="sa-password-fields">
-<div>
-<label class="form-label" for="currentPasswordInput">当前密码</label>
-<input :disabled="isSavingPassword" autocomplete="current-password" class="form-control" id="currentPasswordInput" placeholder="请输入当前登录密码" required type="password" v-model="currentPassword"/>
-</div>
-<div>
-<label class="form-label" for="newPasswordInput">新密码</label>
-<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="newPasswordInput" placeholder="请输入新的登录密码" type="password" v-model="newPassword"/>
-</div>
-<div>
-<label class="form-label" for="confirmPasswordInput">确认新密码</label>
-<input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="confirmPasswordInput" placeholder="请再次输入新的登录密码" type="password" v-model="confirmPassword"/>
-</div>
-</div>
-<button :disabled="isSavingPassword" class="btn btn-primary" type="submit">修改密码</button>
-<div aria-live="polite" class="form-text" role="status" v-show="passwordSaveMessage" v-text="passwordSaveMessage"></div>
+<div class="sa-page-app" id="settingsApp" v-cloak="">
+<section aria-labelledby="accountSecurityHeading" class="ui-group sa-account-security">
+<div class="ui-group-head"><h2 id="accountSecurityHeading">WebUI 账号与密码</h2></div>
+<form @submit.prevent="changeLoginPassword()" class="ui-card">
+<div class="ui-row is-stack"><label for="webUsernameInput">Web 账号</label><div class="ui-row-control"><input id="webUsernameInput" class="form-control" autocomplete="username" required maxlength="64" pattern="[A-Za-z0-9_.-]+" v-model="webUsername" :disabled="isSavingPassword"/></div></div>
+<div class="ui-row is-stack"><label for="currentPasswordInput">当前密码</label><div class="ui-row-control"><input :disabled="isSavingPassword" autocomplete="current-password" class="form-control" id="currentPasswordInput" placeholder="请输入当前登录密码" required type="password" v-model="currentPassword"/></div></div>
+<div class="ui-row is-stack"><label for="newPasswordInput">新密码</label><div class="ui-row-control"><input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="newPasswordInput" placeholder="留空则保留原密码" type="password" v-model="newPassword"/></div></div>
+<div class="ui-row is-stack"><label for="confirmPasswordInput">确认新密码</label><div class="ui-row-control"><input :disabled="isSavingPassword" autocomplete="new-password" class="form-control" id="confirmPasswordInput" placeholder="请再次输入新的登录密码" type="password" v-model="confirmPassword"/></div></div>
+<div class="ui-actions"><span aria-live="polite" class="ui-status" role="status" v-text="passwordSaveMessage"></span><button :disabled="isSavingPassword" class="btn btn-primary" type="submit">保存账号</button></div>
+</form>
+<p class="ui-foot">新密码留空时保留原密码，修改后需要重新登录</p>
+</section>
+
+<section class="ui-group sa-account-security" aria-labelledby="webuiPortHeading">
+<div class="ui-group-head"><h2 id="webuiPortHeading">WebUI HTTP 端口</h2></div>
+<form @submit.prevent="saveWebuiPort()" class="ui-card">
+<div class="ui-row is-stack"><label for="webuiPortInput">HTTP 端口</label><div class="ui-row-control"><input id="webuiPortInput" class="form-control" type="number" min="1" max="65535" required v-model="webHttpPort" :disabled="isSavingWebui || !webHttpEnabled"/></div></div>
+<div class="ui-row is-stack"><label for="webuiCurrentPassword">当前 Web 密码</label><div class="ui-row-control"><input id="webuiCurrentPassword" class="form-control" type="password" autocomplete="current-password" required v-model="webuiCurrentPassword" :disabled="isSavingWebui || !webHttpEnabled"/></div></div>
+<div class="ui-actions"><span class="ui-status" role="status" aria-live="polite" v-text="webuiSaveMessage"></span><a v-if="webuiNewUrl" :href="webuiNewUrl" class="btn btn-outline-primary">打开新地址</a><button type="submit" class="btn btn-primary" :disabled="isSavingWebui || !webHttpEnabled">保存端口</button></div>
+</form>
+<p class="ui-foot">端口保存后立即生效，不重启模块；请使用新端口重新访问</p>
+</section>
+
+<section class="ui-group sa-account-security" aria-labelledby="rootSecurityHeading">
+<div class="ui-group-head"><h2 id="rootSecurityHeading">系统 root 密码</h2></div>
+<form @submit.prevent="changeRootPassword()" class="ui-card">
+<div class="ui-row is-stack"><label for="currentRootPassword">当前 root 密码</label><div class="ui-row-control"><input id="currentRootPassword" class="form-control" type="password" autocomplete="current-password" required :disabled="isSavingRootPassword" v-model="currentRootPassword"/></div></div>
+<div class="ui-row is-stack"><label for="newRootPassword">新 root 密码</label><div class="ui-row-control"><input id="newRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="newRootPassword"/></div></div>
+<div class="ui-row is-stack"><label for="confirmRootPassword">确认新 root 密码</label><div class="ui-row-control"><input id="confirmRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="confirmRootPassword"/></div></div>
+<div class="ui-actions"><span class="ui-status" role="status" aria-live="polite" v-text="rootPasswordSaveMessage"></span><button class="btn btn-primary" type="submit" :disabled="isSavingRootPassword">修改 root 密码</button></div>
 </form>
 </section>
-<section class="sa-stack-item sa-account-security" aria-labelledby="webuiPortHeading">
-<h2 id="webuiPortHeading" class="sa-panel-header">WebUI HTTP 端口</h2>
-<form @submit.prevent="saveWebuiPort()" class="sa-panel-body">
-<div class="sa-password-fields">
-<div><label for="webuiPortInput" class="form-label">HTTP 端口</label><input id="webuiPortInput" class="form-control" type="number" min="1" max="65535" required v-model="webHttpPort" :disabled="isSavingWebui || !webHttpEnabled"/></div>
-<div><label for="webuiCurrentPassword" class="form-label">当前 Web 密码</label><input id="webuiCurrentPassword" class="form-control" type="password" autocomplete="current-password" required v-model="webuiCurrentPassword" :disabled="isSavingWebui || !webHttpEnabled"/></div>
-</div>
-<div class="form-text mb-3">端口保存后立即生效，不重启模块；请使用新端口重新访问</div>
-<button type="submit" class="btn btn-primary" :disabled="isSavingWebui || !webHttpEnabled">保存端口</button>
-<div class="form-text" role="status" aria-live="polite" v-text="webuiSaveMessage"></div>
-<a v-if="webuiNewUrl" :href="webuiNewUrl" class="btn btn-outline-primary mt-3">打开新地址</a>
-</form>
-</section><section class="sa-stack-item sa-account-security" aria-labelledby="rootSecurityHeading">
-<h2 id="rootSecurityHeading" class="sa-panel-header">系统 root 密码</h2>
-<form @submit.prevent="changeRootPassword()" class="sa-panel-body">
-<div class="sa-password-fields">
-<div><label class="form-label" for="currentRootPassword">当前 root 密码</label><input id="currentRootPassword" class="form-control" type="password" autocomplete="current-password" required :disabled="isSavingRootPassword" v-model="currentRootPassword"/></div>
-<div><label class="form-label" for="newRootPassword">新 root 密码</label><input id="newRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="newRootPassword"/></div>
-<div><label class="form-label" for="confirmRootPassword">确认新 root 密码</label><input id="confirmRootPassword" class="form-control" type="password" autocomplete="new-password" required :disabled="isSavingRootPassword" v-model="confirmRootPassword"/></div>
-</div>
-<button class="btn btn-primary" type="submit" :disabled="isSavingRootPassword">修改 root 密码</button>
-<div class="form-text" role="status" aria-live="polite" v-text="rootPasswordSaveMessage"></div>
-</form>
-</section>
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">AT 终端</div>
-<div class="sa-panel-body">
-<div class="sa-panel-text">
-<div class="form-floating">
-<!-- AT 命令输出 -->
-<textarea class="form-control" id="atOutputBox" readonly="" style="height: 210px" v-model="atCommandResponse"></textarea>
-</div>
-<div>
-<div class="sa-stack-item">
-<label class="form-label" for="exampleInputEmail1">AT 命令</label>
-<input @keydown.enter="sendATCommand()" aria-describedby="atCommandInput" class="form-control" id="atCommandInput" placeholder="ATI" type="text" v-model="atcmd"/>
-<div class="form-text" id="atCommandInputHelper">
-                      用分号（;）分隔多个命令，后端会逐条发送，示例：AT+CFUN?;+CCID
-                    </div>
-</div>
-<div class="sa-inline-actions sa-at-actions">
-<button :disabled="isLoading" @click="sendATCommand()" class="btn btn-primary" type="button">
-                      提交
-                    </button>
-<button :disabled="isClean" @click="clearResponses()" class="btn btn-danger" type="button">
-                      清除
-                    </button>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="sa-section-stack sa-settings-two-columns">
-<div class="sa-stack-item">
-<form>
-<div class="sa-panel">
-<div class="sa-panel-header">一键实用工具</div>
-<div class="sa-panel-body">
-<div class="sa-panel-text">
-<div class="table-responsive">
-<table class="table sa-data-table sa-action-table">
-<tbody>
-<tr>
-<th scope="row">IP 透传</th>
-<td>
+
+<section class="ui-group" aria-labelledby="networkFeaturesHeading">
+<div class="ui-group-head"><h2 id="networkFeaturesHeading">网络功能</h2></div>
+<div class="ui-card sa-tools">
+<div class="ui-row is-stack"><label for="ipPassModeSelect">IP 透传</label><div class="ui-row-control">
 <select class="form-select" id="ipPassModeSelect" v-model="ipPassMode">
 <option disabled="" v-text="ipPassStatus ? '当前：已启用' : '当前：未启用'" value="未指定"></option>
 <option value="ETH">ETH</option>
 <option value="USB">USB (ECM/RNDIS)</option>
 </select>
-</td>
-<td>
-<button :disabled="isLoading" @click="ipPassThroughEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="ipPassStatus === false">
-                              启用
-                            </button>
-<button :disabled="isLoading" @click="ipPassThroughDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="ipPassStatus === true">
-                              禁用
-                            </button>
-</td>
-</tr>
-<tr>
-<th scope="row">USB 协议</th>
-<td>
+<button :disabled="isLoading" @click="ipPassThroughEnable()" class="btn btn-primary" type="button" v-show="ipPassStatus === false">启用</button>
+<button :disabled="isLoading" @click="ipPassThroughDisable()" class="btn btn-danger" type="button" v-show="ipPassStatus === true">禁用</button>
+</div></div>
+<div class="ui-row is-stack"><label for="usbNetModeSelect">USB 协议</label><div class="ui-row-control">
 <select class="form-select" id="usbNetModeSelect" v-model="usbNetMode">
 <option disabled="" v-text="'当前：' + currentUsbNetMode" value="未指定"></option>
 <option value="RMNET">RMNET</option>
@@ -606,159 +427,84 @@
 <option value="MBIM">MBIM</option>
 <option value="RNDIS">RNDIS</option>
 </select>
-</td>
-<td>
-<button :disabled="isLoading" @click="usbNetModeChanger()" class="btn btn-primary" style="white-space: nowrap;" type="button">
-                              更改
-                            </button>
-</td>
-</tr>
-<tr>
-<th scope="row">DMZ 设置</th>
-<td>
-<input class="form-control" placeholder="DMZ IP 地址" type="text" v-model="dmzIP"/>
-</td>
-<td>
-<!-- 启用按钮 -->
-<button :disabled="isLoading" @click="setDMZEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="dmzMode === '0'">
-                              启用
-                            </button>
-<!-- 禁用按钮 -->
-<button :disabled="isLoading" @click="setDMZDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="dmzMode === '1'">
-                              禁用
-                            </button>
-</td>
-</tr>
-<tr>
-<th scope="row">LAN IP 设置</th>
-<td>
-<!-- 网关 IP 地址 -->
-<div class="sa-section-stack sa-lan-ip-fields">
-<div class="sa-stack-item">
-<input class="form-control" placeholder="网关 IP 地址" type="text" v-model="lanGwIp"/>
-</div>
-<!-- 起始 IP 地址（只显示最后一位） -->
-<div class="sa-stack-item">
-<input class="form-control" placeholder="起始地址" type="text" v-model="lanIpStart"/>
-</div>
-<!-- 结束 IP 地址（只显示最后一位） -->
-<div class="sa-stack-item">
-<input class="form-control" placeholder="结束地址" type="text" v-model="lanIpEnd"/>
-</div>
-</div>
-</td>
-<td>
-<!-- 设置按钮 -->
-<button :class="['btn', lanIpSaveSuccess ? 'btn-success' : 'btn-primary']" :disabled="isLoading || isSavingLANIP" @click="setLANIP()" style="white-space: nowrap;" type="button">
-                              {{ lanIpSaveSuccess ? '成功' : '保存' }}
-                            </button>
-</td>
-</tr>
-<tr>
-<th scope="row">IMEI 设置</th>
-<td>
+<button :disabled="isLoading" @click="usbNetModeChanger()" class="btn btn-primary" type="button">更改</button>
+</div></div>
+<div class="ui-row is-stack"><label for="dmzInput">DMZ 设置</label><div class="ui-row-control">
+<input id="dmzInput" class="form-control" placeholder="DMZ IP 地址" type="text" inputmode="decimal" v-model="dmzIP"/>
+<button :disabled="isLoading" @click="setDMZEnable()" class="btn btn-primary" type="button" v-show="dmzMode === '0'">启用</button>
+<button :disabled="isLoading" @click="setDMZDisable()" class="btn btn-danger" type="button" v-show="dmzMode === '1'">禁用</button>
+</div></div>
+<div class="ui-row is-stack"><label for="lanGwInput">LAN IP 设置</label><div class="ui-row-control sa-lan-ip-fields">
+<input id="lanGwInput" class="form-control" placeholder="网关 IP 地址" type="text" inputmode="decimal" v-model="lanGwIp"/>
+<input class="form-control" placeholder="起始地址" aria-label="起始地址" type="text" inputmode="numeric" v-model="lanIpStart"/>
+<input class="form-control" placeholder="结束地址" aria-label="结束地址" type="text" inputmode="numeric" v-model="lanIpEnd"/>
+<button :class="['btn', lanIpSaveSuccess ? 'btn-success' : 'btn-primary']" :disabled="isLoading || isSavingLANIP" @click="setLANIP()" type="button">{{ lanIpSaveSuccess ? '成功' : '保存' }}</button>
+</div></div>
+<div class="ui-row is-stack"><label for="imeiInput">IMEI 设置</label><div class="ui-row-control">
 <input @keydown.enter.prevent="openImeiModal()" class="form-control" id="imeiInput" inputmode="numeric" placeholder="请输入新的 IMEI" type="text" v-model.trim="newImei"/>
-</td>
-<td>
-<button :disabled="isLoading || isRebooting" @click="openImeiModal()" class="btn btn-primary" style="white-space: nowrap;" type="button">
-                              更新
-                            </button>
-</td>
-</tr>
-<tr class="sa-combined-action-row sa-dns-row">
-<td colspan="3">
-<div class="sa-inline-actions sa-dns-actions">
-<div class="sa-inline-action-group">
-<button :disabled="isLoading" @click="onBoardDNSV4ProxyEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="DNSV4ProxyStatus === false">
-                              启用 DNS<sup>V4</sup>
-                            </button>
-<button :disabled="isLoading" @click="onBoardDNSV4ProxyDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="DNSV4ProxyStatus === true">
-                              禁用 DNS<sup>V4</sup>
-                            </button>
+<button :disabled="isLoading || isRebooting" @click="openImeiModal()" class="btn btn-primary" type="button">更新</button>
+</div></div>
+<div class="ui-row"><span class="ui-row-label">DNS 代理 IPv4</span><div class="ui-row-control">
+<span class="ui-tag" :class="DNSV4ProxyStatus ? 'is-good' : ''" v-text="DNSV4ProxyStatus ? '已启用' : '未启用'"></span>
+<button :disabled="isLoading" @click="onBoardDNSV4ProxyEnable()" class="btn btn-sm" type="button" v-show="DNSV4ProxyStatus === false">启用</button>
+<button :disabled="isLoading" @click="onBoardDNSV4ProxyDisable()" class="btn btn-danger btn-sm" type="button" v-show="DNSV4ProxyStatus === true">禁用</button>
+</div></div>
+<div class="ui-row"><span class="ui-row-label">DNS 代理 IPv6</span><div class="ui-row-control">
+<span class="ui-tag" :class="DNSV6ProxyStatus ? 'is-good' : ''" v-text="DNSV6ProxyStatus ? '已启用' : '未启用'"></span>
+<button :disabled="isLoading" @click="onBoardDNSV6ProxyEnable()" class="btn btn-sm" type="button" v-show="DNSV6ProxyStatus === false">启用</button>
+<button :disabled="isLoading" @click="onBoardDNSV6ProxyDisable()" class="btn btn-danger btn-sm" type="button" v-show="DNSV6ProxyStatus === true">禁用</button>
+</div></div>
 </div>
-<div class="sa-inline-action-group">
-<button :disabled="isLoading" @click="onBoardDNSV6ProxyEnable()" class="btn btn-primary" style="white-space: nowrap;" type="button" v-show="DNSV6ProxyStatus === false">
-                              启用 DNS<sup>V6</sup>
-                            </button>
-<button :disabled="isLoading" @click="onBoardDNSV6ProxyDisable()" class="btn btn-danger" style="white-space: nowrap;" type="button" v-show="DNSV6ProxyStatus === true">
-                              禁用 DNS<sup>V6</sup>
-                            </button>
-</div>
-<div class="sa-inline-action-group">
-<button :disabled="isLoading" @click="showRebootModal()" class="btn btn-danger" style="white-space: nowrap;" type="button">
-                              重启
-                            </button>
-</div>
-<div class="sa-inline-action-group">
-<button :disabled="isLoading" @click="resetATCommands()" class="btn btn-danger" style="white-space: nowrap;" type="button">
-                              重置 AT&amp;F
-                            </button>
-</div>
-</div>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-</form>
-</div>
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">其他设置</div>
-<div class="sa-panel-body">
-<div class="sa-settings-account-grid">
-<div class="sa-settings-account-column">
-<div class="sa-settings-account-card sa-panel-text">
-<label class="form-label" for="languageSelect">界面语言</label>
-<div class="input-group sa-inline-control">
-<select class="form-select" id="languageSelect" v-model="language" data-no-i18n dir="ltr">
+</section>
+
+<section class="ui-group" aria-labelledby="preferencesHeading">
+<div class="ui-group-head"><h2 id="preferencesHeading">偏好设置</h2></div>
+<div class="ui-card">
+<div class="ui-row is-stack"><label for="languageSelect">界面语言</label><div class="ui-row-control">
+<select class="form-select" id="languageSelect" v-model="language" data-no-i18n>
 <option value="zh-CN">中文</option>
 <option value="en">English</option>
-<option value="ru">Русский</option>
-<option value="ar">العربية</option>
 </select>
-<button :disabled="isSavingLanguage" @click="saveLanguageSetting()" class="btn btn-primary" type="button">
-                      保存
-                    </button>
+<button :disabled="isSavingLanguage" @click="saveLanguageSetting()" class="btn btn-primary" type="button">保存</button>
+</div></div>
+<div class="ui-row is-stack sa-ttl-settings-card"><label for="ttlInput">TTL 设置</label><div class="ui-row-control">
+<span class="ui-tag" :class="ttlStatus ? 'is-good' : ''"><span v-text="ttlStatus ? 'TTL 已激活' : 'TTL 未激活'"></span><span data-no-i18n v-text="'· ' + ttlvalue"></span></span>
+<input class="form-control sa-ttl-input" id="ttlInput" placeholder="TTL 值" type="text" inputmode="numeric" v-model="newTTL"/>
+<button @click="setTTL()" class="btn btn-primary" type="button">更新</button>
+</div></div>
 </div>
-<div class="form-text" v-show="languageSaveMessage" v-text="languageSaveMessage"></div>
-</div>
-<div class="sa-settings-account-card sa-panel-text sa-ttl-settings-card">
-<label class="form-label" for="ttlInput">TTL 设置</label>
-<div class="sa-ttl-status-row">
-<div class="sa-status-box sa-status-box-primary" v-show="ttlStatus === true">
-                    TTL 已激活
-                  </div>
-<div class="sa-status-box sa-status-box-danger" v-show="ttlStatus === false">
-                    TTL 未激活
-                  </div>
-<div class="sa-status-box sa-status-box-info" v-text="ttlvalue"></div>
-</div>
-<div class="input-group sa-inline-control sa-ttl-control">
-<input class="form-control" id="ttlInput" placeholder="TTL 值" type="text" v-model="newTTL"/>
-<button @click="setTTL()" class="btn btn-primary" type="button">
-                    更新
-                  </button>
-</div>
-<div class="form-text" id="ttlValueHelper">
-                    设置 TTL 值为 0 以禁用。
-                  </div>
+<p class="ui-foot" v-show="languageSaveMessage" v-text="languageSaveMessage"></p>
+<p class="ui-foot" id="ttlValueHelper">设置 TTL 值为 0 以禁用。</p>
+</section>
+
+<section class="ui-group" aria-labelledby="atTerminalHeading">
+<div class="ui-group-head"><h2 id="atTerminalHeading">AT 终端</h2></div>
+<div class="ui-card sa-at-terminal">
+<textarea class="form-control sa-at-output" id="atOutputBox" readonly="" aria-label="AT 命令输出" v-model="atCommandResponse" placeholder="命令输出会显示在这里"></textarea>
+<div class="ui-row sa-at-input">
+<label class="visually-hidden" for="atCommandInput">AT 命令</label>
+<input @keydown.enter="sendATCommand()" class="form-control" id="atCommandInput" placeholder="ATI" type="text" v-model="atcmd" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
+<button :disabled="isClean" @click="clearResponses()" class="btn" type="button">清除</button>
+<button :disabled="isLoading" @click="sendATCommand()" class="btn btn-primary" type="button">提交</button>
 </div>
 </div>
+<p class="ui-foot" id="atCommandInputHelper">用分号（;）分隔多个命令，后端会逐条发送，示例：AT+CFUN?;+CCID</p>
+</section>
+
+<section class="ui-group" aria-labelledby="maintenanceHeading">
+<div class="ui-group-head"><h2 id="maintenanceHeading">维护</h2></div>
+<div class="ui-card ui-nav-list">
+<button :disabled="isLoading" @click="showRebootModal()" class="ui-row is-link" type="button"><span class="ui-row-icon orange"><i data-lucide="rotate-cw" aria-hidden="true"></i></span><span class="ui-row-text">重启模块<small>约 1 分钟后恢复连接</small></span></button>
+<button :disabled="isLoading" @click="resetATCommands()" class="ui-row is-link sa-danger-row" type="button"><span class="ui-row-icon red"><i data-lucide="rotate-cw" aria-hidden="true"></i></span><span class="ui-row-text">重置 AT&amp;F<small>恢复模块 AT 出厂配置，随后确认重启</small></span></button>
 </div>
-</div>
-</div>
-</div>
-</div>
+</section>
+
 <!-- IMEI 设置确认模态框 -->
 <div class="modal-overlay" v-show="showImeiModal">
 <div class="loading-modal">
-<div class="loading-text" style="display: flex; flex-direction: column">
+<div class="loading-text">
 <h3>这将修改 IMEI 并重启调制解调器。</h3>
-<p style="margin-top: 0.5rem">继续？</p>
+<p>继续？</p>
 </div>
 <div class="d-grid">
 <button :disabled="isLoading" @click="updateIMEI()" class="btn btn-primary" type="button">
@@ -773,9 +519,9 @@
 <!-- 重启加载模态框 -->
 <div class="modal-overlay" v-show="showModal">
 <div class="loading-modal">
-<div class="loading-text" style="display: flex; flex-direction: column">
+<div class="loading-text">
 <h3>这将重启调制解调器。</h3>
-<p style="margin-top: 0.5rem">继续？</p>
+<p>继续？</p>
 </div>
 <div class="d-grid">
 <button @click="rebootDevice()" class="btn btn-primary" type="button">
@@ -791,11 +537,11 @@
 <div class="modal-overlay" v-show="isRebooting">
 <div class="loading-modal">
 <div class="loader"></div>
-<div class="loading-text" style="display: flex; flex-direction: column">
+<div class="loading-text">
 <h3>重启中...</h3>
-<p style="margin-top: 0.5rem">
+<p>
                 请等待
-                <span style="font-weight: 500" v-text="countdown"></span>
+                <b v-text="countdown"></b>
                 秒。
               </p>
 </div>
@@ -808,98 +554,50 @@
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="短信服务" id="page-title-sms">短信服务</h1>
 </div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
+<div class="sa-page-app" id="smsApp" v-cloak="">
+<section class="ui-group" aria-label="短信功能">
+<div class="ui-card sa-sms-controls">
+<label class="ui-row is-toggle"><span>启用短信功能</span><input id="smsServiceEnabled" class="form-check-input ui-switch" type="checkbox" role="switch" v-model="smsEnabled" @change="saveSmsSettings" :disabled="smsSettingsSaving || !smsSettingsLoaded"/></label>
+<label class="ui-row is-toggle"><span class="ui-row-text">全部渠道转发成功 24 小时后自动删除<small v-if="deleteAfterDay">重启或时间异常后，自动删除会延后至少 24 小时。</small></span><input id="smsDeleteAfterDay" class="form-check-input ui-switch" type="checkbox" role="switch" v-model="deleteAfterDay" @change="saveSmsSettings" :disabled="smsSettingsSaving || !smsSettingsLoaded"/></label>
+<div class="ui-row"><span class="ui-row-label">待删除</span><span class="ui-row-value tabular" v-text="pendingDeletes"></span></div>
 </div>
-<div class="sa-page-app sa-single-column" id="smsApp" v-cloak="">
-<div class="sa-sms-controls">
-<label class="form-check form-switch"><input id="smsServiceEnabled" class="form-check-input" type="checkbox" v-model="smsEnabled" @change="saveSmsSettings" :disabled="smsSettingsSaving || !smsSettingsLoaded"/><span>启用短信功能</span></label>
-<label class="form-check form-switch"><input id="smsDeleteAfterDay" class="form-check-input" type="checkbox" v-model="deleteAfterDay" @change="saveSmsSettings" :disabled="smsSettingsSaving || !smsSettingsLoaded"/><span>全部渠道转发成功 24 小时后自动删除</span></label>
-<span class="small text-muted">待删除 <b>{{ pendingDeletes }}</b></span>
-</div>
-<p v-if="deleteAfterDay" class="small text-muted">重启或时间异常后，自动删除会延后至少 24 小时。</p>
-<p v-if="smsSettingsMessage" role="status" class="sa-forward-message" v-text="smsSettingsMessage"></p>
-<p v-if="smsSettingsLoaded && !smsEnabled" class="sa-forward-message">短信功能已关闭</p>
+<p v-if="smsSettingsMessage" role="status" class="ui-foot sa-forward-message" v-text="smsSettingsMessage"></p>
+<p v-if="smsSettingsLoaded && !smsEnabled" class="ui-foot sa-forward-message">短信功能已关闭</p>
+</section>
 <nav class="sa-sms-tabs" role="tablist" aria-label="短信"><button type="button" role="tab" :aria-selected="smsView==='inbox'" :class="{active:smsView==='inbox'}" @click="selectSmsView('inbox')">收件箱</button><button type="button" role="tab" :aria-selected="smsView==='compose'" :class="{active:smsView==='compose'}" @click="selectSmsView('compose')">发送短信</button><button type="button" role="tab" :aria-selected="smsView==='forwarding'" :class="{active:smsView==='forwarding'}" @click="selectSmsView('forwarding')">转发设置</button></nav>
-<div class="sa-section-stack sa-sms-inbox" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='inbox'">
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">收件箱</div>
-<div class="sa-panel-body">
-<div class="sa-panel-text">
-<div class="sa-stack-item">
-<div class="sa-sms-inbox-scroll">
-<div v-show="isLoading">
-<h4>读取短信...</h4>
-</div>
-<table class="table table-hover border-success sa-sms-inbox-table" v-show="!isLoading">
-<tbody>
-<!-- 没有消息时显示 -->
-<tr v-if="messages.length === 0 &amp;&amp; !isLoading">
-<td colspan="2">无短信</td>
-</tr>
-<!-- 循环显示短信消息 -->
-<template :key="index" v-for="(message, index) in messages">
-<tr @click="openMessageDetail(index)" @keydown.enter.prevent="openMessageDetail(index)" @keydown.space.prevent="openMessageDetail(index)" class="sa-sms-summary-row" role="button" tabindex="0">
-<td class="sa-sms-select-cell">
+
+<section class="ui-group sa-sms-inbox" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='inbox'" aria-labelledby="smsInboxTitle">
+<div class="ui-group-head"><h2 id="smsInboxTitle">收件箱</h2><span class="ui-accessory"><button @click="init()" class="btn btn-sm" type="button">刷新</button></span></div>
+<div class="ui-card">
+<div class="ui-empty" v-show="isLoading">读取短信...</div>
+<div class="ui-empty" v-if="messages.length === 0 &amp;&amp; !isLoading">无短信</div>
+<ul class="sa-sms-list" v-show="!isLoading &amp;&amp; messages.length &gt; 0">
+<li v-for="(message, index) in messages" :key="index" @click="openMessageDetail(index)" @keydown.enter.prevent="openMessageDetail(index)" @keydown.space.prevent="openMessageDetail(index)" class="sa-sms-summary-row" role="button" tabindex="0">
 <input :aria-label="'选择短信 ' + (index + 1)" :value="index" @click.stop @keydown.stop class="form-check-input sa-sms-select-checkbox" type="checkbox" v-model="selectedMessages"/>
-</td>
-<td class="sa-sms-summary-cell">
 <div class="sa-sms-summary-line">
-<span class="sa-sms-summary-sender">发件人: <span v-text="senders[index]"></span></span>
+<span class="sa-sms-summary-sender"><span class="visually-hidden">发件人: </span><span v-text="senders[index]"></span></span>
 <span class="sa-sms-summary-date" v-text="dates[index]"></span>
 <span class="sa-sms-summary-preview" v-text="getMessagePreview(message)"></span>
 </div>
-</td>
-</tr>
-</template>
-</tbody>
-</table>
+</li>
+</ul>
+<div class="ui-actions" v-show="messages.length &gt; 0">
+<label class="form-check sa-sms-select-all"><input @change="toggleAll($event)" class="form-check-input" id="selectAllCheckbox" type="checkbox"/><span>全选</span></label>
+<span class="ui-status"></span>
+<button @click="deleteSelectedSMS()" class="btn btn-danger" type="button" :disabled="selectedMessages.length === 0">删除</button>
 </div>
 </div>
+</section>
+
+<section class="ui-group sa-sms-compose" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='compose'" aria-labelledby="smsComposeTitle">
+<div class="ui-group-head"><h2 id="smsComposeTitle">发信息</h2></div>
+<div class="ui-card">
+<div class="ui-row is-stack"><label for="phoneNumber">收件人号码</label><div class="ui-row-control"><input class="form-control" id="phoneNumber" placeholder="输入收件人号码" type="tel" autocomplete="off" v-model="phoneNumber"/></div></div>
+<div class="ui-row is-block"><label class="visually-hidden" for="messageToSend">短信内容</label><textarea class="form-control sa-sms-textarea" id="messageToSend" placeholder="输入短信内容" rows="5" v-model="messageToSend"></textarea></div>
+<div class="ui-actions"><div class="alert sa-sms-notice" id="notification" style="display: none;"></div><span class="ui-status"></span><button @click="sendSMS()" class="btn btn-primary" type="button">发送短信</button></div>
 </div>
-</div>
-<!-- 添加判断，只有当messages数组有内容时才显示全选复选框及其区域 -->
-<div class="sa-panel-body border-top" v-show="messages.length &gt; 0">
-<div class="form-check">
-<input @change="toggleAll($event)" class="form-check-input" id="selectAllCheckbox" type="checkbox"/>
-<label class="form-check-label">全选</label>
-</div>
-</div>
-<div class="sa-panel-footer">
-<div class="sa-sms-inbox-actions">
-<!-- 刷新按钮 -->
-<button @click="init()" class="btn btn-success" type="button">刷新</button>
-<!-- 删除选中短信按钮 -->
-<button @click="deleteSelectedSMS()" class="btn btn-danger" type="button">删除</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="sa-section-stack sa-sms-compose" v-if="smsSettingsLoaded && smsEnabled" v-show="smsView==='compose'">
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header">发信息</div>
-<div class="sa-panel-body">
-<div>
-<label class="form-label" for="phoneNumber">收件人号码</label>
-<input class="form-control" id="phoneNumber" placeholder="输入收件人号码" type="text" v-model="phoneNumber"/>
-</div>
-<div>
-<label class="form-label" for="messageToSend">短信内容</label>
-<textarea class="form-control" id="messageToSend" placeholder="输入短信内容" rows="3" v-model="messageToSend"></textarea>
-</div>
-<div class="alert" id="notification" style="display: none;"></div>
-<div class="d-flex">
-<button @click="sendSMS()" class="btn btn-primary">发送短信</button>
-</div>
-</div>
-</div>
-</div>
-</div>
+</section>
 <teleport to="body">
 <div class="modal-overlay sa-sms-detail-overlay" @click.self="closeMessageDetail()" v-if="activeMessageIndex !== null &amp;&amp; messages[activeMessageIndex]">
 <div aria-labelledby="smsDetailTitle" aria-modal="true" class="loading-modal sa-sms-detail-modal" role="dialog">
@@ -959,97 +657,36 @@
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="设备信息" id="page-title-deviceinfo">设备信息</h1>
 </div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
+<div class="sa-page-app" id="deviceinfoApp" v-cloak="">
+<section class="ui-group" aria-labelledby="deviceIdentityTitle">
+<div class="ui-group-head"><h2 id="deviceIdentityTitle">模块</h2><span class="ui-accessory"><span class="ui-spinner spinner-border-sm" aria-hidden="true" v-show="isLoading"></span><span class="ui-sub" v-show="isLoading">加载中...</span><button :aria-label="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" :title="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" @click="toggleSensitiveVisible()" class="art-icon-button sa-eye-toggle" type="button"><span v-show="!sensitiveVisible"><i data-lucide="eye-off" aria-hidden="true"></i></span><span v-show="sensitiveVisible"><i data-lucide="eye" aria-hidden="true"></i></span></button></span></div>
+<div class="ui-card sa-info-list">
+<div class="ui-row"><span class="ui-row-label">制造商</span><span class="ui-row-value" v-text="manufacturer"></span></div>
+<div class="ui-row"><span class="ui-row-label">型号名称</span><span class="ui-row-value" v-text="modelName"></span></div>
+<div class="ui-row"><span class="ui-row-label">固件版本</span><span class="ui-row-value" v-text="firmwareVersion"></span></div>
+<div class="ui-row"><span class="ui-row-label">电话号码</span><span class="ui-row-value" v-text="formatSensitiveValue(phoneNumber, 'phone')"></span></div>
+<div class="ui-row"><span class="ui-row-label">IMSI</span><span class="ui-row-value" v-text="formatSensitiveValue(imsi, 'digit')"></span></div>
+<div class="ui-row"><span class="ui-row-label">ICCID</span><span class="ui-row-value" v-text="formatSensitiveValue(iccid, 'digit')"></span></div>
+<div class="ui-row"><span class="ui-row-label">IMEI</span><span class="ui-row-value" v-text="formatSensitiveValue(imei, 'digit')"></span></div>
 </div>
-<div class="sa-page-app sa-single-column" id="deviceinfoApp" v-cloak="">
-<div class="sa-section-stack">
-<div class="sa-stack-item">
-<div class="sa-panel">
-<div class="sa-panel-header sa-panel-header-tools">
-<div class="sa-panel-title-tools">
-<span>设备信息</span>
-<button :aria-label="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" :title="sensitiveVisible ? '隐藏敏感信息' : '显示敏感信息'" @click="toggleSensitiveVisible()" class="btn btn-sm sa-eye-toggle" type="button">
-<span :class="['sa-eye-icon', sensitiveVisible ? 'sa-eye-open' : 'sa-eye-closed']" aria-hidden="true"></span>
-</button>
+</section>
+<section class="ui-group" aria-labelledby="deviceNetworkTitle">
+<div class="ui-group-head"><h2 id="deviceNetworkTitle">网络地址</h2></div>
+<div class="ui-card sa-info-list">
+<div class="ui-row"><span class="ui-row-label">局域网IP</span><span class="ui-row-value" v-text="lanIp"></span></div>
+<div class="ui-row"><span class="ui-row-label">广域网IPv<sup>4</sup></span><span class="ui-row-value" v-text="formatSensitiveValue(wwanIpv4, 'ipv4')"></span></div>
+<div class="ui-row"><span class="ui-row-label">广域网IPv<sup>6</sup></span><span class="ui-row-value" v-text="formatSensitiveValue(wwanIpv6, 'ipv6')"></span></div>
 </div>
-<div class="d-flex align-items-center gap-2">
-<div aria-hidden="true" class="spinner-border spinner-border-sm" role="status" v-show="isLoading"></div>
-<span class="small text-muted" v-show="isLoading">加载中...</span>
+</section>
+<section class="ui-group" aria-labelledby="deviceAboutTitle">
+<div class="ui-group-head"><h2 id="deviceAboutTitle">关于</h2></div>
+<div class="ui-card sa-info-list">
+<div class="ui-row"><span class="ui-row-label">版本</span><span class="ui-row-value" v-text="appVersion"></span></div>
+<button class="ui-row is-link" data-open-dialog="contributorsModal" type="button"><span class="ui-row-text" data-no-i18n>Project Contributors</span><svg class="ui-icon ui-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+<a class="ui-row is-link" href="https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/issues" target="_blank" rel="noopener noreferrer"><span class="ui-row-text">问题反馈</span><span class="ui-row-value" data-no-i18n>GitHub Issues</span><svg class="ui-icon ui-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></a>
 </div>
-</div>
-<div class="sa-panel-body">
-<div class="sa-panel-text">
-<div class="table-responsive">
-<table class="table align-middle sa-data-table sa-luci-info-table">
-<tbody>
-<tr>
-<th scope="row">制造商</th>
-<td v-text="manufacturer"></td>
-</tr>
-<tr>
-<th scope="row">型号名称</th>
-<td v-text="modelName"></td>
-</tr>
-<tr>
-<th scope="row">固件版本</th>
-<td v-text="firmwareVersion"></td>
-</tr>
-<tr>
-<th scope="row">电话号码</th>
-<td v-text="formatSensitiveValue(phoneNumber, 'phone')"></td>
-</tr>
-<tr>
-<th scope="row">IMSI</th>
-<td v-text="formatSensitiveValue(imsi, 'digit')"></td>
-</tr>
-<tr>
-<th scope="row">ICCID</th>
-<td v-text="formatSensitiveValue(iccid, 'digit')"></td>
-</tr>
-<tr>
-<th scope="row">IMEI</th>
-<td v-text="formatSensitiveValue(imei, 'digit')"></td>
-</tr>
-<tr>
-<th scope="row">局域网IP</th>
-<td v-text="lanIp"></td>
-</tr>
-<tr>
-<th scope="row">广域网IPv<sup>4</sup></th>
-<td v-text="formatSensitiveValue(wwanIpv4, 'ipv4')"></td>
-</tr>
-<tr>
-<th scope="row">广域网IPv<sup>6</sup></th>
-<td v-text="formatSensitiveValue(wwanIpv6, 'ipv6')"></td>
-</tr>
-<tr>
-<th scope="row">版本</th>
-<td v-text="appVersion"></td>
-</tr>
-<tr>
-<th>Project Contributors</th>
-<td>
-<button class="btn btn-link link-info link-opacity-50-hover link-offset-2 p-0 align-baseline" data-bs-target="#contributorsModal" data-bs-toggle="modal" type="button">
-                              Show Contributors
-                            </button>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<!-- 已移除原生命令调试输出 -->
-</div>
-</div>
-<div class="sa-panel-footer">
-                <span data-no-i18n>Monologue&amp;蓝天科技 版权所有</span>
-                <span data-no-i18n> · 问题反馈 <a href="https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/issues">GitHub Issues</a></span>
-              </div>
-</div>
-</div>
-</div>
+</section>
 </div>
 </section>
 
@@ -1058,33 +695,48 @@
 <div class="sa-page-title-main">
 <h1 data-simpleadmin-i18n-key="控制台" id="page-title-console">控制台</h1>
 </div>
-<div class="sa-page-title-actions">
-<button class="btn btn-outline-secondary btn-sm sa-sidebar-toggle" data-simpleadmin-i18n-key="菜单" type="button">菜单</button>
-<button class="btn btn-outline-secondary btn-sm sa-titlebar-theme-toggle" data-simpleadmin-i18n-key="暗夜模式" type="button">暗夜模式</button>
 </div>
-</div>
-<div class="sa-page-app sa-single-column sa-console-page">
-<div class="sa-panel sa-console-panel">
-<div class="sa-panel-body sa-console-body">
+<div class="sa-page-app sa-console-page">
+<div class="sa-console-panel">
 <iframe class="sa-console-frame" data-console-src="/console" id="consoleFrame" scrolling="no" title="控制台"></iframe>
 </div>
 </div>
-</div>
 </section>
-<footer class="art-site-footer" data-no-i18n><span>Monologue&amp;蓝天科技 版权所有</span><span>问题反馈 <a href="https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/issues">GitHub Issues</a></span></footer>
+<footer class="sa-site-footer" data-no-i18n><span>Monologue&amp;蓝天科技 版权所有</span><span>问题反馈 <a href="https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/issues">GitHub Issues</a></span></footer>
 </main>
 </div>
 </div>
 
-<div aria-hidden="true" aria-labelledby="contributorsModalLabel" class="modal fade" id="contributorsModal" tabindex="-1">
-<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-<div class="modal-content">
-<div class="modal-header">
-<h1 class="modal-title fs-5" id="contributorsModalLabel">Contributors</h1>
-<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+<nav class="sa-tabbar" aria-label="主导航">
+<button type="button" data-tab="dashboard"><i data-lucide="layout-dashboard" aria-hidden="true"></i><span>总览</span></button>
+<button type="button" data-tab="network"><i data-lucide="radio" aria-hidden="true"></i><span>网络</span></button>
+<button type="button" data-tab="sms"><i data-lucide="message-square" aria-hidden="true"></i><span>短信</span></button>
+<button type="button" data-tab="settings"><i data-lucide="settings" aria-hidden="true"></i><span>设置</span></button>
+<button type="button" data-tab="more" aria-haspopup="dialog"><svg class="ui-icon" aria-hidden="true"><use href="#i-more"/></svg><span>更多</span></button>
+</nav>
+
+<dialog class="ui-sheet" id="moreSheet" aria-labelledby="moreSheetTitle">
+<div class="ui-sheet-head"><h2 id="moreSheetTitle">更多</h2><button class="btn-close" type="button" data-close aria-label="关闭"></button></div>
+<div class="ui-sheet-body">
+<div class="ui-card ui-nav-list">
+<button class="ui-row is-link" type="button" data-tab="deviceinfo"><span class="ui-row-icon blue"><i data-lucide="info" aria-hidden="true"></i></span><span class="ui-row-text">设备信息</span><svg class="ui-icon ui-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+<button class="ui-row is-link" type="button" data-tab="console"><span class="ui-row-icon gray"><i data-lucide="terminal" aria-hidden="true"></i></span><span class="ui-row-text">控制台</span><svg class="ui-icon ui-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
 </div>
-<div class="modal-body">
-<table class="table table-borderless sa-data-table mb-0">
+<div class="ui-card">
+<label class="ui-row"><span class="ui-row-label">外观</span><span class="ui-row-control"><select class="form-select" data-theme-select aria-label="外观"><option value="auto">自动</option><option value="light">浅色</option><option value="dark">深色</option></select></span></label>
+<label class="ui-row"><span class="ui-row-label">语言</span><span class="ui-row-control"><select class="form-select" data-language-select aria-label="语言" data-no-i18n><option value="zh-CN">中文</option><option value="en">English</option></select></span></label>
+</div>
+<div class="ui-card ui-nav-list">
+<button class="ui-row is-link is-destructive" type="button" data-logout-link="1"><span class="ui-row-text">退出登录</span></button>
+</div>
+</div>
+</dialog>
+
+<dialog class="ui-sheet" id="contributorsModal" aria-labelledby="contributorsModalLabel">
+<div class="ui-sheet-head"><h2 id="contributorsModalLabel" data-no-i18n>Contributors</h2><button class="btn-close" type="button" data-close aria-label="Close"></button></div>
+<div class="ui-sheet-body" data-no-i18n>
+<div class="ui-card">
+<table class="table sa-data-table mb-0">
 <tbody>
 <tr>
 <th>RGMII Toolkit and Documentation</th>
@@ -1117,24 +769,20 @@
 </tbody>
 </table>
 </div>
-<div class="modal-footer">
-<button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
 </div>
-</div>
-</div>
-</div>
+</dialog>
+
 <script src="js/populate-checkbox.js?v=2.94"></script>
 <script src="js/pages/index.js?v=3.4"></script>
 <script src="js/pages/network.js?v=3.0"></script>
 <script src="js/pages/settings.js?v=3.3"></script>
 <script src="js/pages/sms.js?v=2.94"></script>
-<script src="js/pages/forwarding-guides.js?v=0.2.5"></script>
-<script src="js/pages/forwarding.js?v=0.2.5"></script>
+<script src="js/pages/forwarding-guides.js?v=0.2.9"></script>
+<script src="js/pages/forwarding.js?v=0.2.9"></script>
 <script src="js/pages/deviceinfo.js?v=2.94"></script>
 <script src="js/simpleadmin-spa.js?v=2.94"></script>
-<script src="js/dark-mode.js?v=2.94"></script>
 <script src="js/monitor-vendor.js?v=3.2"></script>
 <script src="js/monitor.js?v=3.5"></script>
-<script src="js/art-device.js?v=3.3"></script>
+<script src="js/shell.js?v=1.0"></script>
 </body>
 </html>

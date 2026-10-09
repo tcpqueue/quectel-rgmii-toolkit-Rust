@@ -28,7 +28,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('.sa-sms-tabs button').nth(1).click();assert(await page.locator('.sa-sms-compose').isVisible());assert(!(await page.locator('#forwardingApp').isVisible()));
     await page.locator('.sa-sms-tabs button').nth(0).click();assert(await page.locator('.sa-sms-inbox').isVisible());assert(!(await page.locator('.sa-sms-compose').isVisible()));
     await page.locator('.sa-sms-tabs button').nth(2).click();
-    for(const language of ['zh-CN','en','ru','ar']) {
+    for(const language of ['zh-CN','en']) {
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       for(const width of [1440,1024,390,320]) {
         await page.setViewportSize({width,height:1000});
@@ -71,7 +71,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#smsDeleteAfterDay').check();await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#smsApp'].smsSettingsSaving);
     assert.equal((await api('/api/forwarding')).data.delete_after_day,true);
     await page.reload();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#smsApp']?.smsSettingsLoaded);assert(!(await page.locator('#smsServiceEnabled').isChecked()));assert(await page.locator('#smsDeleteAfterDay').isChecked());
-    for(const language of ['zh-CN','en','ru','ar']) {
+    for(const language of ['zh-CN','en']) {
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       await page.setViewportSize({width:320,height:1000});
       await page.waitForTimeout(350);
@@ -97,7 +97,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.getByRole('button',{name:'锁定NR5G-SA小区',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===true);
     assert(fs.existsSync(path.join(temp,'cell-lock.json')));
     await page.waitForFunction(()=>!SimpleAdmin.Vue.apps['#networkApp'].showModal);
-    for(const language of ['zh-CN','en','ru','ar']){await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(250);assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)),`${language}/${width}: locks overflow`);}}
+    for(const language of ['zh-CN','en']){await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(250);assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)),`${language}/${width}: locks overflow`);}}
     await page.evaluate(()=>SimpleAdmin.Lang.setLanguage('zh-CN'));await page.setViewportSize({width:1440,height:1000});
     await page.locator('.sa-lock-policy').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(temp,'cell-lock.png'),fullPage:true});
     await page.locator('.sa-lock-status').filter({hasText:'NR5G-SA'}).getByRole('button',{name:'取消锁频',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===false);

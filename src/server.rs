@@ -218,6 +218,8 @@ async fn gate(State(app): State<Arc<App>>, request: Request, next: Next) -> Resp
         "/login.html"
             | "/logout.html"
             | "/js/locales.js"
+            | "/css/app.css"
+            | "/favicon.ico"
             | "/api/login"
             | "/api/logout"
             | "/api/module_model"

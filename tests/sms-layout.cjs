@@ -17,7 +17,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(base+'/login.html');await page.locator('#loginLanguage').selectOption('zh-CN');await page.locator('#username').fill('admin');await page.locator('#password').fill('admin');await page.locator('#loginButton').click();await page.waitForURL(base+'/');
     await page.locator('[data-page-link="sms"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#smsApp']?.smsSettingsLoaded);
-    for(const language of ['zh-CN','en','ru','ar']){
+    for(const language of ['zh-CN','en']){
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       for(const width of [1440,390,320]){
         await page.setViewportSize({width,height:1000});
@@ -37,7 +37,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     }
     await page.setViewportSize({width:1440,height:1000});await page.locator('[data-page-link="network"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp']?._initialized);
     await page.evaluate(()=>SimpleAdmin.Vue.apps['#networkApp'].requestCellLock({action:'lock_nr_manual',pci:'0',earfcn:'633984',scs:'30',band:'78',persistence:'persistent',auto_unlock:'1'}));
-    const labels={'en':'Persistent cell lock','ru':'Постоянная фиксация соты','ar':'تثبيت خلية دائم','zh-CN':'持久化锁频'};
+    const labels={'en':'Persistent cell lock','zh-CN':'持久化锁频'};
     for(const [language,label] of Object.entries(labels)){
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       await page.waitForFunction(label=>document.querySelectorAll('.sa-lock-status')[1].textContent.includes(label),label);

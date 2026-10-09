@@ -36,23 +36,23 @@
       ...base(),
       legend: { ...base().legend, data: ['RSRP', 'SINR'] },
       yAxis: [
-        { ...axis, type: 'value', name: 'RSRP (dBm)', nameTextStyle: { color: '#5d87ff', fontSize: 11 }, ...range('rsrp' + radio, -140, -40), position: 'left' },
-        { ...axis, type: 'value', name: 'SINR (dB)', nameTextStyle: { color: '#13b99a', fontSize: 11 }, ...range('sinr' + radio, -20, 40), position: 'right', splitLine: { show: false } }
+        { ...axis, type: 'value', name: 'RSRP (dBm)', nameTextStyle: { color: '#0a84ff', fontSize: 11 }, ...range('rsrp' + radio, -140, -40), position: 'left' },
+        { ...axis, type: 'value', name: 'SINR (dB)', nameTextStyle: { color: '#30c75e', fontSize: 11 }, ...range('sinr' + radio, -20, 40), position: 'right', splitLine: { show: false } }
       ],
-      series: [line('RSRP', points('rsrp' + radio), '#5d87ff'), line('SINR', points('sinr' + radio), '#13b99a', 1)]
+      series: [line('RSRP', points('rsrp' + radio), '#0a84ff'), line('SINR', points('sinr' + radio), '#30c75e', 1)]
     };
     const temperature = {
       ...base(), grid: { top: 54, bottom: 34, left: 46, right: 22 },
       yAxis: { ...axis, type: 'value', name: '°C', min: value => Number.isFinite(value.min) ? Math.floor((value.min - 3) / 5) * 5 : 20, max: value => Number.isFinite(value.max) ? Math.ceil((value.max + 3) / 5) * 5 : 80 },
-      series: [{ ...line(t('温度'), points('temperature'), '#ef9063'), areaStyle: { color: '#ef9063', opacity: 0.07 } }]
+      series: [{ ...line(t('温度'), points('temperature'), '#ff9500'), areaStyle: { color: '#ff9500', opacity: 0.07 } }]
     };
     const ping = {
       ...base(), grid: { top: 54, bottom: 32, left: 48, right: 24 },
       yAxis: { ...axis, type: 'value', name: 'ms', min: 0 },
       series: [
-        line(t('延迟'), snapshot.ping.map(sample => [sample.time, sample.rtt]), '#5d87ff'),
-        line(t('抖动'), snapshot.ping.map(sample => [sample.time, sample.jitter]), '#13b99a'),
-        { name: t('失败'), type: 'scatter', symbolSize: 7, itemStyle: { color: '#e95766' }, data: snapshot.ping.filter(sample => sample.status !== 'ok').map(sample => [sample.time, 0, sample.status]) }
+        line(t('延迟'), snapshot.ping.map(sample => [sample.time, sample.rtt]), '#0a84ff'),
+        line(t('抖动'), snapshot.ping.map(sample => [sample.time, sample.jitter]), '#30c75e'),
+        { name: t('失败'), type: 'scatter', symbolSize: 7, itemStyle: { color: '#ff3b30' }, data: snapshot.ping.filter(sample => sample.status !== 'ok').map(sample => [sample.time, 0, sample.status]) }
       ]
     };
     const trafficPoints = snapshot.traffic || [];
@@ -63,8 +63,8 @@
       ...base(), grid: { top: 54, bottom: 32, left: 58, right: 24 },
       yAxis: { ...axis, type: 'value', name: unit, min: 0, max: value => Math.max(Math.ceil(value.max * 1.15), 1) },
       series: [
-        line(t('下载'), trafficPoints.map(p => [p.time, p.download === null ? null : p.download / divisor]), '#5d87ff'),
-        line(t('上传'), trafficPoints.map(p => [p.time, p.upload === null ? null : p.upload / divisor]), '#13b99a')
+        line(t('下载'), trafficPoints.map(p => [p.time, p.download === null ? null : p.download / divisor]), '#0a84ff'),
+        line(t('上传'), trafficPoints.map(p => [p.time, p.upload === null ? null : p.upload / divisor]), '#30c75e')
       ]
     };
     return { signal, temperature, ping, traffic };
