@@ -159,7 +159,11 @@ function getStaticNetworkInfo() {
         this.stopDashboardRefresh();
         return;
       }
+      // Never stack requests: a slow modem reply would otherwise queue one call per tick.
+      if (this._dashboardInFlight) return;
+      this._dashboardInFlight = true;
       SimpleAdmin.Api.getDashboardData({})
+        .finally(() => { this._dashboardInFlight = false; })
         .then((data) => {
           if (!this._dashboardActive || !this.isDashboardPageActive()) return;
           this.applyDashboardData(data || {});
@@ -410,6 +414,9 @@ function getStaticNetworkInfo() {
       if (window.SimpleAdminSpaMode) {
         window.addEventListener('simpleadmin:page-changed', this._dashboardPageChangeHandler);
       }
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && this._dashboardActive) this.tickOnce();
+      });
       this.startDashboardRefresh();
       window.addEventListener('beforeunload', () => {
         this.stopDashboardRefresh();
@@ -430,6 +437,8 @@ function getStaticNetworkInfo() {
         this.stopDashboardRefresh();
         return;
       }
+      // Background tabs skip ticks; visibilitychange refreshes as soon as the tab returns.
+      if (document.hidden) return;
       this.fetchNetworkInfo();
     },
 

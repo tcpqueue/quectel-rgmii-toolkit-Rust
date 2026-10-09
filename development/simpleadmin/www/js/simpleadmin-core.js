@@ -5,6 +5,9 @@
 
   root.Api = root.Api || (function () {
     const wsPath = '/api/ws';
+    // Default wait for an API reply; scans, SMS sends and manual AT commands pass longer limits.
+    const defaultTimeout = 30000;
+    const longTimeout = 150000;
     let ws = null;
     let connectPromise = null;
     let nextId = 1;
@@ -16,7 +19,7 @@
     }
 
     function rejectAll(error) {
-      pending.forEach((item) => item.reject(error));
+      pending.forEach((item) => { clearTimeout(item.timer); item.reject(error); });
       pending.clear();
     }
 
@@ -36,12 +39,6 @@
       };
     }
 
-
-    function dispatchServerEvent(message) {
-      if (typeof global.dispatchEvent !== 'function' || typeof global.CustomEvent !== 'function') return;
-      global.dispatchEvent(new CustomEvent('simpleadmin:server-event', { detail: message }));
-      global.dispatchEvent(new CustomEvent(`simpleadmin:${message.event}`, { detail: message.data || {} }));
-    }
 
     function connect() {
       if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve(ws);
@@ -74,13 +71,10 @@
             console.error('Invalid WebSocket API response:', error);
             return;
           }
-          if (message.type === 'event' && message.event) {
-            dispatchServerEvent(message);
-            return;
-          }
           const item = pending.get(message.id);
           if (!item) return;
           pending.delete(message.id);
+          clearTimeout(item.timer);
           if (message.error && !message.status) {
             item.reject(new Error(message.error));
             return;
@@ -114,9 +108,19 @@
       return String(body);
     }
 
+    function timeoutError() {
+      const error = new Error('Request timed out');
+      error.name = 'TimeoutError';
+      return error;
+    }
+
     function request(path, options = {}) {
+      const timeout = Number(options.timeout) > 0 ? Number(options.timeout) : defaultTimeout;
       if (!String(path || '').startsWith('/api/')) {
-        return fetch(path, options);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+        const { timeout: _ignored, ...fetchOptions } = options;
+        return fetch(path, Object.assign({ signal: controller.signal }, fetchOptions)).finally(() => clearTimeout(timer));
       }
       const method = String(options.method || 'GET').toUpperCase();
       const headers = normalizeHeaders(options.headers);
@@ -127,23 +131,29 @@
 
       return connect().then((socket) => new Promise((resolve, reject) => {
         const id = String(nextId++);
-        pending.set(id, { resolve, reject });
+        // A reply that never arrives must not leave the caller (and its spinner) waiting forever.
+        const timer = setTimeout(() => {
+          if (pending.delete(id)) reject(timeoutError());
+        }, timeout);
+        pending.set(id, { resolve, reject, timer });
         try {
           socket.send(JSON.stringify({ id, method, path, headers, body }));
         } catch (error) {
+          clearTimeout(timer);
           pending.delete(id);
           reject(error);
         }
       }));
     }
 
-    function postForm(path, params = {}) {
+    function postForm(path, params = {}, timeout) {
       const body = params instanceof URLSearchParams ? params : new URLSearchParams(params);
       return request(path, {
         method: 'POST',
         cache: 'no-store',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body
+        body,
+        timeout
       });
     }
 
@@ -160,8 +170,8 @@
         return query ? `${path}?${query}` : path;
       },
       postForm,
-      postJSON(path, params = {}) {
-        return postForm(path, params).then((response) => response.json());
+      postJSON(path, params = {}, timeout) {
+        return postForm(path, params, timeout).then((response) => response.json());
       },
       getDashboardData(params = {}) {
         return this.postJSON('/api/dashboard_data', Object.assign({ action: 'get' }, params));
@@ -176,24 +186,19 @@
         return this.postJSON('/api/settings_data', { action: 'set_imei', imei });
       },
       networkData(params = {}) {
-        return this.postJSON('/api/network_data', params);
+        return this.postJSON('/api/network_data', params, params.action === 'scan' ? longTimeout : undefined);
       },
       settingsData(params = {}) {
-        return this.postJSON('/api/settings_data', params);
+        return this.postJSON('/api/settings_data', params, params.action === 'manual_at' ? longTimeout : undefined);
       },
       smsData(params = {}) {
-        return this.postJSON('/api/sms_data', params);
+        return this.postJSON('/api/sms_data', params, params.action === 'send' ? longTimeout : undefined);
       },
       getAT(atcmd, options = {}) {
         const params = new URLSearchParams({ atcmd });
         if (options.force) params.set('force', '1');
         if (options.wait !== undefined) params.set('wait', options.wait ? '1' : '0');
-        return request('/api/get_atcache', {
-          method: 'POST',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-          body: params
-        });
+        return postForm('/api/get_atcache', params, longTimeout);
       },
       refreshAT(atcmd) {
         return this.getAT(atcmd, { force: true, wait: true });
@@ -211,13 +216,13 @@
         return request('/api/get_ttl_status');
       },
       setTTL(ttlvalue) {
-        return request(this.url('/api/set_ttl', { ttlvalue }));
+        return postForm('/api/set_ttl', { ttlvalue });
       },
       getLanguage() {
         return request('/api/get_language', { cache: 'no-store' });
       },
       setLanguage(language) {
-        return request(this.url('/api/set_language', { language }), { method: 'POST' });
+        return postForm('/api/set_language', { language });
       },
       setPassword(currentPassword, newPassword, confirmPassword, newUsername) {
         const params = new URLSearchParams({

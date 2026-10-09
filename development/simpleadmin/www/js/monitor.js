@@ -77,7 +77,7 @@
   function mergeSnapshot(previous, data) {
     if (!data.delta || !previous.cursor || previous.cursor.stream !== data.cursor.stream || previous.generation !== data.generation) return data;
     const result = { ...data };
-    for (const [key, limit] of [['ping', 300], ['signal', 60], ['traffic', 60]]) {
+    for (const [key, limit] of [['ping', 300], ['signal', 150], ['traffic', 150]]) {
       const points = new Map(previous[key].map(point => [point.time, point]));
       for (const point of data[key]) points.set(point.time, point);
       result[key] = [...points.values()].filter(point => point.time > data.serverTime - 300000).sort((a, b) => a.time - b.time).slice(-limit);
@@ -85,7 +85,19 @@
     if (result.ping.length) result.ping[0] = { ...result.ping[0], jitter: null };
     return result;
   }
-  global.SimpleAdminMonitor = { chartOptions, number, statusNames, availableRadioModes, mergeSnapshot };
+  const defaultSchedule = { ping_enabled: true, ping_interval: 1, sample_enabled: true, sample_interval: 5 };
+  // Poll the server about as often as new samples can appear, between 1 and 10 seconds.
+  function pollDelay(schedule) {
+    const intervals = [];
+    if (schedule.ping_enabled) intervals.push(schedule.ping_interval);
+    if (schedule.sample_enabled) intervals.push(schedule.sample_interval);
+    return intervals.length ? Math.min(10, Math.max(1, Math.min(...intervals))) * 1000 : 10000;
+  }
+  // Rough cellular cost of the latency probe: 32-byte ICMP payload plus IPv4/ICMP headers, both ways.
+  function pingDailyMegabytes(schedule) {
+    return schedule.ping_enabled ? (86400 / schedule.ping_interval) * 120 / 1048576 : 0;
+  }
+  global.SimpleAdminMonitor = { chartOptions, number, statusNames, availableRadioModes, mergeSnapshot, pollDelay, pingDailyMegabytes };
 
   let mounted = false;
   function mount() {
@@ -124,13 +136,18 @@
     const update = data => {
       app.snapshot = mergeSnapshot(app.snapshot, data);
       if (!app.targetDirty) app.targetInput = data.target;
+      if (data.schedule && !app.scheduleDirty) app.scheduleForm = { ...data.schedule };
       const radios = availableRadioModes(app.snapshot);
       if (radios.length && !radios.includes(app.radio)) app.radio = radios[0];
       app.$nextTick(() => render(false));
     };
     app = global.Vue.createApp({
-      data: () => ({ snapshot: { target: 'www.baidu.com', generation: 0, serverTime: Date.now(), ping: [], signal: [], traffic: [], trafficSummary: {}, summary: {}, mock: false }, radio: 'NR', targetInput: 'www.baidu.com', targetDirty: false, targetMessage: '', saving: false, error: '' }),
+      data: () => ({ snapshot: { target: 'www.baidu.com', generation: 0, serverTime: Date.now(), ping: [], signal: [], traffic: [], trafficSummary: {}, summary: {}, mock: false, schedule: { ...defaultSchedule } }, radio: 'NR', targetInput: 'www.baidu.com', targetDirty: false, targetMessage: '', saving: false, error: '', settingsOpen: false, scheduleForm: { ...defaultSchedule }, scheduleDirty: false, scheduleMessage: '', scheduleError: false }),
       computed: {
+        schedule() { return this.snapshot.schedule || defaultSchedule; },
+        sampleLabel() { return this.schedule.sample_enabled ? this.schedule.sample_interval + ' 秒采样' : '后台采样已关闭'; },
+        pingLabel() { return this.schedule.ping_enabled ? 'ICMP · ' + this.schedule.ping_interval + ' 秒采样' : '延迟监测已关闭'; },
+        pingCost() { return pingDailyMegabytes(this.scheduleForm).toFixed(1); },
         availableRadios() { return availableRadioModes(this.snapshot); },
         latestPing() { return this.snapshot.ping[this.snapshot.ping.length - 1] || null; },
         latestSignal() { return this.snapshot.signal[this.snapshot.signal.length - 1] || null; },
@@ -149,7 +166,44 @@
           return Number(value) >= danger ? 'metric-bad' : Number(value) >= warning ? 'metric-warn' : 'metric-good';
         },
         bytes,
-        statusLabel(status) { return statusNames[status] || '等待采样'; },
+        statusLabel(status) {
+          if (!this.schedule.ping_enabled) return '延迟监测已关闭';
+          return statusNames[status] || '等待采样';
+        },
+        editSchedule() { this.scheduleDirty = true; this.scheduleMessage = ''; },
+        async saveSchedule() {
+          if (this.saving) return;
+          const form = this.scheduleForm;
+          const body = { ping_enabled: !!form.ping_enabled, ping_interval: Math.round(Number(form.ping_interval)), sample_enabled: !!form.sample_enabled, sample_interval: Math.round(Number(form.sample_interval)) };
+          if (!(body.ping_interval >= 1 && body.ping_interval <= 300) || !(body.sample_interval >= 2 && body.sample_interval <= 300)) {
+            this.scheduleError = true;
+            this.scheduleMessage = '延迟间隔为 1–300 秒，采样间隔为 2–300 秒';
+            return;
+          }
+          this.saving = true;
+          this.scheduleMessage = '';
+          requestEpoch++;
+          stop();
+          const saveController = new AbortController();
+          const deadline = setTimeout(() => saveController.abort(), 5000);
+          try {
+            const response = await fetch('/api/telemetry/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: saveController.signal });
+            if (response.status === 401) { global.location.replace('/login.html'); return; }
+            if (!response.ok) throw new Error('监测设置保存失败，请重试');
+            this.scheduleDirty = false;
+            this.error = '';
+            update(await response.json());
+            this.scheduleError = false;
+            this.scheduleMessage = '监测设置已保存';
+          } catch (error) {
+            this.scheduleError = true;
+            this.scheduleMessage = error.name === 'AbortError' ? '请求超时，请确认设置是否已更新' : error.message;
+          } finally {
+            clearTimeout(deadline);
+            this.saving = false;
+            if (active()) this.refresh();
+          }
+        },
         setRadio(radio) { this.radio = radio; render(); },
         async refresh() {
           if (!active() || fetching || this.saving) return;
@@ -157,7 +211,8 @@
           fetching = true;
           controller = new AbortController();
           const epoch = requestEpoch;
-          const deadline = setTimeout(() => controller && controller.abort(), 5000);
+          let timedOut = false;
+          const deadline = setTimeout(() => { timedOut = true; if (controller) controller.abort(); }, 5000);
           try {
             const cursor = this.snapshot.cursor ? '?cursor=' + encodeURIComponent(JSON.stringify(this.snapshot.cursor)) : '';
             const response = await fetch('/api/telemetry' + cursor, { cache: 'no-store', signal: controller.signal });
@@ -168,12 +223,14 @@
             this.error = '';
             update(data);
           } catch (error) {
-            if (active() && epoch === requestEpoch) this.error = '无法读取监控数据';
+            // stop() aborts on navigation; only failures and real timeouts are read errors.
+            const cancelled = error.name === 'AbortError' && !timedOut;
+            if (!cancelled && active() && epoch === requestEpoch) this.error = '无法读取监控数据';
           } finally {
             clearTimeout(deadline);
             fetching = false;
             controller = null;
-            if (active() && !this.saving) timer = setTimeout(() => this.refresh(), 1000);
+            if (active() && !this.saving) timer = setTimeout(() => this.refresh(), pollDelay(this.schedule));
           }
         },
         async saveTarget() {

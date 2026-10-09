@@ -150,7 +150,7 @@ fn entry() -> Result<()> {
         let (user, _) = auth::read(&path).unwrap_or(("admin".into(), String::new()));
         persistence::Store::new(false).write(
             &path,
-            format!("{user}:{password}\n").as_bytes(),
+            auth::record(&user, password)?.as_bytes(),
             0o600,
         )?;
         return Ok(());

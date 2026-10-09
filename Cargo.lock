@@ -1644,7 +1644,7 @@ dependencies = [
 
 [[package]]
 name = "simpleadmin-httpd"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "anyhow",
  "axum",
@@ -1674,6 +1674,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-rustls",
+ "tokio-tungstenite",
  "tower",
  "tower-http",
 ]

@@ -9,6 +9,26 @@ pub fn builder() -> hyper::server::conn::http1::Builder {
     builder
 }
 
+/// Tags each request with the client address so handlers can rate-limit password attempts.
+pub fn with_peer(
+    router: axum::Router,
+    peer: std::net::SocketAddr,
+) -> impl tower::Service<
+    axum::http::Request<hyper::body::Incoming>,
+    Response = axum::response::Response,
+    Error = std::convert::Infallible,
+    Future = impl Send,
+> + Clone {
+    use tower::ServiceExt;
+    router.map_request(
+        move |mut request: axum::http::Request<hyper::body::Incoming>| {
+            request
+                .extensions_mut()
+                .insert(axum::extract::ConnectInfo(peer));
+            request
+        },
+    )
+}
 pub async fn serve(listener: tokio::net::TcpListener, router: axum::Router) -> std::io::Result<()> {
     serve_with_permits(listener, router, Arc::new(tokio::sync::Semaphore::new(32))).await
 }
@@ -18,11 +38,12 @@ pub async fn serve_with_permits(
     permits: Arc<tokio::sync::Semaphore>,
 ) -> std::io::Result<()> {
     loop {
-        let (stream, _) = listener.accept().await?;
+        let (stream, peer) = listener.accept().await?;
         let Ok(permit) = permits.clone().try_acquire_owned() else {
             continue;
         };
-        let service = hyper_util::service::TowerToHyperService::new(router.clone());
+        let service =
+            hyper_util::service::TowerToHyperService::new(with_peer(router.clone(), peer));
         tokio::spawn(async move {
             let _permit = permit;
             let _ = builder()

@@ -1,5 +1,6 @@
 use crate::{at::At, parser, persistence::Store};
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     net::IpAddr,
@@ -9,6 +10,52 @@ use std::{
 };
 
 const NONE: u16 = u16::MAX;
+/// Window shown by the monitor charts and summaries.
+const WINDOW_MS: u64 = 300000;
+
+/// Background measurement plan. Each probe can be switched off or slowed down to save
+/// cellular data, AT-port time and CPU when nobody is watching the charts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Schedule {
+    /// ICMP latency probe towards the monitor target.
+    pub ping_enabled: bool,
+    /// Seconds between latency probes.
+    pub ping_interval: u32,
+    /// Signal, temperature and traffic sampling through the dashboard AT query.
+    pub sample_enabled: bool,
+    /// Seconds between background signal and traffic samples.
+    pub sample_interval: u32,
+}
+impl Default for Schedule {
+    fn default() -> Self {
+        Self {
+            ping_enabled: true,
+            ping_interval: 1,
+            sample_enabled: true,
+            sample_interval: 5,
+        }
+    }
+}
+impl Schedule {
+    pub const PING_RANGE: std::ops::RangeInclusive<u32> = 1..=300;
+    pub const SAMPLE_RANGE: std::ops::RangeInclusive<u32> = 2..=300;
+    pub fn validate(&self) -> Result<()> {
+        if !Self::PING_RANGE.contains(&self.ping_interval) {
+            bail!("ping interval must be 1-300 seconds")
+        }
+        if !Self::SAMPLE_RANGE.contains(&self.sample_interval) {
+            bail!("sampling interval must be 2-300 seconds")
+        }
+        Ok(())
+    }
+    fn ping_ms(&self) -> u64 {
+        u64::from(self.ping_interval) * 1000
+    }
+    fn sample_ms(&self) -> u64 {
+        u64::from(self.sample_interval) * 1000
+    }
+}
 #[derive(Clone, Copy)]
 struct Ping {
     time: u64,
@@ -16,13 +63,14 @@ struct Ping {
     jitter: u16,
     status: u8,
 }
-fn adjacent_jitter(previous: Option<&Ping>, sample: &Ping) -> u16 {
+/// Jitter between consecutive probes; `max_gap` drops pairs separated by a missed probe.
+fn adjacent_jitter(previous: Option<&Ping>, sample: &Ping, max_gap: u64) -> u16 {
     match previous {
         Some(prev)
             if prev.rtt != NONE
                 && sample.rtt != NONE
                 && sample.time > prev.time
-                && sample.time - prev.time <= 1500 =>
+                && sample.time - prev.time <= max_gap =>
         {
             sample.rtt.abs_diff(prev.rtt)
         }
@@ -64,6 +112,7 @@ impl TrafficSampler {
         stamp: Option<Instant>,
         time: u64,
         counters: Option<(u64, u64)>,
+        max_gap_ms: u128,
     ) -> Option<Traffic> {
         let stamp = stamp?;
         if self.last.is_some_and(|last| stamp <= last) {
@@ -78,7 +127,8 @@ impl TrafficSampler {
         if let Some((rx, tx)) = counters {
             if let Some((old, old_rx, old_tx)) = previous {
                 let elapsed = stamp.duration_since(old).as_millis();
-                if (1..=15000).contains(&elapsed) && rx >= old_rx && tx >= old_tx {
+                // Gaps longer than the schedule allows (missed samples) and counter resets are skipped.
+                if (1..=max_gap_ms).contains(&elapsed) && rx >= old_rx && tx >= old_tx {
                     point.received = rx - old_rx;
                     point.sent = tx - old_tx;
                     point.elapsed_ms = elapsed as u32;
@@ -118,18 +168,21 @@ impl<T: Copy, const N: usize> Ring<T, N> {
         }
     }
 }
+// Sized for the five-minute window at the fastest allowed intervals (1 s ping, 2 s samples).
 struct History {
     target: String,
     generation: u64,
     ping: Ring<Ping, 300>,
-    signal: Ring<Signal, 60>,
-    traffic: Ring<Traffic, 60>,
+    signal: Ring<Signal, 150>,
+    traffic: Ring<Traffic, 150>,
     traffic_sampler: TrafficSampler,
+    sampled: Option<Instant>,
     ip: String,
 }
 pub struct Monitor {
     stream: String,
     history: Mutex<History>,
+    schedule: tokio::sync::watch::Sender<Schedule>,
     mock: bool,
     path: PathBuf,
     store: Arc<Store>,
@@ -182,11 +235,19 @@ pub fn normalize(raw: &str) -> Result<String> {
 }
 impl Monitor {
     pub fn new(path: PathBuf, mock: bool, store: Arc<Store>) -> Arc<Self> {
-        let target = std::fs::read(&path)
+        let saved = std::fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-            .and_then(|v| normalize(v["target"].as_str().unwrap_or("")).ok())
-            .unwrap_or_else(|| "www.baidu.com".into());
+            .unwrap_or(Value::Null);
+        let target = normalize(saved["target"].as_str().unwrap_or(""))
+            .unwrap_or_else(|_| "www.baidu.com".into());
+        let mut fields = saved.as_object().cloned().unwrap_or_default();
+        fields.remove("target");
+        // Older files only carry the target; invalid schedules fall back to the defaults.
+        let schedule = serde_json::from_value::<Schedule>(Value::Object(fields))
+            .ok()
+            .filter(|s| s.validate().is_ok())
+            .unwrap_or_default();
         Arc::new(Self {
             stream: format!("{:016x}", rand::random::<u64>()),
             history: Mutex::new(History {
@@ -205,68 +266,113 @@ impl Monitor {
                 ip: String::new(),
                 traffic: Ring::new(Traffic::default()),
                 traffic_sampler: TrafficSampler::default(),
+                sampled: None,
             }),
+            schedule: tokio::sync::watch::Sender::new(schedule),
             mock,
             path,
             store,
             change: tokio::sync::Mutex::new(()),
         })
     }
+    pub fn schedule(&self) -> Schedule {
+        *self.schedule.borrow()
+    }
+    /// Records one dashboard answer. Each modem answer is counted once, whether it came from
+    /// the background sampler or from a page refresh.
+    pub fn observe(&self, raw: &str, stamp: Option<Instant>) {
+        let Some(stamp) = stamp else { return };
+        let data = parser::dashboard(raw);
+        let mut counters = None;
+        if !raw.contains("ERROR") && parser::text(&data, "nr_rx_human") != "-" {
+            counters = data["nr_rx_bytes"]
+                .as_u64()
+                .zip(data["nr_tx_bytes"].as_u64());
+        }
+        let mut values = [i16::MIN; 5];
+        for (i, (key, min, max)) in [
+            ("rsrpLTE", -160.0, -20.0),
+            ("rsrpNR", -160.0, -20.0),
+            ("sinrLTE", -30.0, 60.0),
+            ("sinrNR", -30.0, 60.0),
+            ("temperature", -40.0, 150.0),
+        ]
+        .iter()
+        .enumerate()
+        {
+            if let Ok(v) = parser::text(&data, key).parse::<f64>()
+                && v.is_finite()
+                && v >= *min
+                && v <= *max
+            {
+                values[i] = (v * 10.0).round() as i16
+            }
+        }
+        let time = now();
+        let max_gap = u128::from((self.schedule().sample_ms() * 3).max(15000));
+        let mut history = self.history.lock().unwrap();
+        if history.sampled.is_some_and(|last| stamp <= last) {
+            return;
+        }
+        history.sampled = Some(stamp);
+        history.signal.add(Signal { time, values });
+        if let Some(point) = history
+            .traffic_sampler
+            .sample(Some(stamp), time, counters, max_gap)
+        {
+            history.traffic.add(point);
+        }
+    }
     pub fn start(self: &Arc<Self>, at: At) {
         let this = self.clone();
+        let mut schedule = self.schedule.subscribe();
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(Duration::from_secs(5));
-            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
-                tick.tick().await;
-                let time = now();
-                let mut values = [i16::MIN; 5];
-                let mut counters = None;
-                let mut stamp = None;
-                if let Ok((raw, sampled)) = at.dashboard_sample().await {
-                    stamp = sampled;
-                    let data = parser::dashboard(&raw);
-                    if !raw.contains("ERROR") && parser::text(&data, "nr_rx_human") != "-" {
-                        counters = data["nr_rx_bytes"]
-                            .as_u64()
-                            .zip(data["nr_tx_bytes"].as_u64());
-                    }
-                    for (i, (key, min, max)) in [
-                        ("rsrpLTE", -160.0, -20.0),
-                        ("rsrpNR", -160.0, -20.0),
-                        ("sinrLTE", -30.0, 60.0),
-                        ("sinrNR", -30.0, 60.0),
-                        ("temperature", -40.0, 150.0),
-                    ]
-                    .iter()
-                    .enumerate()
-                    {
-                        if let Ok(v) = parser::text(&data, key).parse::<f64>()
-                            && v.is_finite()
-                            && v >= *min
-                            && v <= *max
-                        {
-                            values[i] = (v * 10.0).round() as i16
-                        }
+                let current = *schedule.borrow_and_update();
+                let wait = if current.sample_enabled {
+                    Duration::from_secs(current.sample_interval.into())
+                } else {
+                    Duration::MAX
+                };
+                tokio::select! {
+                    _ = tokio::time::sleep(wait.min(Duration::from_secs(86400))) => {}
+                    changed = schedule.changed() => {
+                        if changed.is_err() { return }
+                        continue;
                     }
                 }
-                let mut history = this.history.lock().unwrap();
-                history.signal.add(Signal { time, values });
-                if let Some(point) = history.traffic_sampler.sample(stamp, now(), counters) {
-                    history.traffic.add(point);
+                if !current.sample_enabled {
+                    continue;
+                }
+                match at.fetch_stamped(crate::at::DASHBOARD, true).await {
+                    Ok((raw, stamp)) => this.observe(&raw, stamp),
+                    Err(_) => this.history.lock().unwrap().signal.add(Signal {
+                        time: now(),
+                        values: [i16::MIN; 5],
+                    }),
                 }
             }
         });
         let this = self.clone();
+        let mut schedule = self.schedule.subscribe();
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(Duration::from_secs(1));
-            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut resolver = crate::resolver::PingResolver::default();
             let mut client4 = None;
             let mut client6 = None;
             let mut seq = 0u16;
             loop {
-                tick.tick().await;
+                let current = *schedule.borrow_and_update();
+                if !current.ping_enabled {
+                    if schedule.changed().await.is_err() {
+                        return;
+                    }
+                    continue;
+                }
+                let started = tokio::time::Instant::now();
+                let interval = Duration::from_secs(current.ping_interval.into());
+                // A reply may use most of a long interval, but at most two seconds.
+                let budget = (interval - Duration::from_millis(100))
+                    .clamp(Duration::from_millis(900), Duration::from_secs(2));
                 let time = now();
                 let (target, generation) = {
                     let h = this.history.lock().unwrap();
@@ -288,7 +394,7 @@ impl Monitor {
                     sample.status = 0;
                     ip = "192.0.2.1".into();
                 } else {
-                    let deadline = tokio::time::Instant::now() + Duration::from_millis(900);
+                    let deadline = started + budget;
                     let address = resolver.resolve(&target, deadline).await;
                     if let Some(address) = address {
                         ip = address.to_string();
@@ -340,30 +446,43 @@ impl Monitor {
                     }
                 }
                 seq = seq.wrapping_add(1);
-                let mut h = this.history.lock().unwrap();
-                if generation != h.generation {
-                    continue;
+                {
+                    let mut h = this.history.lock().unwrap();
+                    if generation == h.generation {
+                        sample.jitter =
+                            adjacent_jitter(h.ping.last(), &sample, current.ping_ms() * 3 / 2);
+                        h.ip = ip;
+                        h.ping.add(sample);
+                    }
                 }
-                sample.jitter = adjacent_jitter(h.ping.last(), &sample);
-                h.ip = ip;
-                h.ping.add(sample);
+                tokio::select! {
+                    _ = tokio::time::sleep_until(started + interval) => {}
+                    changed = schedule.changed() => if changed.is_err() { return },
+                }
             }
         });
     }
-    pub fn connected(&self) -> bool {
-        self.history
-            .lock()
-            .unwrap()
-            .ping
-            .last()
-            .is_some_and(|p| p.status == 0 && now().saturating_sub(p.time) < 5000)
+    /// Latest latency probe result, or `None` while the probe is switched off.
+    pub fn connected(&self) -> Option<bool> {
+        let schedule = self.schedule();
+        if !schedule.ping_enabled {
+            return None;
+        }
+        let fresh = (schedule.ping_ms() * 5 / 2).max(5000);
+        Some(
+            self.history
+                .lock()
+                .unwrap()
+                .ping
+                .last()
+                .is_some_and(|p| p.status == 0 && now().saturating_sub(p.time) < fresh),
+        )
     }
     pub fn traffic_rates(&self) -> Value {
         let history = self.history.lock().unwrap();
-        let last = history
-            .traffic
-            .last()
-            .filter(|p| now().saturating_sub(p.time) <= 15000);
+        let last = history.traffic.last().filter(|p| {
+            now().saturating_sub(p.time) <= (self.schedule().sample_ms() * 3).max(15000)
+        });
         let (download, upload) = last.map(Traffic::rates).unwrap_or((None, None));
         let format = |rate: Option<f64>| {
             rate.map(|n| format!("{}/s", parser::human_bytes(n)))
@@ -377,12 +496,8 @@ impl Monitor {
         if self.history.lock().unwrap().target == target {
             return Ok(());
         }
-        let data = format!("{}\n", json!({"target":target}));
-        let store = self.store.clone();
-        let path = self.path.clone();
-        let result =
-            tokio::task::spawn_blocking(move || store.write(&path, data.as_bytes(), 0o600)).await?;
-        if result.as_ref().is_ok_and(|_| true) || result.as_ref().is_err_and(|e| e.committed) {
+        let result = self.persist(&target, self.schedule()).await?;
+        if result.is_ok() || result.as_ref().is_err_and(|e| e.committed) {
             let mut h = self.history.lock().unwrap();
             h.target = target;
             h.generation += 1;
@@ -393,12 +508,38 @@ impl Monitor {
         result?;
         Ok(())
     }
+    async fn persist(
+        &self,
+        target: &str,
+        schedule: Schedule,
+    ) -> Result<std::result::Result<(), crate::persistence::SavedError>> {
+        let mut value = serde_json::to_value(schedule)?;
+        value["target"] = json!(target);
+        let data = format!("{value}\n");
+        let store = self.store.clone();
+        let path = self.path.clone();
+        Ok(tokio::task::spawn_blocking(move || store.write(&path, data.as_bytes(), 0o600)).await?)
+    }
+    pub async fn set_schedule(&self, schedule: Schedule) -> Result<()> {
+        schedule.validate()?;
+        let _guard = self.change.lock().await;
+        if self.schedule() == schedule {
+            return Ok(());
+        }
+        let target = self.history.lock().unwrap().target.clone();
+        let result = self.persist(&target, schedule).await?;
+        if result.is_ok() || result.as_ref().is_err_and(|e| e.committed) {
+            self.schedule.send_replace(schedule);
+        }
+        result?;
+        Ok(())
+    }
     pub fn snapshot(&self) -> Value {
         self.snapshot_since(None)
     }
     pub fn snapshot_since(&self, cursor: Option<&Cursor>) -> Value {
         let time = now();
-        let cutoff = time.saturating_sub(300000);
+        let cutoff = time.saturating_sub(WINDOW_MS);
         let h = self.history.lock().unwrap();
         let ends = (
             h.ping.last().map_or(0, |p| p.time),
@@ -479,7 +620,7 @@ impl Monitor {
         let total = received_bytes as f64 + sent_bytes as f64;
         let download_share = (total > 0.0).then(|| round(100.0 * received_bytes as f64 / total));
         let traffic_summary = json!({"downloadBytes":received_bytes,"uploadBytes":sent_bytes,"downloadShare":download_share,"uploadShare":download_share.map(|p|round(100.0-p))});
-        json!({"delta":cursor.is_some(),"cursor":{"stream":self.stream,"generation":h.generation,"ping":ends.0,"signal":ends.1,"traffic":ends.2},"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"traffic":traffic,"trafficSummary":traffic_summary,"summary":{
+        json!({"delta":cursor.is_some(),"schedule":self.schedule(),"cursor":{"stream":self.stream,"generation":h.generation,"ping":ends.0,"signal":ends.1,"traffic":ends.2},"target":h.target,"generation":h.generation,"serverTime":time,"mock":self.mock,"ping":ping,"signal":signal,"traffic":traffic,"trafficSummary":traffic_summary,"summary":{
             "sent":sent,"received":received,"errors":errors,"loss":(sent>0).then(||round(100.0*(sent-received)as f64/sent as f64)),
             "average":(received>0).then(||round(sum/received as f64)),"minimum":(received>0).then_some(min),"maximum":(received>0).then_some(max),"jitter":(count>0).then(||round(jitter/count as f64))
         }})
@@ -556,48 +697,59 @@ mod tests {
         let sample = |seconds| Some(start + Duration::from_secs(seconds));
         assert_eq!(
             sampler
-                .sample(sample(0), 0, Some((100, 200)))
+                .sample(sample(0), 0, Some((100, 200)), 15000)
                 .unwrap()
                 .rates(),
             (None, None)
         );
         assert_eq!(
             sampler
-                .sample(sample(5), 5000, Some((600, 450)))
+                .sample(sample(5), 5000, Some((600, 450)), 15000)
                 .unwrap()
                 .rates(),
             (Some(100.0), Some(50.0))
         );
-        assert!(sampler.sample(sample(5), 7000, Some((600, 450))).is_none());
-        assert!(sampler.sample(sample(3), 8000, Some((400, 300))).is_none());
+        assert!(
+            sampler
+                .sample(sample(5), 7000, Some((600, 450)), 15000)
+                .is_none()
+        );
+        assert!(
+            sampler
+                .sample(sample(3), 8000, Some((400, 300)), 15000)
+                .is_none()
+        );
         assert_eq!(
             sampler
-                .sample(sample(10), 10000, Some((600, 450)))
+                .sample(sample(10), 10000, Some((600, 450)), 15000)
                 .unwrap()
                 .rates(),
             (Some(0.0), Some(0.0))
         );
         assert_eq!(
             sampler
-                .sample(sample(15), 15000, Some((5, 10)))
-                .unwrap()
-                .rates(),
-            (None, None)
-        );
-        assert_eq!(
-            sampler.sample(sample(20), 20000, None).unwrap().rates(),
-            (None, None)
-        );
-        assert_eq!(
-            sampler
-                .sample(sample(25), 25000, Some((500, 600)))
+                .sample(sample(15), 15000, Some((5, 10)), 15000)
                 .unwrap()
                 .rates(),
             (None, None)
         );
         assert_eq!(
             sampler
-                .sample(sample(50), 50000, Some((9000, 9000)))
+                .sample(sample(20), 20000, None, 15000)
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(25), 25000, Some((500, 600)), 15000)
+                .unwrap()
+                .rates(),
+            (None, None)
+        );
+        assert_eq!(
+            sampler
+                .sample(sample(50), 50000, Some((9000, 9000)), 15000)
                 .unwrap()
                 .rates(),
             (None, None)
@@ -626,6 +778,7 @@ mod tests {
                     Some(start + Duration::from_secs(seconds)),
                     time - (5 - seconds) * 1000,
                     counters,
+                    15000,
                 )
                 .unwrap();
             history.traffic.add(point);
@@ -693,7 +846,7 @@ mod tests {
                 jitter: NONE,
                 status: if rtt == NONE { 1 } else { 0 },
             };
-            p.jitter = adjacent_jitter(h.ping.last(), &p);
+            p.jitter = adjacent_jitter(h.ping.last(), &p, 1500);
             h.ping.add(p);
         }
         drop(h);
@@ -710,9 +863,9 @@ mod tests {
     fn fixed_history_bound() {
         assert!(
             std::mem::size_of::<[Ping; 300]>()
-                + std::mem::size_of::<[Signal; 60]>()
-                + std::mem::size_of::<[Traffic; 60]>()
-                <= 8160
+                + std::mem::size_of::<[Signal; 150]>()
+                + std::mem::size_of::<[Traffic; 150]>()
+                <= 13200
         );
         let mut h = Ring::<u16, 300>::new(0);
         for i in 0..700 {

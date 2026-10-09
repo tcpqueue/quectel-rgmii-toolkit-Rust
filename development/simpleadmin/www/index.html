@@ -38,13 +38,13 @@
 <link href="css/bootstrap.min.css" rel="stylesheet"/>
 <link href="css/Poppins.css?v=2.94" rel="stylesheet"/>
 <link href="css/styles.css?v=2.94" rel="stylesheet"/>
-<link href="css/art-device.css?v=3.4" rel="stylesheet"/>
+<link href="css/art-device.css?v=3.5" rel="stylesheet"/>
 <link href="favicon.ico" rel="icon"/>
 <script src="js/band_map.js?v=2.94"></script>
 <script defer="" src="js/bootstrap.bundle.min.js"></script>
 <script src="js/vue.global.prod.js"></script>
-<script src="js/locales.js?v=3.3"></script>
-<script src="js/simpleadmin-core.js?v=3.3"></script>
+<script src="js/locales.js?v=3.4"></script>
+<script src="js/simpleadmin-core.js?v=3.4"></script>
 <script src="js/vue-app.js?v=2.94"></script>
 </head>
 <body>
@@ -166,7 +166,19 @@
 </section>
 </div>
 <div id="monitorApp" class="art-monitor" v-cloak>
-<div class="art-monitor-heading"><span class="art-live-state" :class="{ 'is-error': error || (latestPing && latestPing.status !== 'ok') }"><span></span>{{ error ? '读取失败' : statusLabel(latestPing ? latestPing.status : 'pending') }}</span><span class="art-sample-meta">最近 5 分钟</span><span v-if="snapshot.mock" class="art-mock-badge">模拟数据</span></div>
+<div class="art-monitor-heading"><span class="art-live-state" :class="{ 'is-error': error || (latestPing && latestPing.status !== 'ok') }"><span></span>{{ error ? '读取失败' : statusLabel(latestPing ? latestPing.status : 'pending') }}</span><span class="art-sample-meta">最近 5 分钟</span><span v-if="snapshot.mock" class="art-mock-badge">模拟数据</span><button class="art-text-button art-monitor-settings-toggle" type="button" @click="settingsOpen = !settingsOpen" :aria-expanded="settingsOpen ? 'true' : 'false'" aria-controls="monitorSettings">监测设置</button></div>
+<form id="monitorSettings" class="art-monitor-settings" v-if="settingsOpen" @submit.prevent="saveSchedule" novalidate>
+<fieldset class="art-monitor-setting" :disabled="saving">
+<div class="art-monitor-setting-row"><label class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" v-model="scheduleForm.ping_enabled" @change="editSchedule"/><span class="form-check-label">延迟监测</span></label><label class="art-interval"><span>间隔（秒）</span><input class="form-control" type="number" min="1" max="300" step="1" inputmode="numeric" v-model.number="scheduleForm.ping_interval" @input="editSchedule" :disabled="!scheduleForm.ping_enabled"/></label></div>
+<p>向监测目标发送 ICMP，用于延迟、抖动、丢包和总览“网络连接”。关闭后网络连接改按模块拨号状态判断。</p>
+<p class="art-monitor-cost" v-if="scheduleForm.ping_enabled">蜂窝流量估算：<b>{{ pingCost }}</b> MB/天</p>
+</fieldset>
+<fieldset class="art-monitor-setting" :disabled="saving">
+<div class="art-monitor-setting-row"><label class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" v-model="scheduleForm.sample_enabled" @change="editSchedule"/><span class="form-check-label">信号与流量采样</span></label><label class="art-interval"><span>间隔（秒）</span><input class="form-control" type="number" min="2" max="300" step="1" inputmode="numeric" v-model.number="scheduleForm.sample_interval" @input="editSchedule" :disabled="!scheduleForm.sample_enabled"/></label></div>
+<p>后台定时查询信号、温度和流量计数，会占用 AT 口。关闭后只在总览页打开时随页面刷新记录。</p>
+</fieldset>
+<div class="art-monitor-settings-actions"><span role="status" :class="{ 'is-error': scheduleError }">{{ scheduleMessage }}</span><button class="btn btn-primary" :disabled="saving || !scheduleDirty" type="submit">{{ saving ? '保存中…' : '保存设置' }}</button></div>
+</form>
 <teleport to="#monitorSummary">
 <div class="art-stats">
 <article class="art-stat"><div><span>当前延迟</span><strong :class="latestPing && latestPing.status !== 'ok' ? 'metric-bad' : metricTone(latestPing && latestPing.rtt, 100, 200)">{{ number(latestPing && latestPing.rtt) }} <small>ms</small></strong><p>{{ snapshot.target }}</p></div><span class="art-stat-icon blue"><i data-lucide="wifi" aria-hidden="true"></i></span></article>
@@ -177,17 +189,17 @@
 </teleport>
 <div class="art-signal-layout">
 <section class="art-chart-section" aria-labelledby="signalChartTitle">
-<div class="art-section-heading"><div><h2 id="signalChartTitle">无线信号</h2><span>5 秒采样</span></div><span class="art-radio-mode-label" v-if="availableRadios.length === 1">{{ availableRadios[0] === 'NR' ? '5G NR' : '4G LTE' }}</span><div v-if="availableRadios.length > 1" class="art-segmented" role="group" aria-label="无线制式"><button :aria-pressed="radio === 'NR'" :class="{ active: radio === 'NR' }" @click="setRadio('NR')" type="button">5G NR</button><button :aria-pressed="radio === 'LTE'" :class="{ active: radio === 'LTE' }" @click="setRadio('LTE')" type="button">4G LTE</button></div></div>
+<div class="art-section-heading"><div><h2 id="signalChartTitle">无线信号</h2><span>{{ sampleLabel }}</span></div><span class="art-radio-mode-label" v-if="availableRadios.length === 1">{{ availableRadios[0] === 'NR' ? '5G NR' : '4G LTE' }}</span><div v-if="availableRadios.length > 1" class="art-segmented" role="group" aria-label="无线制式"><button :aria-pressed="radio === 'NR'" :class="{ active: radio === 'NR' }" @click="setRadio('NR')" type="button">5G NR</button><button :aria-pressed="radio === 'LTE'" :class="{ active: radio === 'LTE' }" @click="setRadio('LTE')" type="button">4G LTE</button></div></div>
 <div class="art-chart-wrap"><div id="signalChart" class="art-chart" role="img" :aria-label="radio + ' RSRP 和 SINR 最近五分钟走势图'"></div><div class="art-chart-empty" v-if="!hasSignal">等待 {{ radio }} 信号数据</div></div>
 </section>
 <section class="art-chart-section" aria-labelledby="temperatureChartTitle">
-<div class="art-section-heading"><div><h2 id="temperatureChartTitle">温度趋势</h2><span>°C · 5 秒采样</span></div><i data-lucide="thermometer" aria-hidden="true"></i></div>
+<div class="art-section-heading"><div><h2 id="temperatureChartTitle">温度趋势</h2><span>°C · <span>{{ sampleLabel }}</span></span></div><i data-lucide="thermometer" aria-hidden="true"></i></div>
 <div class="art-chart-wrap"><div id="temperatureChart" class="art-chart" role="img" aria-label="模块温度最近五分钟走势图"></div><div class="art-chart-empty" v-if="!hasTemperature">等待温度数据</div></div>
 </section>
 </div>
 <div class="art-network-charts">
 <section class="art-chart-section art-traffic-section" aria-labelledby="trafficChartTitle">
-<div class="art-section-heading"><div><h2 id="trafficChartTitle">下载与上传</h2><span>5 秒采样</span></div><i data-lucide="arrow-down-up" aria-hidden="true"></i></div>
+<div class="art-section-heading"><div><h2 id="trafficChartTitle">下载与上传</h2><span>{{ sampleLabel }}</span></div><i data-lucide="arrow-down-up" aria-hidden="true"></i></div>
 <div class="art-chart-wrap"><div id="trafficChart" class="art-chart" role="img" aria-label="最近五分钟下载和上传速率走势图"></div><div class="art-chart-empty" v-if="!hasTraffic">等待流量采样</div></div>
 <div class="art-traffic-share">
 <div class="art-share-title">近 5 分钟流量占比</div>
@@ -196,10 +208,10 @@
 </div>
 </section>
 <section class="art-chart-section art-ping-section" aria-labelledby="pingChartTitle">
-<div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>ICMP · 1 秒采样</span></div><i data-lucide="activity" aria-hidden="true"></i></div>
+<div class="art-section-heading"><div><h2 id="pingChartTitle">延迟与抖动</h2><span>{{ pingLabel }}</span></div><i data-lucide="activity" aria-hidden="true"></i></div>
 <p class="art-target-message" role="status" v-if="targetMessage">{{ targetMessage }}</p>
 <p class="art-target-message is-error" role="alert" v-if="error">{{ error }} <button class="art-text-button" @click="refresh" type="button">重试</button></p>
-<div class="art-chart-wrap"><div id="pingChart" class="art-chart art-ping-chart" role="img" aria-label="最近五分钟延迟、抖动和失败采样走势图"></div><div class="art-chart-empty" v-if="!snapshot.ping.length">等待首次采样</div></div>
+<div class="art-chart-wrap"><div id="pingChart" class="art-chart art-ping-chart" role="img" aria-label="最近五分钟延迟、抖动和失败采样走势图"></div><div class="art-chart-empty" v-if="!snapshot.ping.length">{{ schedule.ping_enabled ? '等待首次采样' : '延迟监测已关闭' }}</div></div>
 <div class="art-chart-footer"><span>平均 <b>{{ number(snapshot.summary.average) }}</b> ms</span><span>最低 <b>{{ number(snapshot.summary.minimum) }}</b> ms</span><span>最高 <b>{{ number(snapshot.summary.maximum) }}</b> ms</span><span class="art-failure-key">失败 {{ failedSamples }} 次</span><form class="art-target-form" @submit.prevent="saveTarget"><label class="visually-hidden" for="pingTarget">Ping 目标</label><input id="pingTarget" :disabled="saving" v-model="targetInput" @input="targetDirty = true" class="form-control" placeholder="www.baidu.com" maxlength="253" required autocomplete="off" spellcheck="false"/><button class="btn btn-primary" :disabled="saving || !targetDirty" type="submit">{{ saving ? '保存中…' : '应用' }}</button></form></div>
 </section>
 </div>
@@ -353,8 +365,16 @@
 <div class="sa-panel-body">
 <div class="sa-panel-text">
 <table class="table">
+<thead>
+<tr><th scope="col">选择</th><th scope="col">网络</th><th scope="col">运营商</th><th scope="col">频段</th><th scope="col">频点</th><th scope="col">PCI</th><th scope="col">RSRP</th><th scope="col">信号</th></tr>
+</thead>
 <tbody id="cellScanTableBody">
-<!-- 小区行在此 -->
+<tr v-if="!scannedCellsForMode().length"><th scope="row">空</th><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td><td>空</td></tr>
+<tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :data-cell-index="index" @click="toggleCellSelection(cell)">
+<th scope="row"><input type="checkbox" class="checkbox-cell" :data-cell-index="index" :checked="isCellSelected(cell)" disabled/></th>
+<td>{{ cell.type }}</td><td>{{ cell.provider }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
+<td><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line v-for="bar in signalBars(cell.rsrp)" :key="bar.x" :x1="bar.x" y1="20" :x2="bar.x" :y2="bar.y"/></svg></td>
+</tr>
 </tbody>
 </table>
 <div>
@@ -1104,8 +1124,8 @@
 </div>
 </div>
 <script src="js/populate-checkbox.js?v=2.94"></script>
-<script src="js/pages/index.js?v=3.3"></script>
-<script src="js/pages/network.js?v=2.94"></script>
+<script src="js/pages/index.js?v=3.4"></script>
+<script src="js/pages/network.js?v=3.0"></script>
 <script src="js/pages/settings.js?v=3.3"></script>
 <script src="js/pages/sms.js?v=2.94"></script>
 <script src="js/pages/forwarding-guides.js?v=0.2.5"></script>
@@ -1114,7 +1134,7 @@
 <script src="js/simpleadmin-spa.js?v=2.94"></script>
 <script src="js/dark-mode.js?v=2.94"></script>
 <script src="js/monitor-vendor.js?v=3.2"></script>
-<script src="js/monitor.js?v=3.4"></script>
+<script src="js/monitor.js?v=3.5"></script>
 <script src="js/art-device.js?v=3.3"></script>
 </body>
 </html>

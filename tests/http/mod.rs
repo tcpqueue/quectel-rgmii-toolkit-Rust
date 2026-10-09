@@ -276,7 +276,10 @@ async fn root_change_requires_current_password_and_revokes_all() {
     );
     assert!(!app.auth.valid(&token, false));
     assert!(app.auth.root_matches("next", true));
-    assert_eq!(auth::read(&app.auth.path).unwrap().1, "admin");
+    assert!(auth::password_matches(
+        "admin",
+        &auth::read(&app.auth.path).unwrap().1
+    ));
 }
 #[tokio::test]
 async fn form_actions_and_mock_radio_override_work() {
@@ -344,10 +347,9 @@ async fn web_username_can_change_without_resetting_password() {
     )
     .await;
     assert_eq!(response.status(), 200);
-    assert_eq!(
-        auth::read(&app.auth.path).unwrap(),
-        ("owner".into(), "admin".into())
-    );
+    let (user, stored) = auth::read(&app.auth.path).unwrap();
+    assert_eq!(user, "owner");
+    assert!(auth::password_matches("admin", &stored));
     assert!(!app.auth.valid(&token, false));
 }
 
@@ -419,5 +421,182 @@ async fn web_port_rebinds_and_rejects_conflicts_before_saving() {
     assert_eq!(json["username"], "admin");
     assert!(json.get("password").is_none());
     assert!(tokio::net::TcpStream::connect(old).await.is_err());
+    server.abort();
+}
+
+fn get_request(uri: &str, token: &str) -> axum::http::request::Builder {
+    Request::builder()
+        .uri(uri)
+        .header("host", "localhost")
+        .header("cookie", format!("{}={token}", auth::COOKIE))
+}
+
+#[tokio::test]
+async fn state_changes_reject_get_and_cross_site_requests() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    // A link or cross-site navigation must not run AT commands, change TTL or reboot.
+    for uri in [
+        "/api/settings_data?action=manual_at&command=AT%2BCFUN%3D0",
+        "/api/settings_data?action=reboot",
+        "/cgi-bin/get_atcommand?atcmd=ATI",
+        "/api/set_ttl?ttlvalue=64",
+        "/api/sms_data?action=delete_all",
+        "/api/network_data?action=scan&mode=Full%20Scan",
+        "/api/set_language?language=en",
+    ] {
+        let response = app
+            .router()
+            .oneshot(get_request(uri, &token).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 405, "{uri}");
+    }
+    assert!(app.at.trace.lock().unwrap().is_empty());
+    // Reads keep working over GET for scripts and the existing pages.
+    for uri in [
+        "/api/get_ttl_status",
+        "/api/dashboard_data",
+        "/api/settings_data",
+        "/api/sms_data?action=list_meta",
+    ] {
+        let response = app
+            .router()
+            .oneshot(get_request(uri, &token).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200, "{uri}");
+    }
+    let cross_site = app
+        .router()
+        .oneshot(
+            get_request("/api/settings_data", &token)
+                .method("POST")
+                .header("sec-fetch-site", "cross-site")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from("action=reboot"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(cross_site.status(), 403);
+    let response = call(&app, "/api/login", "username=admin&password=admin", "").await;
+    assert!(
+        response.headers()["set-cookie"]
+            .to_str()
+            .unwrap()
+            .contains("SameSite=Strict")
+    );
+}
+
+#[tokio::test]
+async fn repeated_login_failures_are_throttled_per_client() {
+    let (app, _dir) = application();
+    let attacker = Some("192.0.2.10".parse().unwrap());
+    let mut statuses = Vec::new();
+    for _ in 0..7 {
+        let p = Params::parse("", "username=admin&password=wrong").unwrap();
+        statuses.push(login(&app, &p, attacker).await.status().as_u16());
+    }
+    assert_eq!(statuses[..6], [401; 6]);
+    assert_eq!(statuses[6], 429);
+    // Even the right password waits out the lockout, while other clients are unaffected.
+    let good = Params::parse("", "username=admin&password=admin").unwrap();
+    let locked = login(&app, &good, attacker).await;
+    assert_eq!(locked.status(), 429);
+    assert!(locked.headers().contains_key("retry-after"));
+    let other = Some("192.0.2.11".parse().unwrap());
+    assert_eq!(login(&app, &good, other).await.status(), 200);
+}
+
+#[tokio::test]
+async fn telemetry_schedule_is_validated_persisted_and_reported() {
+    let (app, dir) = application();
+    let token = app.auth.create();
+    for body in [
+        r#"{"ping_enabled":true,"ping_interval":0,"sample_enabled":true,"sample_interval":5}"#,
+        r#"{"ping_enabled":true,"ping_interval":1,"sample_enabled":true,"sample_interval":1}"#,
+        r#"{"ping_enabled":true,"unknown":1}"#,
+    ] {
+        assert_eq!(
+            call(&app, "/api/telemetry/schedule", body, &token)
+                .await
+                .status(),
+            400,
+            "{body}"
+        );
+    }
+    let body =
+        r#"{"ping_enabled":false,"ping_interval":30,"sample_enabled":false,"sample_interval":60}"#;
+    let response = call(&app, "/api/telemetry/schedule", body, &token).await;
+    assert_eq!(response.status(), 200);
+    let value: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 1048576).await.unwrap()).unwrap();
+    assert_eq!(value["schedule"]["ping_enabled"], false);
+    assert_eq!(value["schedule"]["sample_interval"], 60);
+    assert_eq!(app.monitor.connected(), None);
+    let saved: Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join("monitor.json")).unwrap()).unwrap();
+    assert_eq!(saved["ping_interval"], 30);
+    assert_eq!(saved["target"], "www.baidu.com");
+    // With the latency probe off, connectivity falls back to the modem's data session.
+    let response = call(&app, "/api/get_ping", "", &token).await;
+    assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn websocket_requests_do_not_wait_for_slow_ones() {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::{Message as WsMessage, client::IntoClientRequest};
+    let (app, _dir) = application();
+    app.at
+        .overrides
+        .lock()
+        .unwrap()
+        .insert("scan_delay_ms".into(), "1500".into());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let instance = app.clone();
+    let server = tokio::spawn(async move { crate::webui::serve(instance, listener).await });
+    let token = app.auth.create();
+    let mut request = format!("ws://{address}/api/ws")
+        .into_client_request()
+        .unwrap();
+    let headers = request.headers_mut();
+    headers.insert("origin", format!("http://{address}").parse().unwrap());
+    headers.insert(
+        "cookie",
+        format!("{}={token}", auth::COOKIE).parse().unwrap(),
+    );
+    let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
+    for (id, method, path, body) in [
+        (
+            "scan",
+            "POST",
+            "/api/network_data",
+            "action=scan&mode=Full+Scan",
+        ),
+        ("uptime", "GET", "/api/get_uptime", ""),
+    ] {
+        let message = json!({"id":id,"method":method,"path":path,"body":body}).to_string();
+        socket.send(WsMessage::Text(message.into())).await.unwrap();
+    }
+    let started = std::time::Instant::now();
+    let mut order = Vec::new();
+    while order.len() < 2 {
+        let message = tokio::time::timeout(Duration::from_secs(10), socket.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        if let WsMessage::Text(text) = message {
+            let value: Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(value["status"], 200, "{value}");
+            order.push((value["id"].as_str().unwrap().to_owned(), started.elapsed()));
+        }
+    }
+    assert_eq!(order[0].0, "uptime");
+    assert!(order[0].1 < Duration::from_millis(1000), "{order:?}");
+    assert_eq!(order[1].0, "scan");
     server.abort();
 }

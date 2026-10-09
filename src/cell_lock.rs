@@ -333,7 +333,7 @@ impl CellLock {
         }
     }
 }
-fn dialed(raw: &str) -> bool {
+pub(crate) fn dialed(raw: &str) -> bool {
     parser::ok(raw)
         && raw
             .lines()

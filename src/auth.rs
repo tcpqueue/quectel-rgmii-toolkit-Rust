@@ -2,6 +2,7 @@ use crate::persistence::{SavedError, Store};
 use anyhow::{Context, Result, bail};
 use std::{
     collections::HashMap,
+    net::IpAddr,
     path::{Path, PathBuf},
     sync::Mutex,
     time::{Duration, Instant},
@@ -19,7 +20,90 @@ pub struct Auth {
     pub path: PathBuf,
     sessions: Mutex<HashMap<String, Session>>,
     pub mutation: tokio::sync::Mutex<()>,
+    pub throttle: Throttle,
     mock_root: Mutex<String>,
+}
+/// Failed password attempts allowed before each further failure locks the client out.
+const FREE_FAILURES: u32 = 5;
+const MAX_LOCKOUT: Duration = Duration::from_secs(900);
+const FAILURE_MEMORY: Duration = Duration::from_secs(3600);
+const MAX_CLIENTS: usize = 1024;
+struct Failure {
+    count: u32,
+    until: Instant,
+    last: Instant,
+}
+/// Per-client password failure backoff shared by Web login, password changes and the root console.
+#[derive(Default)]
+pub struct Throttle {
+    clients: Mutex<HashMap<[u8; 8], Failure>>,
+}
+fn client_key(ip: Option<IpAddr>) -> [u8; 8] {
+    match ip.map(|ip| ip.to_canonical()) {
+        Some(IpAddr::V4(ip)) => {
+            let mut key = [0; 8];
+            key[..4].copy_from_slice(&ip.octets());
+            key
+        }
+        // One IPv6 host normally controls a whole /64.
+        Some(IpAddr::V6(ip)) => ip.octets()[..8].try_into().unwrap(),
+        None => [0xff; 8],
+    }
+}
+impl Throttle {
+    /// Returns the remaining lockout when the client must wait before another attempt.
+    pub fn check(&self, ip: Option<IpAddr>) -> Option<Duration> {
+        let clients = self.clients.lock().unwrap();
+        let now = Instant::now();
+        clients
+            .get(&client_key(ip))
+            .filter(|f| f.until > now)
+            .map(|f| f.until - now)
+    }
+    pub fn failed(&self, ip: Option<IpAddr>) {
+        let mut clients = self.clients.lock().unwrap();
+        let now = Instant::now();
+        clients.retain(|_, f| now.duration_since(f.last) < FAILURE_MEMORY);
+        if clients.len() >= MAX_CLIENTS
+            && let Some(oldest) = clients.iter().min_by_key(|(_, f)| f.last).map(|(k, _)| *k)
+        {
+            clients.remove(&oldest);
+        }
+        let entry = clients.entry(client_key(ip)).or_insert(Failure {
+            count: 0,
+            until: now,
+            last: now,
+        });
+        entry.count = entry.count.saturating_add(1);
+        entry.last = now;
+        if entry.count > FREE_FAILURES {
+            let exponent = (entry.count - FREE_FAILURES - 1).min(16);
+            entry.until = now + Duration::from_secs(1 << exponent).min(MAX_LOCKOUT);
+        }
+    }
+    pub fn succeeded(&self, ip: Option<IpAddr>) {
+        self.clients.lock().unwrap().remove(&client_key(ip));
+    }
+}
+pub fn hashed(stored: &str) -> bool {
+    stored.starts_with("$6$") || stored.starts_with("$5$")
+}
+pub fn hash_password(password: &str) -> Result<String> {
+    validate(password)?;
+    let params = sha_crypt::Sha512Params::new(5000).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    sha_crypt::sha512_simple(password, &params).map_err(|e| anyhow::anyhow!("{e:?}"))
+}
+/// Accepts the current SHA-crypt format and legacy plaintext auth files.
+pub fn password_matches(input: &str, stored: &str) -> bool {
+    if hashed(stored) {
+        verify_hash(input, stored)
+    } else {
+        equal(input, stored)
+    }
+}
+/// One auth-file line with a freshly salted password hash.
+pub fn record(user: &str, password: &str) -> Result<String> {
+    Ok(format!("{user}:{}\n", hash_password(password)?))
 }
 pub fn equal(a: &str, b: &str) -> bool {
     bool::from(a.as_bytes().ct_eq(b.as_bytes()))
@@ -46,13 +130,25 @@ pub fn read(path: &Path) -> Result<(String, String)> {
 impl Auth {
     pub fn new(path: PathBuf, store: &Store) -> Result<Self> {
         if !path.exists() || std::fs::metadata(&path)?.len() == 0 {
-            store.write(&path, b"admin:admin\n", 0o600)?
+            store.write(&path, record("admin", "admin")?.as_bytes(), 0o600)?
         }
-        read(&path)?;
+        let (user, password) = read(&path)?;
+        if !hashed(&password) {
+            // Upgrade plaintext files written by older releases, installers and helper scripts.
+            match record(&user, &password) {
+                Ok(line) => {
+                    if let Err(error) = store.write(&path, line.as_bytes(), 0o600) {
+                        eprintln!("cannot hash stored Web password: {error}")
+                    }
+                }
+                Err(error) => eprintln!("cannot hash stored Web password: {error}"),
+            }
+        }
         Ok(Self {
             path,
             sessions: Mutex::new(HashMap::new()),
             mutation: tokio::sync::Mutex::new(()),
+            throttle: Throttle::default(),
             mock_root: Mutex::new("admin".into()),
         })
     }
@@ -203,8 +299,7 @@ pub fn change_root(
         if verify_hash(next, hash) {
             return Ok(bytes.to_vec());
         }
-        let params = sha_crypt::Sha512Params::new(5000).map_err(|e| anyhow::anyhow!("{e:?}"))?;
-        let hash = sha_crypt::sha512_simple(next, &params).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        let hash = hash_password(next)?;
         let mut result = String::new();
         for line in old.lines() {
             if line.starts_with("root:") {
@@ -235,5 +330,41 @@ mod tests {
         auth.revoke_all();
         assert!(*receiver.borrow());
         assert!(!auth.valid(&token, false));
+    }
+    #[test]
+    fn plaintext_auth_files_are_upgraded_to_hashes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("auth");
+        std::fs::write(&path, "owner:legacy:secret\n").unwrap();
+        Auth::new(path.clone(), &Store::new(true)).unwrap();
+        let (user, stored) = read(&path).unwrap();
+        assert_eq!(user, "owner");
+        assert!(stored.starts_with("$6$"));
+        assert!(password_matches("legacy:secret", &stored));
+        assert!(!password_matches("legacy", &stored));
+        assert!(password_matches("plain", "plain"));
+        assert!(!password_matches("$6$x", "plain"));
+    }
+    #[test]
+    fn repeated_failures_lock_out_one_client_only() {
+        let throttle = Throttle::default();
+        let attacker = Some("192.0.2.7".parse().unwrap());
+        let neighbour = Some("2001:db8::1".parse().unwrap());
+        for _ in 0..FREE_FAILURES {
+            assert!(throttle.check(attacker).is_none());
+            throttle.failed(attacker);
+        }
+        assert!(throttle.check(attacker).is_none());
+        throttle.failed(attacker);
+        assert!(throttle.check(attacker).is_some());
+        // Addresses inside the same IPv6 /64 share a bucket; other clients are unaffected.
+        assert!(throttle.check(neighbour).is_none());
+        assert!(
+            throttle
+                .check(Some("::ffff:192.0.2.7".parse().unwrap()))
+                .is_some()
+        );
+        throttle.succeeded(attacker);
+        assert!(throttle.check(attacker).is_none());
     }
 }

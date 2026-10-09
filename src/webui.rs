@@ -66,18 +66,31 @@ pub fn snapshot(app: &App) -> Response {
 fn failure(code: u16, error: &str) -> Response {
     json_response(code, json!({"ok":false,"error":error}))
 }
-pub async fn change_port(app: &Arc<App>, p: &crate::actions::Params) -> Response {
+pub async fn change_port(
+    app: &Arc<App>,
+    p: &crate::actions::Params,
+    peer: Option<std::net::IpAddr>,
+) -> Response {
+    if let Some(wait) = app.auth.throttle.check(peer) {
+        return crate::server::throttled(wait);
+    }
     let _guard = app.auth.mutation.lock().await;
     if !app.config.no_tls {
         return failure(400, "HTTP port changes are unavailable in HTTPS mode");
     }
-    let (_, password) = match auth::read(&app.auth.path) {
+    let (_, stored) = match auth::read(&app.auth.path) {
         Ok(c) => c,
         Err(_) => return failure(500, "auth config error"),
     };
-    if !auth::equal(p.get("current_password"), &password) {
+    let current = p.get("current_password").to_owned();
+    if !tokio::task::spawn_blocking(move || auth::password_matches(&current, &stored))
+        .await
+        .unwrap_or(false)
+    {
+        app.auth.throttle.failed(peer);
         return failure(403, "current password incorrect");
     }
+    app.auth.throttle.succeeded(peer);
     let raw = p.get("http_port");
     let port = match raw.parse::<u16>() {
         Ok(port) if port > 0 && port.to_string() == raw => port,
