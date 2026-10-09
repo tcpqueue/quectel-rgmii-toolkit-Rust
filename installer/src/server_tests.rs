@@ -294,3 +294,30 @@ fn log_cursor_reports_resets() {
     assert_eq!(log.since(0)["reset"], true);
     assert_eq!(log.since(log.next - 2)["reset"], false);
 }
+
+#[tokio::test]
+async fn window_summary_tracks_the_page() {
+    let (app, _dir) = app();
+    assert_eq!(app.summary(), (None, false), "no page has opened yet");
+    let anonymous = axum::http::Request::get("/api/state")
+        .header("host", HOST)
+        .body(Body::empty())
+        .unwrap();
+    send(&app, anonymous).await;
+    assert_eq!(
+        app.summary(),
+        (None, false),
+        "refused requests are not a page"
+    );
+    send(&app, get("/api/state").body(Body::empty()).unwrap()).await;
+    assert_eq!(app.summary(), (None, true));
+    app.begin("install").unwrap();
+    assert_eq!(app.summary(), (Some("安装 / 升级"), true));
+    app.finish();
+    send(&app, post("/api/bye").body(Body::from("{}")).unwrap()).await;
+    assert_eq!(
+        app.summary(),
+        (None, false),
+        "a closed page is reported at once"
+    );
+}

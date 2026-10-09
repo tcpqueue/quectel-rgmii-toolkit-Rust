@@ -143,6 +143,8 @@ pub struct App {
     cancel: Mutex<Cancel>,
     scanning: std::sync::atomic::AtomicBool,
     last_seen: Mutex<Instant>,
+    /// Last authorized request; `None` until a page has opened.
+    page_seen: Mutex<Option<Instant>>,
     pub shutdown: tokio::sync::Notify,
 }
 
@@ -164,11 +166,23 @@ impl App {
             cancel: Mutex::default(),
             scanning: std::sync::atomic::AtomicBool::new(false),
             last_seen: Mutex::new(Instant::now()),
+            page_seen: Mutex::new(None),
             shutdown: tokio::sync::Notify::new(),
         })
     }
     pub fn reports(&self) -> PathBuf {
         self.data_dir.join("Reports")
+    }
+    /// For the native window: the running operation and whether a page is open. An open page
+    /// polls at least every 5 seconds, also in a background tab.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub fn summary(&self) -> (Option<&'static str>, bool) {
+        let seen = *self.page_seen.lock().unwrap();
+        let inner = self.lock();
+        let open = seen.is_some_and(|seen| {
+            seen.elapsed() < Duration::from_secs(8) && !inner.closing.is_some_and(|at| at >= seen)
+        });
+        (inner.busy.map(label), open)
     }
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
@@ -204,6 +218,10 @@ impl App {
             .route(
                 "/app.css",
                 get(|| async { asset("text/css; charset=utf-8", include_str!("../web/app.css")) }),
+            )
+            .route(
+                "/select.svg",
+                get(|| async { asset("image/svg+xml", include_str!("../web/select.svg")) }),
             )
             .route(
                 "/quectel-logo.svg",
@@ -321,6 +339,9 @@ async fn guard(State(app): State<Arc<App>>, request: Request, next: Next) -> Res
     }
     if authorized {
         *app.last_seen.lock().unwrap() = Instant::now();
+        if request.uri().path() != "/api/bye" {
+            *app.page_seen.lock().unwrap() = Some(Instant::now());
+        }
     }
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
@@ -710,7 +731,7 @@ async fn identify(State(app): State<Arc<App>>, Json(request): Json<PortRequest>)
             inner.prepare = Some(if found.supported() {
                 status(
                     "已识别移远高通模块",
-                    "可以检查 ADB，或展开下方网口配置。SimpleAdmin 安装仍需通过设备系统兼容性检查。",
+                    "可以开启 ADB，或在“联网方式”中配置网口。SimpleAdmin 安装仍需通过设备系统兼容性检查。",
                     "success",
                 )
             } else {

@@ -68,7 +68,7 @@ Windows 上运行 `powershell -ExecutionPolicy Bypass -File scripts/test-windows
 
 ### Windows 设备助手（WebUI）
 
-`SimpleAdmin-Setup.exe` 由 `installer/` crate 生成，与后端同属一个 Cargo workspace，用同一套 Rust 工具链在 Linux/WSL 交叉编译，不需要 .NET、Windows App SDK 或 PowerShell。双击后它在 `127.0.0.1` 的随机端口启动本地网页服务，用默认浏览器打开界面；页面关闭后自动退出。
+`SimpleAdmin-Setup.exe` 由 `installer/` crate 生成，与后端同属一个 Cargo workspace，用同一套 Rust 工具链在 Linux/WSL 交叉编译，不需要 .NET、Windows App SDK 或 PowerShell。双击后它在 `127.0.0.1` 的随机端口启动本地网页服务，用默认浏览器打开界面，同时显示一个小状态窗口；关闭状态窗口即退出。
 
 ```sh
 cargo test --locked -p simpleadmin-installer
@@ -79,7 +79,8 @@ cargo build --locked --release --target x86_64-pc-windows-gnu -p simpleadmin-ins
 
 - **内嵌资源**：`installer/build.rs` 将 `adb.exe`、两个 ADB DLL、`LICENSE` 与整个 `development/` 打包、逐文件计算 SHA-256 后用 deflate 压缩进 EXE。首次运行解压到 `%LOCALAPPDATA%\SimpleAdmin\runtime\<资源哈希>`，此后每次启动校验后复用；新版本解压到新目录并尝试清理旧目录，正被 ADB 服务占用的旧文件会跳过。修改 `development/` 后必须重新编译安装器。
 - **本地访问控制**：启动时生成 32 字节随机令牌，通过一次性链接换成 `HttpOnly; SameSite=Strict` Cookie 并从地址栏移除。所有请求要求唯一且正确的 `Host: 127.0.0.1:<端口>`（防 DNS 重绑定）；写操作还要求同源 `Origin`；浏览器标记为跨站的请求一律拒绝。页面使用严格 CSP，不加载任何外部资源。
-- **单实例与退出**：再次双击时直接打开已运行的页面。页面关闭 15 秒后、或 3 分钟没有页面访问时退出；安装或串口操作进行中不会退出，页面上的“退出设备助手”在操作中同样被拒绝。
+- **状态窗口**：`installer/src/window.rs` 用 Win32 API 绘制，显示运行状态、当前操作、网页是否打开和本机端口，提供“打开网页”和“退出”。操作进行中关闭窗口会先确认；页面上的“退出设备助手”在操作中被拒绝，成功后窗口随之关闭。图标、版本信息和清单（通用控件 6、每显示器 DPI、`asInvoker`）由 `build.rs` 调用 `x86_64-w64-mingw32-windres` 嵌入，图标由 `scripts/make-icon.cjs` 生成。
+- **单实例与退出**：再次双击时把已有窗口带到前台并打开页面。关闭网页不会退出程序；使用 `--no-window` 或在非 Windows 系统上运行时没有状态窗口，此时页面关闭 15 秒后、或 3 分钟没有页面访问时退出，操作进行中不会退出。
 - **安装流程**：`installer/src/engine.rs` 按原 `toolkit.ps1` 的步骤直接调用 adb：只读预检（Linux、armv7l、模块特征、root、Bash、可写 /tmp）→ 上传 → 账号密码经 `adb exec-in` 标准输入写入模块 `/tmp` 并校验 SHA-256 → 安装 → 读取结果 → 通过 ADB 通道检查三个页面 → 失败时自动诊断 → 清理临时文件。报告写入 `%LOCALAPPDATA%\SimpleAdmin\Reports`，不包含密码。
 - **串口准备**：`installer/src/qualcomm.rs` 使用 `serialport` crate（115200 8N1、DTR/RTS），按 VID 2C7C 标注移远端口。所有写操作先在服务端生成计划并给出一次性确认编号，执行前重新核对模块身份；联网方案还会重新读取 MPDN 规则，与预览不一致时不执行。
 
@@ -89,6 +90,7 @@ cargo build --locked --release --target x86_64-pc-windows-gnu -p simpleadmin-ins
 | --- | --- |
 | `--self-test` | 解压并校验资源、运行内置 `adb version` 后退出，不连接设备 |
 | `--no-browser` | 不打开浏览器，只在 `installer.url` 写入访问地址 |
+| `--no-window` | 不显示状态窗口，页面关闭后自动退出（非 Windows 系统始终如此） |
 | `--port N` / `--data-dir DIR` | 固定端口、改用其他数据目录 |
 | `--payload-dir DIR` | 使用未打包的目录（含 adb 与 `development/`），用于开发 |
 
@@ -104,7 +106,7 @@ node tests/web-installer.cjs
 
 Rust 测试覆盖串口逻辑（USB 字段保留、ADB 1/2 跳过、确认期间配置变化、写入拒绝、读回不一致、取消、身份变化、批量中止、联网方案、自定义指令限制）、安装流程（未连接/未授权、手机/模拟器/无 root/无 Bash/只读 /tmp 预检不写设备、上传/安装/结果/网页失败与自动诊断、端口保留与自定义、诊断与打开网页不改设备、凭据只经标准输入）、本地访问控制与资源包校验。
 
-`tests/web-installer.cjs` 在 Linux 上启动真实安装器，用 `tests/fixtures/fake-quectel-modem.py` 创建的伪终端模拟模块 AT 口、脚本模拟 adb，以 Playwright 走完识别、解锁确认、自定义 AT、恢复出厂二次确认、联网方案预览、设备信息、安装成功与失败、输入校验、报告、打开管理页面、深浅色与手机布局，以及页面关闭后的自动退出。设置 `SIMPLEADMIN_NO_OPEN=<文件>` 时，打开浏览器、记事本和文件夹的请求只记录到该文件。
+`tests/web-installer.cjs` 在 Linux 上启动真实安装器，用 `tests/fixtures/fake-quectel-modem.py` 创建的伪终端模拟模块 AT 口、脚本模拟 adb，以 Playwright 走完识别、解锁确认、自定义 AT、恢复出厂二次确认、联网方案预览、设备信息、安装成功与失败、输入校验、报告、打开管理页面、首次打开时的页面选择、侧边栏导航、深浅色与窄窗口布局，以及无状态窗口时页面关闭后的自动退出。设置 `SIMPLEADMIN_NO_OPEN=<文件>` 时，打开浏览器、记事本和文件夹的请求只记录到该文件。
 
 ### 离线包
 

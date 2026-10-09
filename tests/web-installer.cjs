@@ -84,9 +84,20 @@ async function freePort() {
     assert.equal(new URL(page.url()).search, '', 'launch token must leave the address bar');
     const cookies = await context.cookies();
     assert(cookies.some(c => c.name === 'sa_setup' && c.httpOnly && c.sameSite === 'Strict'));
+    const nav = async name => {
+      await page.click(`.sidebar a[data-page=${name}]`);
+      await page.locator(`#page-${name}`).waitFor();
+      await page.waitForTimeout(300); // page fade-in
+    };
 
+    // An already connected ADB device opens the install page first.
+    await page.locator('#page-install').waitFor();
+    assert.equal(await page.textContent('.sidebar a.active span'), '安装与升级');
 
     // ---------- serial preparation ----------
+    await nav('connect');
+    await page.locator('#hero-title', {hasText: '已通过 ADB 连接 RM520N EU'}).waitFor();
+    assert.equal(await page.isVisible('#module-bar'), true);
     await page.locator('#ports option', {hasText: tty}).waitFor({state: 'attached'});
     await page.selectOption('#ports', tty);
     await page.click('#identify');
@@ -103,7 +114,8 @@ async function freePort() {
     await page.click('#unlock-adb');
     await page.locator('#prepare-status strong', {hasText: 'ADB 接口已开启'}).waitFor();
 
-    await page.click('#at-tools summary');
+    await nav('at');
+    assert.match(await page.textContent('#module-name'), /RM520N-EU/);
     await page.fill('#custom-at', 'AT+QTEMP\nAT+CSQ');
     await page.click('#run-custom');
     await page.locator('#confirm[open]').waitFor();
@@ -120,18 +132,29 @@ async function freePort() {
     await page.click('#confirm-cancel');
     await page.locator('#prepare-status strong', {hasText: '已取消'}).waitFor();
 
+    await nav('network');
     await page.click('#eth-enable');
     await page.locator('#confirm[open]').waitFor();
     assert.match(await page.textContent('#confirm-commands'), /AT\+QETH="eth_driver","r8125",1\nAT\+QMAPWAC=1$/);
     await page.click('#confirm-cancel');
+    await page.click('#eth-profile label:has(input[value=ecm])');
+    assert.equal(await page.isVisible('#eth-driver-group'), false, 'USB profiles do not choose a PCIe NIC');
+    await page.click('#eth-enable');
+    await page.locator('#confirm[open]').waitFor();
+    assert.doesNotMatch(await page.textContent('#confirm-commands'), /eth_driver/);
+    await page.click('#confirm-cancel');
 
-    await page.click('#info-card summary');
+    await nav('info');
+    assert.equal(await page.isVisible('#info-empty'), true);
     await page.click('#read-info');
     await page.locator('#prepare-status strong', {hasText: '设备信息读取完成'}).waitFor();
     assert.equal(await page.locator('#info > div').count(), 31);
     assert.match(await page.textContent('#info'), /固件未提供/);
 
     // ---------- installation ----------
+    await nav('install');
+    assert.equal(await page.isVisible('#module-bar'), false);
+    assert.equal(await page.isVisible('#http-port'), false, 'option fields stay hidden until enabled');
     await page.locator('#devices option', {hasText: 'RM520N EU'}).waitFor({state: 'attached'});
     await page.locator('#device-badge', {hasText: '已连接'}).waitFor();
     await page.click('#change-port');
@@ -159,21 +182,25 @@ async function freePort() {
     await page.screenshot({path: path.join(shots, 'installer-success.png'), fullPage: true});
     if (process.env.CAPTURE_DOCS) {
       // README images: show a Windows-style port name instead of the test pseudo-terminal.
-      await page.evaluate(() => { for (const option of document.querySelectorAll('#ports option')) option.textContent = option.textContent.replace(/^\/dev\/pts\/\d+/, 'COM8'); });
+      // Pause polling so the renamed labels stay until the captures are done.
+      const rename = () => page.evaluate(() => {
+        state.exited = true;
+        for (const el of document.querySelectorAll('#ports option, #module-sub, #foot-serial')) el.textContent = el.textContent.replace(/\/dev\/pts\/\d+/, 'COM8');
+      });
+      await rename();
       const images = path.join(root, 'docs/images');
       await page.setViewportSize({width: 1280, height: 900});
       for (const [scheme, suffix] of [['light', ''], ['dark', '-dark']]) {
         await page.emulateMedia({colorScheme: scheme});
-        await page.evaluate(() => document.getElementById('install').scrollIntoView());
         await page.waitForTimeout(300);
         await page.screenshot({path: path.join(images, `windows-installer${suffix}.png`)});
-        assert.equal(await page.textContent('.steps a.active'), '04安装升级');
       }
       await page.emulateMedia({colorScheme: 'light'});
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.waitForTimeout(300);
+      await nav('connect');
+      await rename();
       await page.screenshot({path: path.join(images, 'windows-prepare.png')});
-      assert.equal(await page.textContent('.steps a.active'), '01识别模块');
+      await page.evaluate(() => { state.exited = false; poll(); });
+      await nav('install');
       await page.setViewportSize({width: 1280, height: 1000});
     }
 
@@ -192,20 +219,33 @@ async function freePort() {
     await page.click('#install-button');
     await page.locator('#status-title', {hasText: '安装未通过检查'}).waitFor({timeout: 30000});
     assert.match(await page.textContent('#status-detail'), /安装未通过检查/);
+    assert.equal(await page.getAttribute('#log-card', 'open'), '', 'a failure reveals the log');
+    assert.equal(await page.getAttribute('#stages li:nth-child(3)', 'class'), 'failed');
     write('mode', 'phone');
     await page.click('#diagnose');
     await page.locator('#status-title', {hasText: '设备检查未通过'}).waitFor();
 
     // ---------- layout ----------
-    for (const [name, width, scheme] of [['installer-mobile.png', 390, 'light'], ['installer-dark.png', 1280, 'dark']]) {
+    for (const [name, width, scheme, pageName] of [['installer-narrow.png', 900, 'light', 'network'], ['installer-dark.png', 1280, 'dark', 'at']]) {
       await page.setViewportSize({width, height: 900});
       await page.emulateMedia({colorScheme: scheme});
-      await page.evaluate(() => window.scrollTo(0, 0));
+      await nav(pageName);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert(overflow <= 0, `${name}: horizontal overflow ${overflow}px`);
       await page.screenshot({path: path.join(shots, name)});
     }
+    await page.setViewportSize({width: 1280, height: 900});
+    await page.emulateMedia({colorScheme: 'light'});
+    for (const name of ['connect', 'install', 'network', 'info', 'at']) {
+      await nav(name);
+      await page.screenshot({path: path.join(shots, `page-${name}.png`)});
+    }
     assert.deepEqual(errors, []);
+
+    await page.click('#quit');
+    await page.locator('#ask[open]').waitFor();
+    await page.click('#ask button[value=cancel]');
+    assert.equal(await page.isVisible('#overlay'), false);
 
     // Closing the page ends the assistant once the grace period passes.
     await page.close();

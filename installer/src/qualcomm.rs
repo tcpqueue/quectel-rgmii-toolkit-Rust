@@ -287,7 +287,9 @@ impl UsbProfile {
     pub fn parse(response: &str) -> Result<Self> {
         let matches: Vec<_> = USBCFG.captures_iter(response).collect();
         if matches.len() != 1 {
-            bail!("未收到唯一完整的 USB 配置响应，请查看上方原始返回值后重新检查。未发送解锁指令。")
+            bail!(
+                "未收到唯一完整的 USB 配置响应，请在操作记录中查看原始返回值后重新检查。未发送解锁指令。"
+            )
         }
         let fields: Vec<String> = matches[0][1]
             .split(',')
@@ -466,7 +468,9 @@ pub fn parse_custom(text: &str) -> Result<Vec<String>> {
     for command in &commands {
         validate_command(command)?;
         if BLOCKED.is_match(command) {
-            bail!("此工具不提供短信发送/删除或 ADB 密钥操作，请使用上方 ADB 接口配置。")
+            bail!(
+                "此工具不提供短信发送/删除或 ADB 密钥操作，开启 ADB 请使用“连接模块”中的“开启 ADB”。"
+            )
         }
     }
     Ok(commands)

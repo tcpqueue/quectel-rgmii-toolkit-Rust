@@ -66,4 +66,71 @@ fn main() {
     let out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("payload.bin");
     fs::write(&out, packed).unwrap();
     println!("cargo:rustc-env=SA_PAYLOAD_ID={id}");
+    windows_resources();
+}
+
+/// Embeds the icon, manifest and version information into the Windows exe (MinGW builds).
+fn windows_resources() {
+    let assets = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets");
+    for name in ["app.ico", "app.manifest"] {
+        println!("cargo:rerun-if-changed={}", assets.join(name).display());
+    }
+    println!("cargo:rerun-if-env-changed=WINDRES");
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("gnu") {
+        println!("cargo:warning=Windows resources are only embedded in MinGW builds");
+        return;
+    }
+    let version = env::var("CARGO_PKG_VERSION").unwrap();
+    let numeric = version.replace('.', ",") + ",0";
+    let path = |name: &str| assets.join(name).display().to_string().replace('\\', "/");
+    let script = format!(
+        r#"#pragma code_page(65001)
+1 ICON "{icon}"
+1 24 "{manifest}"
+1 VERSIONINFO
+FILEVERSION {numeric}
+PRODUCTVERSION {numeric}
+FILEOS 0x40004
+FILETYPE 0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080404b0"
+    BEGIN
+      VALUE "CompanyName", "Monologue & 蓝天科技"
+      VALUE "FileDescription", "SimpleAdmin 设备助手"
+      VALUE "FileVersion", "{version}"
+      VALUE "InternalName", "SimpleAdmin-Setup"
+      VALUE "LegalCopyright", "Copyright (C) Monologue & 蓝天科技. MIT License."
+      VALUE "OriginalFilename", "SimpleAdmin-Setup.exe"
+      VALUE "ProductName", "SimpleAdmin"
+      VALUE "ProductVersion", "{version}"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x804, 1200
+  END
+END
+"#,
+        icon = path("app.ico"),
+        manifest = path("app.manifest"),
+    );
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let rc = out.join("resources.rc");
+    let object = out.join("resources.o");
+    fs::write(&rc, script).unwrap();
+    let windres = env::var("WINDRES").unwrap_or_else(|_| "x86_64-w64-mingw32-windres".into());
+    let status = std::process::Command::new(&windres)
+        .args(["--codepage=65001", "-O", "coff", "-i"])
+        .arg(&rc)
+        .arg("-o")
+        .arg(&object)
+        .status()
+        .unwrap_or_else(|e| panic!("cannot run {windres} ({e}); install mingw-w64 binutils"));
+    assert!(status.success(), "{windres} failed");
+    println!("cargo:rustc-link-arg-bins={}", object.display());
 }
