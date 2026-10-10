@@ -209,7 +209,7 @@
   },
   {
     "commands": [
-      "AT+QMAP=\"DMZ\",0"
+      "AT+QMAP=\"DMZ\",0,4"
     ],
     "page": "settings",
     "query": "action=dmz\u0026enabled=false",

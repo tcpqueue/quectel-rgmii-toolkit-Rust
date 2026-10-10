@@ -136,12 +136,22 @@ fn signal(data: &mut Value, p: &[String], radio: &str, rsrp: usize, rsrq: usize,
         ("sinr", sinr, 0, 20),
     ] {
         if let Some(value) = p.get(index) {
-            put(data, &format!("{name}{radio}"), value.clone());
+            let value = if radio == "LTE" && name == "sinr" {
+                // AT+QENG reports LTE SINR as X; the value in dB is X / 5 * 10 - 20.
+                value
+                    .trim()
+                    .parse::<i64>()
+                    .map(|x| (x * 2 - 20).to_string())
+                    .unwrap_or_else(|_| value.clone())
+            } else {
+                value.clone()
+            };
             put(
                 data,
                 &format!("{name}{radio}Percentage"),
-                ((number(value) - min) * 100 / scale).clamp(0, 100),
+                ((number(&value) - min) * 100 / scale).clamp(0, 100),
             );
+            put(data, &format!("{name}{radio}"), value);
         }
     }
 }
@@ -169,7 +179,8 @@ fn qeng(data: &mut Value, p: &[String]) {
         if let Some(pci) = p.get(7).filter(|v| !v.is_empty()) {
             data["pcc_pci"] = json!(pci)
         }
-        if let Some(freq) = p.get(9) {
+        // ARFCN follows the TAC in SA mode and the PCID in LTE mode.
+        if let Some(freq) = p.get(if radio == "NR5G-SA" { 9 } else { 8 }) {
             append(data, "earfcns", freq)
         }
         if radio == "NR5G-SA" {
@@ -221,6 +232,10 @@ fn bandwidth(code: &str, nr: bool) -> String {
         return match n {
             0..=5 => format!("{}MHz", (n + 1) * 5),
             6..=12 => format!("{}MHz", (n - 2) * 10),
+            13 => "200MHz".into(),
+            14 => "400MHz".into(),
+            15 => "35MHz".into(),
+            16 => "45MHz".into(),
             _ => "-".into(),
         };
     }
@@ -492,9 +507,17 @@ pub fn dashboard(raw: &str) -> Value {
         .iter()
         .enumerate()
     {
+        // -32768 marks an invalid antenna path.
+        let path = |p: &Vec<String>| {
+            if p[i].trim() == "-32768" {
+                "-".to_owned()
+            } else {
+                p[i].clone()
+            }
+        };
         if let Some(v) = match (&lte, &nr) {
-            (Some(l), Some(n)) => Some(format!("{}/{}", l[i], n[i])),
-            (Some(v), None) | (None, Some(v)) => Some(v[i].clone()),
+            (Some(l), Some(n)) => Some(format!("{}/{}", path(l), path(n))),
+            (Some(v), None) | (None, Some(v)) => Some(path(v)),
             _ => None,
         } {
             d[key] = json!(v)
@@ -832,8 +855,55 @@ mod tests {
                     expected[rx] = c["expected"][tx].clone();
                     expected[tx] = c["expected"][rx].clone();
                 }
+                // Go showed the raw LTE SINR; the manual converts it to dB as X * 2 - 20.
+                if let Some(x) = expected["sinrLTE"]
+                    .as_str()
+                    .and_then(|s| s.parse::<i64>().ok())
+                {
+                    let db = x * 2 - 20;
+                    expected["sinrLTE"] = json!(db.to_string());
+                    expected["sinrLTEPercentage"] = json!((db * 100 / 20).clamp(0, 100));
+                }
             }
             assert_eq!(got, expected, "case {i} {} input: {raw}", c["kind"]);
         }
+    }
+    #[test]
+    fn lte_sinr_matches_qcainfo_rssnr() {
+        // Same moment from one modem: QENG reports 15, QCAINFO's RSSNR is 10 dB.
+        let raw = "+QENG: \"servingcell\",\"NOCONN\"\r\n\
+                   +QENG: \"LTE\",\"FDD\",420,03,29E5B01,445,1850,3,5,5,439E,-88,-7,-61,15,10,200,-\r\n\
+                   +QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\r\nOK\r\n";
+        assert_eq!(dashboard(raw)["sinrLTE"], "10");
+    }
+    #[test]
+    fn lte_servingcell_reads_earfcn_not_band() {
+        let raw = "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",460,00,1A2B3C4,262,1300,3,5,5,58D0,-90,-9,-60,20,12,100,-\r\nOK\r\n";
+        let d = dashboard(raw);
+        assert_eq!(d["earfcns"], "1300");
+        assert_eq!(d["pcc_pci"], "262");
+        assert_eq!(d["sinrLTE"], "20");
+    }
+    #[test]
+    fn nr_bandwidth_codes_follow_the_manual() {
+        for (code, mhz) in [
+            ("0", "5MHz"),
+            ("1", "10MHz"),
+            ("12", "100MHz"),
+            ("13", "200MHz"),
+            ("14", "400MHz"),
+            ("15", "35MHz"),
+            ("16", "45MHz"),
+            ("17", "-"),
+        ] {
+            assert_eq!(bandwidth(code, true), mhz, "{code}");
+        }
+    }
+    #[test]
+    fn invalid_antenna_rsrp_is_hidden() {
+        let d = dashboard("+QRSRP: -85,-32768,-90,-32768,NR5G\r\nOK\r\n");
+        assert_eq!(d["prxqrsrp"], "-85");
+        assert_eq!(d["drxqrsrp"], "-");
+        assert_eq!(d["rx3qrsrp"], "-");
     }
 }

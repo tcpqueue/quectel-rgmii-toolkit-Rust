@@ -454,6 +454,7 @@
 "（无内容）": "(No content)",
 "请选择 IP 透传模式": "Choose an IP passthrough mode",
 "请选择 USB 协议": "Choose a USB protocol",
+"已保存，重启模块后生效": "Saved. Takes effect after the module restarts.",
 "请输入有效的 IP 地址": "Enter a valid IP address",
 "请填写有效的网关地址与 1–254 的起止地址": "Enter a valid gateway and start/end values from 1 to 254",
 "请输入 0–255 的 TTL 值": "Enter a TTL value from 0 to 255",

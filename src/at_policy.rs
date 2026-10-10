@@ -37,7 +37,8 @@ pub fn timeout(command: &str) -> Duration {
             .iter()
             .map(|p| {
                 let up = p.trim().to_ascii_uppercase();
-                if up == "AT+QMAP=\"MPDN_RULE\",0" {
+                // The manual allows 5 s for any MPDN_rule write, enabling IP passthrough included.
+                if up.contains("+QMAP=\"MPDN_RULE\",") {
                     10000
                 } else if up.contains("QSCAN") {
                     120000
@@ -126,8 +127,10 @@ mod tests {
         for c in cases {
             let cmd = c["command"].as_str().unwrap();
             assert_eq!(action(cmd), c["action"].as_bool().unwrap(), "action {cmd}");
-            // Go waited 1 s for lock writes, shorter than a real modem needs.
-            let expected = if cmd.contains("+QNWLOCK=") && cmd.contains("\",") {
+            // Go waited 1 s for lock and MPDN_rule writes, shorter than a real modem needs.
+            let expected = if (cmd.contains("+QNWLOCK=") && cmd.contains("\","))
+                || cmd.to_ascii_uppercase().contains("+QMAP=\"MPDN_RULE\",")
+            {
                 10000
             } else {
                 c["timeout"].as_u64().unwrap() as u128
@@ -150,5 +153,14 @@ mod tests {
             assert_eq!(timeout(cmd), Duration::from_secs(10), "{cmd}");
         }
         assert_eq!(timeout("AT+QNWLOCK=\"common/5g\""), Duration::from_secs(1));
+    }
+    #[test]
+    fn mpdn_rule_writes_get_the_documented_five_seconds() {
+        for cmd in [
+            "AT+QMAP=\"MPDN_RULE\",0,1,0,1,1,\"FF:FF:FF:FF:FF:FF\"",
+            "AT+QMAP=\"MPDN_RULE\",0",
+        ] {
+            assert!(timeout(cmd) >= Duration::from_secs(5), "{cmd}");
+        }
     }
 }
