@@ -520,7 +520,7 @@
 "更新源": "Update source",
 "GitHub 代理": "GitHub proxy",
 "验证公钥": "Verification key",
-"可选，例如 https://ghfast.top/": "Optional, e.g. https://ghfast.top/",
+"留空则直连 GitHub": "Leave empty to reach GitHub directly",
 "可选，自定义源的 Ed25519 公钥": "Optional Ed25519 key for a custom source",
 "更新源填写 GitHub 仓库（owner/repo）或存放更新文件的网址；代理只用于 GitHub，可填写前缀或含 {url} 的模板。安装包必须带有效签名，只会升级到更高版本，账号密码与端口保持不变。": "Enter a GitHub repository (owner/repo) or the address of a folder with update files. The proxy is used for GitHub only and can be a prefix or a template containing {url}. Packages must carry a valid signature and only newer versions are installed; accounts, passwords and the port are kept.",
 "更新签名无效或不受信任": "Update signature is invalid or not trusted",

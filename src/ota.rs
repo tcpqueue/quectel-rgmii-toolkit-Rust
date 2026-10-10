@@ -19,6 +19,9 @@ use std::{
 
 pub const MANIFEST: &str = "simpleadmin-ota.json";
 pub const DEFAULT_SOURCE: &str = "tcpqueue/quectel-rgmii-toolkit-Rust";
+/// GitHub is often unreachable from Chinese mobile networks, so updates go through this proxy
+/// unless the setting is cleared.
+pub const DEFAULT_PROXY: &str = "https://ghfast.top/";
 const OFFICIAL_KEY: &str = include_str!("ota-public-key.txt");
 const MAX_MANIFEST: usize = 16 * 1024;
 const MAX_PACKAGE: u64 = 64 * 1024 * 1024;
@@ -57,7 +60,7 @@ impl Default for Settings {
         Self {
             mode: Mode::Check,
             source: DEFAULT_SOURCE.into(),
-            proxy: String::new(),
+            proxy: DEFAULT_PROXY.into(),
             public_key: String::new(),
         }
     }
@@ -486,6 +489,7 @@ impl Ota {
             "mock": self.mock,
             "settings": settings,
             "default_source": DEFAULT_SOURCE,
+            "default_proxy": DEFAULT_PROXY,
             "phase": s.phase,
             "received": s.received,
             "total": s.total,

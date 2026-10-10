@@ -549,7 +549,7 @@
 <select id="otaMode" class="form-select" v-model="otaForm.mode"><option value="off">关闭</option><option value="check">每天检查，手动安装</option><option value="auto">每天检查并自动安装</option></select>
 </div></div>
 <div class="ui-row is-stack"><label for="otaSource">更新源</label><div class="ui-row-control"><input id="otaSource" class="form-control" type="text" autocapitalize="none" spellcheck="false" :placeholder="ota.default_source || 'owner/repo'" v-model.trim="otaForm.source"/></div></div>
-<div class="ui-row is-stack"><label for="otaProxy">GitHub 代理</label><div class="ui-row-control"><input id="otaProxy" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，例如 https://ghfast.top/" v-model.trim="otaForm.proxy"/></div></div>
+<div class="ui-row is-stack"><label for="otaProxy">GitHub 代理</label><div class="ui-row-control"><input id="otaProxy" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="留空则直连 GitHub" v-model.trim="otaForm.proxy"/></div></div>
 <div class="ui-row is-stack"><label for="otaKey">验证公钥</label><div class="ui-row-control"><input id="otaKey" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，自定义源的 Ed25519 公钥" v-model.trim="otaForm.public_key"/></div></div>
 <div class="ui-actions"><span class="ui-status" role="status" aria-live="polite" v-text="otaSaveMessage"></span><button type="submit" class="btn btn-primary" :disabled="otaSaving">保存</button></div>
 </form>

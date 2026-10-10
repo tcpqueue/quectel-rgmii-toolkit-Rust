@@ -8,7 +8,7 @@
 | --- | --- |
 | 自动更新 | **关闭**、**每天检查，手动安装**（默认）、**每天检查并自动安装**。开机约 10 分钟后第一次检查，之后每 24 小时一次；检查失败（例如尚未联网或连不上 GitHub）时约 1 小时后重试。 |
 | 更新源 | 留空即官方仓库 `tcpqueue/quectel-rgmii-toolkit-Rust`；可以填其他 GitHub 仓库 `owner/repo`，或自建网址，例如 `https://example.com/simpleadmin`。 |
-| GitHub 代理 | 只用于 GitHub 来源。填前缀时把完整地址接在后面，例如 `https://ghfast.top/` 会访问 `https://ghfast.top/https://github.com/...`；若代理格式不同，可以写成含 `{url}` 的模板。 |
+| GitHub 代理 | 默认 `https://ghfast.top/`，清空即直连 GitHub。只用于 GitHub 来源。填前缀时把完整地址接在后面，例如 `https://ghfast.top/` 会访问 `https://ghfast.top/https://github.com/...`；若代理格式不同，可以写成含 `{url}` 的模板。 |
 | 验证公钥 | 只有自定义源需要，填写该源的 Ed25519 公钥（Base64，32 字节）。官方公钥已内置。 |
 
 “检查更新”显示最新版本和更新说明链接，“立即更新”下载并安装。安装期间页面会断开约一分钟，服务重启后自动刷新；会话随服务重启失效，需要重新登录。账号密码、HTTP 端口、短信与转发等设置都会保留。

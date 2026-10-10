@@ -441,3 +441,23 @@ async fn check_and_install_from_a_custom_source() {
     );
     assert_eq!(reloaded.settings().public_key, trusted["public_key"]);
 }
+
+#[test]
+fn ghfast_is_the_default_proxy_and_can_be_cleared() {
+    let defaults = Settings::default();
+    assert_eq!(defaults.proxy, DEFAULT_PROXY);
+    let (manifest, _) = Ota::urls(&defaults, None);
+    assert!(
+        manifest.starts_with("https://ghfast.top/https://github.com/"),
+        "{manifest}"
+    );
+    // A settings file without the field gets the default; an explicit empty proxy means direct.
+    let missing: Settings = serde_json::from_str(r#"{"mode":"check"}"#).unwrap();
+    assert_eq!(missing.proxy, DEFAULT_PROXY);
+    let cleared: Settings = serde_json::from_str(r#"{"mode":"check","proxy":""}"#).unwrap();
+    let cleared = cleared.normalize().unwrap();
+    assert_eq!(
+        Ota::urls(&cleared, None).0,
+        format!("https://github.com/{DEFAULT_SOURCE}/releases/latest/download/{MANIFEST}")
+    );
+}
