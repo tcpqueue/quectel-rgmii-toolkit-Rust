@@ -434,10 +434,10 @@ fn text_result(result: Result<String>) -> Response {
     }
 }
 async fn login(app: &Arc<App>, p: &Params, peer: Option<IpAddr>) -> Response {
-    if let Some(wait) = app.auth.throttle.check(peer) {
-        return throttled(wait);
-    }
-    let _guard = app.auth.mutation.lock().await;
+    let _guard = match app.auth.password_attempt(peer).await {
+        Ok(guard) => guard,
+        Err(wait) => return throttled(wait),
+    };
     let (user, stored) = match auth::read(&app.auth.path) {
         Ok(c) => c,
         Err(_) => return error(500, "auth config error"),
@@ -742,11 +742,20 @@ async fn set_ttl(app: &Arc<App>, p: &Params) -> Result<Value> {
     .await?;
     Ok(json!({ "debug_logs": logs }))
 }
+/// The Web UI ships Chinese and English only; older files may still name another language.
+fn language_code(raw: &str) -> Option<&'static str> {
+    match raw.to_ascii_lowercase().as_str() {
+        "zh" | "zh-cn" | "cn" | "chinese" => Some("zh-CN"),
+        "en" | "en-us" | "english" => Some("en"),
+        _ => None,
+    }
+}
 fn language(app: &Arc<App>) -> Value {
-    std::fs::read(app.config.static_dir.join("config/get_language.json"))
+    let saved = std::fs::read(app.config.static_dir.join("config/get_language.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-        .unwrap_or(json!({"language":"zh-CN"}))
+        .unwrap_or(Value::Null);
+    json!({"language": language_code(parser::text(&saved, "language")).unwrap_or("zh-CN")})
 }
 async fn set_language(app: &Arc<App>, p: &Params, body: &str) -> Result<Value> {
     let data: Value = serde_json::from_str(body).unwrap_or(Value::Null);
@@ -755,12 +764,8 @@ async fn set_language(app: &Arc<App>, p: &Params, body: &str) -> Result<Value> {
     } else {
         p.get("language")
     };
-    let language = match language.to_ascii_lowercase().as_str() {
-        "zh" | "zh-cn" | "cn" | "chinese" => "zh-CN",
-        "en" | "en-us" | "english" => "en",
-        "ru" | "ru-ru" | "russian" => "ru",
-        "ar" | "ar-sa" | "arabic" => "ar",
-        _ => bail!("unsupported language"),
+    let Some(language) = language_code(language) else {
+        bail!("unsupported language")
     };
     let value = json!({ "language": language });
     let bytes = format!("{value}\n");
@@ -808,10 +813,10 @@ async fn send_sms(app: &Arc<App>, number: &str, message: &str) -> Result<Value> 
     Ok(json!({"ok":true,"segments":parts.len(),"number":number}))
 }
 async fn change_password(app: &Arc<App>, p: &Params, root: bool, peer: Option<IpAddr>) -> Response {
-    if let Some(wait) = app.auth.throttle.check(peer) {
-        return throttled(wait);
-    }
-    let _guard = app.auth.mutation.lock().await;
+    let _guard = match app.auth.password_attempt(peer).await {
+        Ok(guard) => guard,
+        Err(wait) => return throttled(wait),
+    };
     let get = |a, b| {
         let v = p.get(a);
         if v.is_empty() { p.get(b) } else { v }

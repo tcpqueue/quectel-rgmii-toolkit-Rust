@@ -444,7 +444,19 @@
 "命令输出会显示在这里": "Command output appears here",
 "短信功能": "SMS features",
 "必填": "Required",
-"成功": "Saved"
+"成功": "Saved",
+"登录失败，请稍后重试": "Login failed. Try again later",
+"无法连接设备，请检查网络后重试": "Cannot reach the device. Check the connection and try again",
+"锁频失败": "Cell lock failed",
+"找不到对应的小区，请重新扫描后选择": "Cell not found. Scan again and select a cell",
+"频段模式无效": "Invalid band mode",
+"读取设置失败": "Could not load settings",
+"（无内容）": "(No content)",
+"请选择 IP 透传模式": "Choose an IP passthrough mode",
+"请选择 USB 协议": "Choose a USB protocol",
+"请输入有效的 IP 地址": "Enter a valid IP address",
+"请填写有效的网关地址与 1–254 的起止地址": "Enter a valid gateway and start/end values from 1 to 254",
+"请输入 0–255 的 TTL 值": "Enter a TTL value from 0 to 255"
   }
 };
 
@@ -479,6 +491,10 @@
         const label = lang === 'en' ? 'every {n} s' : '{n}';
         return (match[1] || '') + label.replace('{n}', match[2]);
       }
+      match = source.match(/^尝试次数过多，请 (\d+) 秒后再试$/);
+      if (match) return 'Too many attempts. Try again in ' + match[1] + ' s';
+      match = source.match(/^请完整填写 (\d+) 组 EARFCN 和 PCI$/);
+      if (match) return 'Enter all ' + match[1] + ' EARFCN and PCI pairs';
       match = source.match(/^等待 (NR|LTE) 信号数据$/);
       if (match) return table['等待采样'] + ' · ' + match[1];
       match = source.match(/^(NR|LTE) RSRP 和 SINR 最近五分钟走势图$/);

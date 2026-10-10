@@ -11,6 +11,7 @@
     { id: 'console', selector: null, factoryName: null, title: '控制台', frameSelector: '#consoleFrame', frameSrc: '/console' }
   ];
   const mountedPages = new Set();
+  let currentPage = '';
   const revealTimers = new WeakMap();
   const pageIds = new Set(pages.map((page) => page.id));
 
@@ -206,11 +207,12 @@
 
   function applyTitle(id) {
     const page = getPage(id);
+    const title = root.Lang && typeof root.Lang.t === 'function' ? root.Lang.t(page.title) : page.title;
     if (root.Brand && typeof root.Brand.setPageTitle === 'function') {
-      root.Brand.setPageTitle(page.title);
+      root.Brand.setPageTitle(title);
       return;
     }
-    document.title = page.title;
+    document.title = title;
   }
 
   function closeMobileSidebar() {
@@ -220,6 +222,7 @@
 
   function showPage(value, options) {
     const id = normalizePage(value);
+    currentPage = id;
     disableBrowserScrollRestore();
     beginPageSwitch();
     setActiveSection(id);
@@ -262,12 +265,16 @@
       });
     });
 
-    global.addEventListener('popstate', () => {
-      showPage(global.location.hash, { updateHash: false });
-    });
-
-    global.addEventListener('hashchange', () => {
-      showPage(global.location.hash, { updateHash: false });
+    // Back/forward fires both popstate and hashchange; switch pages only once.
+    const followAddress = () => {
+      const hash = global.location.hash.replace(/^#/, '');
+      if (normalizePage(hash) === currentPage && hash !== 'forwarding') return;
+      showPage(hash, { updateHash: false });
+    };
+    global.addEventListener('popstate', followAddress);
+    global.addEventListener('hashchange', followAddress);
+    global.addEventListener('simpleadmin:language-changed', () => {
+      if (currentPage) applyTitle(currentPage);
     });
   }
 

@@ -25,6 +25,9 @@ function simpleSettings() {
         lanIpEnd: "",    // 初始化 LAN IP 结束地址
         lanGwIp: "",     // 初始化 网关 IP 地址
         isSavingLANIP: false,
+        networkMessage: "",
+        networkFailed: false,
+        ttlMessage: "",
         lanIpSaveSuccess: false,
         lanIpSaveSuccessTimer: null,
         DNSV6ProxyStatus: true,
@@ -327,12 +330,39 @@ function simpleSettings() {
           this.showRebootModal();
         },
 
-        ipPassThroughEnable() {
-          if (this.ipPassMode != "未指定") {
-            SimpleAdmin.Api.settingsData({ action: 'ip_passthrough', enabled: '1', mode: this.ipPassMode });
-          } else {
-            console.error("未指定 IP 透传模式");
+        setNetworkMessage(message, failed) {
+          this.networkMessage = message;
+          this.networkFailed = Boolean(failed);
+        },
+
+        // Sends one network feature change and reports the outcome under the list.
+        async runNetworkAction(params) {
+          this.setNetworkMessage("", false);
+          this.isLoading = true;
+          try {
+            const data = await SimpleAdmin.Api.settingsData(params);
+            if (!data || data.ok === false) {
+              throw new Error((data && (data.error || data.response)) || "");
+            }
+            this.setNetworkMessage(this.t("已保存"), false);
+            this.fetchCurrentSettings();
+            return data;
+          } catch (error) {
+            // Keep the entered values so they can be corrected and sent again.
+            const detail = String((error && error.message) || "").trim();
+            this.setNetworkMessage(this.t("保存失败") + (detail ? " · " + detail : ""), true);
+            return null;
+          } finally {
+            this.isLoading = false;
           }
+        },
+
+        async ipPassThroughEnable() {
+          if (this.ipPassMode === "未指定") {
+            this.setNetworkMessage(this.t("请选择 IP 透传模式"), true);
+            return;
+          }
+          await this.runNetworkAction({ action: 'ip_passthrough', enabled: '1', mode: this.ipPassMode });
         },
 
         ipPassThroughDisable() {
@@ -358,47 +388,28 @@ function simpleSettings() {
         },
 
         onBoardDNSV6ProxyEnable() {
-          SimpleAdmin.Api.settingsData({ action: 'dns_proxy', family: '6', enabled: '1' }).then(() => {
-            this.fetchCurrentSettings();
-          });
+          return this.runNetworkAction({ action: 'dns_proxy', family: '6', enabled: '1' });
         },
         onBoardDNSV4ProxyEnable() {
-          SimpleAdmin.Api.settingsData({ action: 'dns_proxy', family: '4', enabled: '1' }).then(() => {
-            this.fetchCurrentSettings();
-          });
+          return this.runNetworkAction({ action: 'dns_proxy', family: '4', enabled: '1' });
         },
 
         onBoardDNSV6ProxyDisable() {
-          SimpleAdmin.Api.settingsData({ action: 'dns_proxy', family: '6', enabled: '0' }).then(() => {
-            this.fetchCurrentSettings();
-          });
+          return this.runNetworkAction({ action: 'dns_proxy', family: '6', enabled: '0' });
         },
         onBoardDNSV4ProxyDisable() {
-          SimpleAdmin.Api.settingsData({ action: 'dns_proxy', family: '4', enabled: '0' }).then(() => {
-            this.fetchCurrentSettings();
-          });
+          return this.runNetworkAction({ action: 'dns_proxy', family: '4', enabled: '0' });
         },
 
 
         async usbNetModeChanger() {
-          if (this.usbNetMode === "未指定") {
-            console.error("未指定 USB 网络模式");
+          if (!["RMNET", "ECM", "MBIM", "RNDIS"].includes(this.usbNetMode)) {
+            this.setNetworkMessage(this.t("请选择 USB 协议"), true);
             return;
           }
-
-          const map = { RMNET: 0, ECM: 1, MBIM: 2, RNDIS: 3 };
-          const code = map[this.usbNetMode];
-          if (code === undefined) {
-            console.warn("USB 网络模式无效");
-            return;
-          }
-
-          try {
-            await SimpleAdmin.Api.settingsData({ action: 'usbnet', mode: this.usbNetMode });  // 等待设置成功
-            // 成功后只弹出确认重启的模态框
+          // The new protocol applies after a reboot; only offer it when the module accepted the change.
+          if (await this.runNetworkAction({ action: 'usbnet', mode: this.usbNetMode })) {
             this.showRebootModal();
-          } catch (e) {
-            console.error("设置 usbnet 失败：", e);
           }
         },
 
@@ -449,48 +460,45 @@ function simpleSettings() {
         },
 
         setTTL() {
-          const ttlValueWithoutLeadingZero = parseInt(this.newTTL, 10);
-
-          // 如果 ttlValueWithoutLeadingZero 是 null, 空字符串 "", 负值，或者大于 255，则退出
-          if (isNaN(ttlValueWithoutLeadingZero) || ttlValueWithoutLeadingZero < 0 || ttlValueWithoutLeadingZero > 255) {
-            return;  // 直接退出函数
+          const text = String(this.newTTL === null || this.newTTL === undefined ? "" : this.newTTL).trim();
+          const ttlval = Number(text);
+          this.ttlMessage = "";
+          if (!/^\d{1,3}$/.test(text) || ttlval > 255) {
+            this.ttlMessage = this.t("请输入 0–255 的 TTL 值");
+            return;
           }
 
-          this.isLoading = true; // 设置 TTL 更新期间的加载状态
-          const ttlval = ttlValueWithoutLeadingZero;
-
+          this.isLoading = true;
           SimpleAdmin.Api.setTTL(ttlval)
-            .then((res) => {
-              return res.text(); // 使用 res.text() 获取响应数据
-            })
-            .then((data) => {
-              this.fetchTTL();  // 更新 TTL 状态
-              this.isLoading = false; // 将加载状态设置回 false
-            })
+            .then((res) => res.json().catch(() => ({})).then((data) => {
+              if (!res.ok) throw new Error(data.error || "");
+              this.ttlMessage = this.t("已保存");
+            }))
             .catch((error) => {
-              console.error("Error setting TTL: ", error); // 日志：捕获错误
-              this.isLoading = false; // 确保在出现错误时正确处理加载状态
+              const detail = String((error && error.message) || "").trim();
+              this.ttlMessage = this.t("保存失败") + (detail ? " · " + detail : "");
+            })
+            .finally(() => {
+              this.fetchTTL();
+              this.isLoading = false;
             });
         },
 
-        setDMZEnable() {
-          // 启用 DMZ，检查 IP 地址是否存在
-          if (this.dmzIP) {
-            SimpleAdmin.Api.settingsData({ action: 'dmz', enabled: '1', ip: this.dmzIP });
-            this.atCommandResponse = "";
-            this.showModal = false;
-            this.dmzMode = '1';  // 更新为启用状态
-          } else {
-            console.error("请输入有效的 IP 地址！");
+        async setDMZEnable() {
+          const ip = String(this.dmzIP || '').trim();
+          if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || ip.split('.').some((part) => Number(part) > 255)) {
+            this.setNetworkMessage(this.t("请输入有效的 IP 地址"), true);
+            return;
+          }
+          if (await this.runNetworkAction({ action: 'dmz', enabled: '1', ip })) {
+            this.dmzMode = '1';
           }
         },
 
-        setDMZDisable() {
-          // 禁用 DMZ
-          SimpleAdmin.Api.settingsData({ action: 'dmz', enabled: '0' });
-          this.dmzMode = '0';  // 更新为禁用状态
-          this.atCommandResponse = "";
-          this.showModal = false;
+        async setDMZDisable() {
+          if (await this.runNetworkAction({ action: 'dmz', enabled: '0' })) {
+            this.dmzMode = '0';
+          }
         },
         setLANIP() {
           this.lanIpSaveSuccess = false;
@@ -499,42 +507,29 @@ function simpleSettings() {
             this.lanIpSaveSuccessTimer = null;
           }
 
-          // 检查网关 IP 地址和起始/结束 IP 地址的最后一位是否已填写
-          if (!this.lanGwIp || !this.lanIpStart || !this.lanIpEnd) {
-            console.error("请输入有效的网关 IP 地址和起始、结束 IP 地址！");
-            return;
-          }
-
-          // 提取网关 IP 地址的前三位
-          const gwIpParts = this.lanGwIp.split('.');
-
-          // 确保网关 IP 地址格式正确，并且有四个部分
-          if (gwIpParts.length !== 4) {
-            console.error("网关 IP 地址格式无效！");
+          // 网关为完整 IPv4，起始/结束只填最后一段，且起始不大于结束。
+          const gateway = String(this.lanGwIp || '').trim();
+          const gwIpParts = gateway.split('.');
+          const octet = (value) => /^\d{1,3}$/.test(String(value).trim()) && Number(value) >= 1 && Number(value) <= 254;
+          if (gwIpParts.length !== 4 || !gwIpParts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
+              || !octet(this.lanIpStart) || !octet(this.lanIpEnd) || Number(this.lanIpStart) > Number(this.lanIpEnd)) {
+            this.setNetworkMessage(this.t("请填写有效的网关地址与 1–254 的起止地址"), true);
             return;
           }
 
           // 使用网关 IP 地址的前三位与用户输入的最后一位拼接成完整的起始和结束 IP
-          const startIp = `${gwIpParts[0]}.${gwIpParts[1]}.${gwIpParts[2]}.${this.lanIpStart}`;
-          const endIp = `${gwIpParts[0]}.${gwIpParts[1]}.${gwIpParts[2]}.${this.lanIpEnd}`;
+          const startIp = `${gwIpParts[0]}.${gwIpParts[1]}.${gwIpParts[2]}.${Number(this.lanIpStart)}`;
+          const endIp = `${gwIpParts[0]}.${gwIpParts[1]}.${gwIpParts[2]}.${Number(this.lanIpEnd)}`;
 
           this.isSavingLANIP = true;
-          this.atCommandResponse = "";
-          this.showModal = false;
-
-          return SimpleAdmin.Api.settingsData({ action: 'lanip', start: startIp, end: endIp, gateway: this.lanGwIp })
+          return this.runNetworkAction({ action: 'lanip', start: startIp, end: endIp, gateway })
             .then((data) => {
-              if (data && data.ok === false) {
-                throw new Error(data.error || "LAN IP 设置失败");
-              }
+              if (!data) return;
               this.lanIpSaveSuccess = true;
               this.lanIpSaveSuccessTimer = setTimeout(() => {
                 this.lanIpSaveSuccess = false;
                 this.lanIpSaveSuccessTimer = null;
               }, 3000);
-            })
-            .catch((error) => {
-              console.error("LAN IP 设置失败：", error);
             })
             .finally(() => {
               this.isSavingLANIP = false;

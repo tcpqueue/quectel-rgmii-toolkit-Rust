@@ -206,6 +206,7 @@ svg.lucide { width: 18px; height: 18px; stroke-width: 1.9; flex: none; }
 .ui-actions.is-end { justify-content: flex-end; }
 .ui-foot { margin: 7px 16px 0; font-size: 12.5px; color: var(--secondary); }
 .ui-foot + .ui-foot { margin-top: 3px; }
+.ui-foot.is-error { color: var(--red); }
 .ui-note { padding: 12px 16px; font-size: 13px; color: var(--secondary); }
 .ui-empty { padding: 28px 16px; text-align: center; color: var(--tertiary); font-size: 14px; }
 .ui-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }

@@ -142,7 +142,8 @@ body { display: grid; place-items: center; padding: 24px 16px calc(24px + env(sa
   function nextURL() {
     const params = new URLSearchParams(window.location.search || '');
     const value = params.get('next') || '/';
-    return value.startsWith('/') && !value.startsWith('//') ? value : '/';
+    // Same-site paths only: browsers treat "/\\host" like "//host".
+    return /^\/(?![\/\\])/.test(value) ? value : '/';
   }
   form.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -157,11 +158,21 @@ body { display: grid; place-items: center; padding: 24px 16px calc(24px + env(sa
       body: new URLSearchParams(new FormData(form))
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
-        if (!response.ok || !data.ok) throw new Error(data.error || 'login failed');
-        window.location.replace(nextURL());
+        if (response.ok && data.ok) {
+          window.location.replace(nextURL());
+          return;
+        }
+        if (response.status === 429) {
+          const seconds = Math.max(1, parseInt(response.headers.get('retry-after'), 10) || 1);
+          message.textContent = '尝试次数过多，请 ' + seconds + ' 秒后再试';
+        } else if (response.status === 401) {
+          message.textContent = '用户名或密码错误';
+        } else {
+          message.textContent = '登录失败，请稍后重试';
+        }
       });
     }).catch(function () {
-      message.textContent = '用户名或密码错误';
+      message.textContent = '无法连接设备，请检查网络后重试';
     }).finally(function () {
       button.disabled = false;
       button.textContent = '登录';

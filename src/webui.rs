@@ -71,10 +71,10 @@ pub async fn change_port(
     p: &crate::actions::Params,
     peer: Option<std::net::IpAddr>,
 ) -> Response {
-    if let Some(wait) = app.auth.throttle.check(peer) {
-        return crate::server::throttled(wait);
-    }
-    let _guard = app.auth.mutation.lock().await;
+    let _guard = match app.auth.password_attempt(peer).await {
+        Ok(guard) => guard,
+        Err(wait) => return crate::server::throttled(wait),
+    };
     if !app.config.no_tls {
         return failure(400, "HTTP port changes are unavailable in HTTPS mode");
     }

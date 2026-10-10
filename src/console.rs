@@ -76,18 +76,27 @@ async fn session(
 ) -> Result<()> {
     send(socket, b"Terminal login required\r\n").await?;
     let mut valid = false;
+    let locked = |wait: Duration| {
+        format!(
+            "Too many failed login attempts; retry in {} seconds\r\n",
+            wait.as_secs().max(1)
+        )
+    };
     for _ in 0..3 {
         // Reconnecting does not reset the shared per-client password backoff.
         if let Some(wait) = app.auth.throttle.check(peer) {
-            let message = format!(
-                "Too many failed login attempts; retry in {} seconds\r\n",
-                wait.as_secs().max(1)
-            );
-            send(socket, message.as_bytes()).await?;
+            send(socket, locked(wait).as_bytes()).await?;
             return Ok(());
         }
         let user = line(socket, "login: ", false).await?;
         let password = line(socket, "Password: ", true).await?;
+        let guard = match app.auth.password_attempt(peer).await {
+            Ok(guard) => guard,
+            Err(wait) => {
+                send(socket, locked(wait).as_bytes()).await?;
+                return Ok(());
+            }
+        };
         let copy = app.clone();
         valid = tokio::task::spawn_blocking(move || {
             crate::auth::equal(user.trim(), "root")
@@ -99,6 +108,7 @@ async fn session(
             break;
         }
         app.auth.throttle.failed(peer);
+        drop(guard);
         send(socket, b"\r\nLogin incorrect\r\n").await?;
     }
     if !valid {

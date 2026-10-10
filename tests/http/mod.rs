@@ -514,6 +514,60 @@ async fn repeated_login_failures_are_throttled_per_client() {
 }
 
 #[tokio::test]
+async fn parallel_login_burst_cannot_skip_the_backoff() {
+    let (app, _dir) = application();
+    let attacker = Some("192.0.2.20".parse().unwrap());
+    let attempts: Vec<_> = (0..20)
+        .map(|_| {
+            let app = app.clone();
+            tokio::spawn(async move {
+                let p = Params::parse("", "username=admin&password=wrong").unwrap();
+                login(&app, &p, attacker).await.status().as_u16()
+            })
+        })
+        .collect();
+    let mut statuses = Vec::new();
+    for attempt in attempts {
+        statuses.push(attempt.await.unwrap());
+    }
+    // Only the free failures and the one that triggers the lockout reach the password check.
+    assert_eq!(statuses.iter().filter(|s| **s == 401).count(), 6);
+    assert_eq!(statuses.iter().filter(|s| **s == 429).count(), 14);
+}
+
+#[tokio::test]
+async fn language_setting_accepts_chinese_and_english_only() {
+    let (app, dir) = application();
+    let token = app.auth.create();
+    std::fs::create_dir_all(dir.path().join("config")).unwrap();
+    std::fs::write(
+        dir.path().join("config/get_language.json"),
+        r#"{"language":"ar"}"#,
+    )
+    .unwrap();
+    let read = |response: Response| async move {
+        serde_json::from_slice::<Value>(&to_bytes(response.into_body(), 4096).await.unwrap())
+            .unwrap()
+    };
+    let saved = call(&app, "/api/get_language", "", &token).await;
+    assert_eq!(read(saved).await["language"], "zh-CN");
+    for language in ["ru", "ar", "fr"] {
+        let body = format!("language={language}");
+        assert_eq!(
+            call(&app, "/api/set_language", &body, &token)
+                .await
+                .status(),
+            400,
+            "{language}"
+        );
+    }
+    let changed = call(&app, "/api/set_language", "language=EN-us", &token).await;
+    assert_eq!(read(changed).await["language"], "en");
+    let saved = call(&app, "/api/get_language", "", &token).await;
+    assert_eq!(read(saved).await["language"], "en");
+}
+
+#[tokio::test]
 async fn telemetry_schedule_is_validated_persisted_and_reported() {
     let (app, dir) = application();
     let token = app.auth.create();

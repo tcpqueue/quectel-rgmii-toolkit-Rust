@@ -32,13 +32,25 @@ pub fn with_peer(
 pub async fn serve(listener: tokio::net::TcpListener, router: axum::Router) -> std::io::Result<()> {
     serve_with_permits(listener, router, Arc::new(tokio::sync::Semaphore::new(32))).await
 }
+/// Waits for the next connection. Accept errors such as EMFILE or ECONNABORTED are
+/// transient, so they pause briefly instead of ending the server.
+pub async fn accept(
+    listener: &tokio::net::TcpListener,
+) -> (tokio::net::TcpStream, std::net::SocketAddr) {
+    loop {
+        match listener.accept().await {
+            Ok(connection) => return connection,
+            Err(_) => tokio::time::sleep(Duration::from_millis(100)).await,
+        }
+    }
+}
 pub async fn serve_with_permits(
     listener: tokio::net::TcpListener,
     router: axum::Router,
     permits: Arc<tokio::sync::Semaphore>,
 ) -> std::io::Result<()> {
     loop {
-        let (stream, peer) = listener.accept().await?;
+        let (stream, peer) = accept(&listener).await;
         let Ok(permit) = permits.clone().try_acquire_owned() else {
             continue;
         };
