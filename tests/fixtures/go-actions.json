@@ -76,7 +76,7 @@
       "AT+QNWLOCK=\"common/5g\",5,633984,30,78"
     ],
     "page": "network",
-    "query": "action=lock_scanned_cells\u0026mode=NR5G+Only\u0026pci=5\u0026earfcn=633984\u0026band=78",
+    "query": "action=lock_scanned_cells\u0026mode=NR5G+Only\u0026pci=5\u0026earfcn=633984\u0026scs=30\u0026band=78",
     "status": 200
   },
   {

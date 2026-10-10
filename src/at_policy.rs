@@ -41,6 +41,9 @@ pub fn timeout(command: &str) -> Duration {
                     10000
                 } else if up.contains("QSCAN") {
                     120000
+                } else if up.contains("+QNWLOCK=") && up.contains("\",") {
+                    // Setting or clearing a lock re-selects the cell; an RM520N-EU answers after ~1.3 s.
+                    10000
                 } else {
                     1000
                 }
@@ -123,16 +126,29 @@ mod tests {
         for c in cases {
             let cmd = c["command"].as_str().unwrap();
             assert_eq!(action(cmd), c["action"].as_bool().unwrap(), "action {cmd}");
-            assert_eq!(
-                timeout(cmd).as_millis(),
-                c["timeout"].as_u64().unwrap() as u128,
-                "timeout {cmd}"
-            );
+            // Go waited 1 s for lock writes, shorter than a real modem needs.
+            let expected = if cmd.contains("+QNWLOCK=") && cmd.contains("\",") {
+                10000
+            } else {
+                c["timeout"].as_u64().unwrap() as u128
+            };
+            assert_eq!(timeout(cmd).as_millis(), expected, "timeout {cmd}");
             assert_eq!(
                 max_age(cmd).as_millis(),
                 c["maxAge"].as_u64().unwrap() as u128,
                 "maxAge {cmd}"
             );
         }
+    }
+    #[test]
+    fn cell_lock_writes_wait_for_reselection() {
+        for cmd in [
+            "AT+QNWLOCK=\"common/5g\",108,504990,30,41",
+            "AT+QNWLOCK=\"common/5g\",0",
+            "AT+QNWLOCK=\"common/4g\",1,1300,262",
+        ] {
+            assert_eq!(timeout(cmd), Duration::from_secs(10), "{cmd}");
+        }
+        assert_eq!(timeout("AT+QNWLOCK=\"common/5g\""), Duration::from_secs(1));
     }
 }

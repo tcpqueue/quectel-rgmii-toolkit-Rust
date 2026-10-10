@@ -71,17 +71,29 @@ pub fn scan_mode(mode: &str) -> Result<&'static str> {
         _ => bail!("invalid scan mode"),
     }
 }
-fn nr_lock(p: &Params, scanned: bool) -> Result<String> {
-    let scs = if scanned && p.get("scs").is_empty() {
-        30
+/// FR1 SA cells use 15 or 30 kHz and FR2 cells 60 or 120 kHz. Quectel warns that
+/// locking a cell with an SCS its band does not support crashes the module.
+pub fn nr_scs_valid(band: u32, scs: u32) -> bool {
+    if band < 257 {
+        matches!(scs, 15 | 30)
     } else {
-        p.integer("scs", 15, 240)?
-    };
+        matches!(scs, 60 | 120)
+    }
+}
+fn nr_lock(p: &Params) -> Result<String> {
+    // Never guess the SCS: a wrong value can crash the module.
+    if p.get("scs").is_empty() {
+        bail!("missing NR subcarrier spacing")
+    }
+    let scs = p.integer("scs", 15, 120)?;
+    let band = p.integer("band", 1, 1024)?;
+    if !nr_scs_valid(band, scs) {
+        bail!("subcarrier spacing {scs} kHz is not valid for n{band}")
+    }
     Ok(format!(
-        "AT+QNWLOCK=\"common/5g\",{},{},{scs},{}",
+        "AT+QNWLOCK=\"common/5g\",{},{},{scs},{band}",
         p.integer("pci", 0, 1007)?,
         p.integer("earfcn", 0, 3279165)?,
-        p.integer("band", 1, 1024)?
     ))
 }
 fn lte_lock(pairs: Vec<(&str, &str)>) -> Result<String> {
@@ -117,9 +129,9 @@ pub fn network(p: &Params) -> Result<String> {
         ),
         "unlock_lte" => "AT+QNWLOCK=\"common/4g\",0".into(),
         "unlock_nr" => "AT+QNWLOCK=\"common/5g\",0".into(),
-        "lock_nr_manual" => nr_lock(p, false)?,
+        "lock_nr_manual" => nr_lock(p)?,
         "lock_scanned_cells" => match p.get("mode") {
-            "NR5G Only" => nr_lock(p, true)?,
+            "NR5G Only" => nr_lock(p)?,
             "LTE Only" => {
                 let f = p.list("earfcn", ',');
                 let pci = p.list("pci", ',');
@@ -300,5 +312,19 @@ mod tests {
             network(&p).unwrap(),
             "AT+QNWLOCK=\"common/5g\",0,633984,30,78"
         );
+    }
+    #[test]
+    fn nr_lock_requires_an_scs_the_band_supports() {
+        for (query, ok) in [
+            ("mode=NR5G+Only&pci=5&earfcn=633984&band=78", false),
+            ("mode=NR5G+Only&pci=5&earfcn=633984&scs=60&band=78", false),
+            ("mode=NR5G+Only&pci=5&earfcn=633984&scs=240&band=78", false),
+            ("mode=NR5G+Only&pci=5&earfcn=152650&scs=15&band=28", true),
+            ("mode=NR5G+Only&pci=5&earfcn=2079165&scs=120&band=257", true),
+            ("mode=NR5G+Only&pci=5&earfcn=2079165&scs=30&band=257", false),
+        ] {
+            let p = Params::parse(&format!("action=lock_scanned_cells&{query}"), "").unwrap();
+            assert_eq!(network(&p).is_ok(), ok, "{query}");
+        }
     }
 }

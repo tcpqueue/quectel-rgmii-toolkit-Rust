@@ -9,7 +9,7 @@ const html = fs.readFileSync(path.join(assets, 'index.html'), 'utf8');
 const scanMode = html.match(/<select[^>]*id="cellSelect"[\s\S]*?<\/select>/)[0];
 const scanTable = html.match(/<table class="table">\s*<thead>[\s\S]*?id="cellScanTableBody"[\s\S]*?<\/table>/)[0];
 const lockButton = html.match(/<button[^>]*@click="lockSelectedCells\(\)"[\s\S]*?<\/button>/)[0];
-const nr = {type: 'NR5G', provider: '中国联通', band: '78', freq: '627264', pci: '317', rsrp: '-72'};
+const nr = {type: 'NR5G', provider: '中国联通', band: '78', freq: '627264', pci: '317', rsrp: '-72', scs: 30};
 const samePci = {...nr, freq: '633984'};
 const shared = {...nr, provider: '中国电信'};
 const lte = Array.from({length: 11}, (_, i) => ({
@@ -100,6 +100,15 @@ const lte = Array.from({length: 11}, (_, i) => ({
     assert.equal(await page.evaluate(() => requests.length), 0, 'NR multi-selection must be rejected at submission');
     assert.equal(await page.evaluate(() => alerts.length), 1);
     assert.equal(await page.evaluate(() => countdowns), 0);
+
+    await page.evaluate(() => { scanResult.nr5g_cells_parsed[0] = {...scanResult.nr5g_cells_parsed[0], scs: null}; });
+    await scan('NR5G Only');
+    await resetRequests();
+    await rows.nth(0).click();
+    await lock.click();
+    assert.equal(await page.evaluate(() => requests.length), 0, 'a scanned NR cell without SCS must not be locked');
+    assert.match(await page.evaluate(() => cellApp.lockMessage), /子载波间隔/);
+    await page.evaluate(() => { scanResult.nr5g_cells_parsed[0] = {...scanResult.nr5g_cells_parsed[0], scs: 30}; });
 
     await scan('NR5G Only');
     assert.equal(await checked(), 0, 'a new scan must clear previous selection');
