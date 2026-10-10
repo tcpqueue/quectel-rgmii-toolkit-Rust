@@ -568,6 +568,51 @@ async fn language_setting_accepts_chinese_and_english_only() {
 }
 
 #[tokio::test]
+async fn online_update_endpoints_require_login_and_post() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    let status = |response: Response| response.status().as_u16();
+    let get = |uri: &'static str, token: String| {
+        let app = app.clone();
+        async move {
+            app.router()
+                .oneshot(get_request(uri, &token).body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+        }
+    };
+    assert_eq!(status(get("/api/ota", String::new()).await), 401);
+    let snapshot = get("/api/ota", token.clone()).await;
+    assert_eq!(snapshot.status(), 200);
+    let data: Value =
+        serde_json::from_slice(&to_bytes(snapshot.into_body(), 65536).await.unwrap()).unwrap();
+    assert_eq!(data["current"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(data["settings"]["mode"], "check");
+    assert_eq!(data["settings"]["source"], crate::ota::DEFAULT_SOURCE);
+    // Checking, installing and saving change state, so links and GETs cannot trigger them.
+    for uri in ["/api/ota/check", "/api/ota/install", "/api/ota/settings"] {
+        assert_eq!(status(get(uri, token.clone()).await), 405, "{uri}");
+    }
+    let saved = call(
+        &app,
+        "/api/ota/settings",
+        r#"{"mode":"auto","source":"me/fork","proxy":"https://ghfast.top/","public_key":""}"#,
+        &token,
+    )
+    .await;
+    assert_eq!(saved.status(), 200);
+    assert_eq!(app.ota.settings().mode, crate::ota::Mode::Auto);
+    let rejected = call(
+        &app,
+        "/api/ota/settings",
+        r#"{"mode":"auto","source":"me/fork","proxy":"","public_key":"","extra":1}"#,
+        &token,
+    )
+    .await;
+    assert_eq!(rejected.status(), 400);
+}
+
+#[tokio::test]
 async fn telemetry_schedule_is_validated_persisted_and_reported() {
     let (app, dir) = application();
     let token = app.auth.create();

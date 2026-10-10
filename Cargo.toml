@@ -1,6 +1,6 @@
 [package]
 name = "simpleadmin-httpd"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.90"
 license = "MIT"
@@ -38,6 +38,8 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
+ring = "0.17"
+miniz_oxide = "0.8"
 
 [dev-dependencies]
 tempfile = "3"

@@ -199,6 +199,20 @@ function portDefinitions(dir) {
       const dir=fixture('non-root'); status(run(dir,'id() { echo 2000; }; main'),1);
       assert(!fs.existsSync(path.join(dir,'trace')));
     });
+    check('online update unit is installed beside the service but not enabled at boot',()=>{
+      const dir=fixture('ota-unit');
+      const result=spawnSync('bash',['-c',`source "$1/development/install_simpleadmin_rust.sh"
+UNITS="$2/units"; SIMPLEADMIN_DIR="$2/installed"; mkdir -p "$SIMPLEADMIN_DIR/systemd" "$UNITS"
+cp "$2/package/simpleadmin/systemd/"*.service "$SIMPLEADMIN_DIR/systemd/"
+find_systemd_dir() { echo "$UNITS"; }
+remove_stale_etc_unit() { :; }
+install_systemd_unit`,'installer-test',root,dir],{encoding:'utf8',timeout:20000});
+      status(result,0);
+      assert.ok(fs.existsSync(path.join(dir,'units/simpleadmin-httpd.service')));
+      assert.ok(fs.existsSync(path.join(dir,'units/multi-user.target.wants/simpleadmin-httpd.service')));
+      assert.match(fs.readFileSync(path.join(dir,'units/simpleadmin-ota.service'),'utf8'),/ExecStart=\/bin\/bash \/tmp\/simpleadmin-ota-run.sh/);
+      assert.ok(!fs.existsSync(path.join(dir,'units/multi-user.target.wants/simpleadmin-ota.service')));
+    });
     check('systemd and fallback share firewall setup; insertion failure is not swallowed',()=>{
       const dir=fixture('firewall'); status(run(dir,'install_fallback_scripts'),0);
       const definitions=portDefinitions(dir);

@@ -1,0 +1,11 @@
+[Unit]
+Description=SimpleAdmin online update
+# Started on demand by simpleadmin-httpd; runs the install script outside the web service,
+# which the script stops and restarts.
+
+[Service]
+Type=oneshot
+StandardOutput=null
+StandardError=null
+ExecStart=/bin/bash /tmp/simpleadmin-ota-run.sh
+TimeoutStartSec=1200

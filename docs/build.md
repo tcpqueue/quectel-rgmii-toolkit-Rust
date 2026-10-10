@@ -115,7 +115,7 @@ bash scripts/build.sh
 bash scripts/package.sh
 ```
 
-`package.sh` 校验仓库中的二进制与安装文件清单后，生成 `packages/quectel-rgmii-toolkit-Rust-<版本>-offline.zip`（仅含 EXE）、单独的 `packages/SimpleAdmin-Setup.exe` 及其 SHA-256。两者作为 GitHub Release 附件发布；`packages/` 不提交到 Git。
+`package.sh` 校验仓库中的二进制与安装文件清单后，生成 `packages/quectel-rgmii-toolkit-Rust-<版本>-offline.zip`（仅含 EXE）、单独的 `packages/SimpleAdmin-Setup.exe` 及其 SHA-256。它还会调用 `scripts/ota-package.sh`，生成在线更新用的 `simpleadmin-ota-<版本>.tar.gz`、`simpleadmin-ota.json` 和 `simpleadmin-ota.json.sig`。签名需要私钥 `~/.config/simpleadmin/ota-ed25519.pem`（或用 `SIMPLEADMIN_OTA_KEY` 指定），且 `development/` 必须已经提交。以上文件都作为 GitHub Release 附件发布，`packages/` 不提交到 Git。在线更新的设计见 [ota.md](ota.md)。
 
 修改前端或安装运行辅助文件后，先更新安装文件校验清单（构建脚本会自动执行）：
 

@@ -90,6 +90,7 @@ remove_simpleadmin_files() {
     remove_post_boot_autostart
 
     remove_unit simpleadmin-httpd.service
+    remove_unit simpleadmin-ota.service
     rm -f "$ROOT_BIN/simplepasswd"
     rm -f "$SIMPLEADMIN_DIR/simpleadmin-httpd"
     rm -f "$SIMPLEADMIN_DIR/simpleadmin.auth"
@@ -101,6 +102,7 @@ remove_simpleadmin_files() {
     rm -f "$SIMPLEADMIN_DIR/ttlvalue"
     rm -f "$SIMPLEADMIN_DIR/monitor.json"
     rm -f "$SIMPLEADMIN_DIR/cell-lock.json"
+    rm -f "$SIMPLEADMIN_DIR/ota-settings.json"
     rm -f /tmp/simpleadmin-httpd.pid
     rm -f "$SIMPLEADMIN_DIR/bridge0_mac"
     rm -f "$SIMPLEADMIN_DIR/mobileap_bridge0_mac.sh"

@@ -52,6 +52,7 @@ pub struct App {
     ttl_lock: tokio::sync::Mutex<()>,
     pub webui: crate::webui::ListenerState,
     pub cell_lock: Arc<crate::cell_lock::CellLock>,
+    pub ota: Arc<crate::ota::Ota>,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap(), axum::Json(value)).into_response()
@@ -163,6 +164,18 @@ impl App {
             config.auth_file.with_file_name("cell-lock.json"),
             store.clone(),
         ));
+        // The install script expects its tree in /tmp/development; previews unpack beside the auth file.
+        let ota_work = if config.mock {
+            config.auth_file.with_file_name("ota-work")
+        } else {
+            std::path::PathBuf::from("/tmp")
+        };
+        let ota = crate::ota::Ota::new(
+            config.auth_file.with_file_name("ota-settings.json"),
+            ota_work,
+            config.mock,
+            store.clone(),
+        );
         Ok(Arc::new(Self {
             config,
             at,
@@ -176,6 +189,7 @@ impl App {
             ttl_lock: tokio::sync::Mutex::new(()),
             webui: crate::webui::ListenerState::default(),
             cell_lock,
+            ota,
         }))
     }
     pub fn start(self: &Arc<Self>) {
@@ -183,6 +197,7 @@ impl App {
         self.monitor.start(self.at.clone());
         self.forwarding.start(self.at.clone());
         self.cell_lock.start(self.at.clone());
+        self.ota.start();
         let app = self.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(30));
@@ -324,7 +339,7 @@ async fn dispatch(State(app): State<Arc<App>>, request: Request) -> Response {
 fn method_allowed(path: &str, action: &str, method: &str) -> bool {
     let read = match path {
         // Snapshots that are only ever read.
-        "/api/telemetry" | "/api/webui_settings" => return method == "GET",
+        "/api/telemetry" | "/api/webui_settings" | "/api/ota" => return method == "GET",
         "/api/forwarding"
         | "/api/module_model"
         | "/api/dashboard_data"
@@ -353,6 +368,8 @@ fn body_limit(path: &str) -> usize {
         "/api/login" | "/api/set_password" | "/api/set_root_password" => 4096,
         "/api/sms/settings" | "/api/forwarding/test" => 128,
         "/api/telemetry/target" | "/api/telemetry/schedule" => 1024,
+        "/api/ota/settings" => 4096,
+        "/api/ota/check" | "/api/ota/install" => 64,
         "/api/forwarding/save" => 16384,
         _ => 64 * 1024,
     }
@@ -394,6 +411,10 @@ pub async fn api(
         "/api/telemetry" => telemetry(app, &p),
         "/api/telemetry/target" => telemetry_target(app, body).await,
         "/api/telemetry/schedule" => telemetry_schedule(app, body).await,
+        "/api/ota" => Ok(app.ota.snapshot()),
+        "/api/ota/settings" => app.ota.save(body).await,
+        "/api/ota/check" => app.ota.check_now().await,
+        "/api/ota/install" => app.ota.install(),
         "/api/module_model" => module_model(app, &p).await,
         "/api/dashboard_data" => dashboard(app, &p).await,
         "/api/device_info_data" => device_info(app, &p).await,
