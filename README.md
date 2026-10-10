@@ -1,6 +1,6 @@
 # Quectel RGMII Toolkit · Rust
 
-面向移远 RM520N-EU 的轻量设备管理后台。Rust 原生后端，保留 Go 版的页面、AT 操作和安装方式，支持中文、English、Русский、العربية。
+面向移远 RM520N-EU 的轻量设备管理后台。Rust 原生后端，保留 Go 版的页面、AT 操作和安装方式，支持中文和 English。
 
 [下载离线安装包](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases/latest) · [功能核对与真机测试](docs/validation.md) · [构建说明](docs/build.md) · [Go 原项目](https://github.com/snjzb/quectel-rgmii-toolkit-Go)
 
@@ -9,6 +9,8 @@
 > 截图使用模拟数据。已在 RM520N-EU 真机安装测试，其他型号和固件尚未完成实机验证。
 
 **v0.2.7 修复：** 修复 NR5G 扫描结果首次无法选中、相同 PCI 的小区参数混用和旧选择残留；纠正上传、下载流量方向，累计流量、速率与五分钟趋势同步修正。参见 [流量统计说明](docs/traffic.md)。
+
+**v0.3.0 管理后台新界面：** 模块网页改为苹果风格设计：电脑上使用侧边栏，手机上使用底部标签栏；各页面改为分组列表，开关、分段控件和弹出面板与系统一致；外观可选自动、浅色或深色。网络页的频段锁定改为可点选的频段标签，扫描与手动锁定分开；设置页按账号、端口、网络功能、偏好与维护分组。移除 Bootstrap 和 Poppins 字体，网页资源减少约 480 KB。界面语言精简为中文和英文。
 
 **v0.2.9 设备助手界面更新：** 设备助手（安装器 2.1.0）改为侧边栏分页的新界面：已连接 ADB 时直接进入安装，否则从连接模块开始；安装选项改为开关，进度按步骤显示。运行时显示一个小状态窗口，可随时打开网页或退出，不再在后台隐形运行。模块端程序与 v0.2.8 相同。
 
@@ -93,7 +95,7 @@
 | 设备信息 | 型号、版本、SIM 和设备标识等信息 |
 | 控制台 | 使用系统 root 密码认证的原生 PTY 终端 |
 
-UI 延续 Art Design Pro 的布局和配色，静态资源本地提供，支持明暗主题、移动端和阿拉伯语从右到左布局。总览把主要信息放在上方，趋势图放在下方；读不到 4G 数据时隐藏相关读数与图例，SINR 为 0 的有效数据正常显示。
+界面采用苹果风格设计：系统字体与系统色、分组列表、开关和分段控件，静态资源全部本地提供，不加载外部字体或脚本。电脑上为侧边栏（窄窗口收为图标），手机上为底部标签栏，外观可选自动、浅色或深色。总览把主要信息放在上方，趋势图放在下方；读不到 4G 数据时隐藏相关读数与图例，SINR 为 0 的有效数据正常显示。
 
 ## 五分钟趋势
 
@@ -149,9 +151,9 @@ Ping 和短信转发的 DNS 查询分别限制为最多一个，独立于网页�
 
 ![首次登录与语言选择](docs/images/login.png)
 
-| 中文移动端 | العربية |
+| 手机 · 浅色 | 手机 · 深色 |
 | --- | --- |
-| ![中文移动端](docs/images/mobile.png) | ![阿拉伯语移动端](docs/images/arabic-mobile.png) |
+| ![手机浅色](docs/images/mobile.png) | ![手机深色](docs/images/mobile-dark.png) |
 
 语言选择保存在当前浏览器中，不因切换语言反复写入模块存储。旧版语言 API 仍保留兼容。
 
@@ -165,7 +167,7 @@ Ping 和短信转发的 DNS 查询分别限制为最多一个，独立于网页�
 
 ## 来源与许可
 
-基于 [snjzb/quectel-rgmii-toolkit-Go](https://github.com/snjzb/quectel-rgmii-toolkit-Go) 的功能和前端迁移，保留原项目 MIT 许可与署名。界面参考 [Art Design Pro](https://github.com/Daymychen/art-design-pro)，图表和图标使用 ECharts、Lucide。相关前端许可位于 `development/simpleadmin/www/licenses/`。Rust 依赖版本见 `Cargo.lock`。
+基于 [snjzb/quectel-rgmii-toolkit-Go](https://github.com/snjzb/quectel-rgmii-toolkit-Go) 的功能和前端迁移，保留原项目 MIT 许可与署名。总览的信息布局早期参考 [Art Design Pro](https://github.com/Daymychen/art-design-pro)，图表和图标使用 ECharts、Lucide。相关前端许可位于 `development/simpleadmin/www/licenses/`。Rust 依赖版本见 `Cargo.lock`。
 
 移远高通准备流程参考用户提供的 ADBUnlockTool v1.33 中的配置指令，用 Rust 独立实现；未打包或分发原 Python 工具。
 

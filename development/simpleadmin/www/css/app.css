@@ -253,7 +253,7 @@ button.ui-row { width: 100%; border: 0; background: transparent; font: inherit; 
   transition: background .15s, box-shadow .15s;
 }
 .ui-segmented > label { display: flex; align-items: center; justify-content: center; }
-.ui-segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.ui-segmented input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .ui-segmented > .active, .ui-segmented > label:has(input:checked), .art-segmented > button.active, .sa-sms-tabs > button.active {
   background: var(--elevated); box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04);
 }
@@ -452,6 +452,8 @@ dialog.ui-sheet[open] { animation: ui-pop .24s cubic-bezier(.2, .9, .3, 1.1); }
 .art-resource-track.metric-warn span { background: var(--orange); }
 .art-resource-track.metric-bad span { background: var(--red); }
 .art-connection-state { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 600; line-height: 1.2; min-height: 31px; }
+.art-connection-state { min-width: 0; }
+.art-connection-state span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .art-connection-state svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .art-radio-readings { padding: 4px 0 6px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--card-shadow); }
 .art-radio-readings .art-overview-heading { margin: 0; padding: 12px 16px 6px; }
@@ -612,6 +614,8 @@ dialog.ui-sheet[open] { animation: ui-pop .24s cubic-bezier(.2, .9, .3, 1.1); }
   .sa-content { padding-left: 12px; padding-right: 12px; }
   .art-health-item, .art-stat { padding: 12px; }
   .art-health-item strong, .art-stat strong { font-size: 21px; }
+  .art-connection-state { font-size: 18px; gap: 6px; }
+  .art-connection-state svg { width: 21px; height: 21px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; }

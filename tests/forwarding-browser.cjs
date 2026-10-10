@@ -91,7 +91,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.waitForTimeout(350);await page.screenshot({path:path.join(temp,'configured.png'),fullPage:true});assert.deepEqual(errors,[]);
     await page.locator('[data-page-link="network"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp']?._initialized);
     await page.locator('input[name="cell-lock-mode"][value="persistent"]').check();
-    await page.locator('#networkModeCell').selectOption({label:'NR5G-SA'});
+    await page.locator('#networkModeCell').selectOption('NR5G-SA');
     await page.locator('#saElementsCell input[aria-label="EARFCN"]').fill('633984');await page.locator('#saElementsCell input[aria-label="PCI"]').fill('0');
     await page.locator('#saElementsCell select').selectOption('30');await page.locator('#saElementsCell input[aria-label="band"]').fill('78');
     await page.getByRole('button',{name:'锁定NR5G-SA小区',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===true);
@@ -103,6 +103,6 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('.sa-lock-status').filter({hasText:'NR5G-SA'}).getByRole('button',{name:'取消锁频',exact:true}).click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp'].lockRadios[1]?.persistent===false);
     assert.equal(JSON.parse(fs.readFileSync(path.join(temp,'cell-lock.json'),'utf8')).rules[1],null);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({result:'passed',languages:4,viewports:4,platforms:6,cellLocks:'passed',baseline:'passed',retry:'passed',dedup:'passed',screenshots:temp}));
+    console.log(JSON.stringify({result:'passed',languages:2,viewports:4,platforms:6,cellLocks:'passed',baseline:'passed',retry:'passed',dedup:'passed',screenshots:temp}));
   } finally {if(browser)await browser.close();child.kill();await new Promise(r=>child.once('exit',r));await new Promise(r=>sink.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});
