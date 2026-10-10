@@ -455,6 +455,7 @@
 <button :disabled="isLoading" @click="onBoardDNSV6ProxyDisable()" class="btn btn-danger btn-sm" type="button" v-show="DNSV6ProxyStatus === true">禁用</button>
 </div></div>
 </div>
+<p class="ui-foot" :class="{ 'is-error': networkFailed }" id="networkFeatureMessage" role="status" aria-live="polite" v-show="networkMessage" v-text="networkMessage"></p>
 </section>
 
 <section class="ui-group" aria-labelledby="preferencesHeading">
@@ -470,10 +471,11 @@
 <div class="ui-row is-stack sa-ttl-settings-card"><label for="ttlInput">TTL 设置</label><div class="ui-row-control">
 <span class="ui-tag" :class="ttlStatus ? 'is-good' : ''"><span v-text="ttlStatus ? 'TTL 已激活' : 'TTL 未激活'"></span><span data-no-i18n v-text="'· ' + ttlvalue"></span></span>
 <input class="form-control sa-ttl-input" id="ttlInput" placeholder="TTL 值" type="text" inputmode="numeric" v-model="newTTL"/>
-<button @click="setTTL()" class="btn btn-primary" type="button">更新</button>
+<button :disabled="isLoading" @click="setTTL()" class="btn btn-primary" type="button">更新</button>
 </div></div>
 </div>
 <p class="ui-foot" v-show="languageSaveMessage" v-text="languageSaveMessage"></p>
+<p class="ui-foot" id="ttlMessage" role="status" aria-live="polite" v-show="ttlMessage" v-text="ttlMessage"></p>
 <p class="ui-foot" id="ttlValueHelper">设置 TTL 值为 0 以禁用。</p>
 </section>
 

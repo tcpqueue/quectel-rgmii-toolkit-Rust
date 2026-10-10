@@ -91,7 +91,7 @@ pub async fn serve(app: Arc<App>) -> Result<()> {
     let permits = Arc::new(tokio::sync::Semaphore::new(32));
     let router = app.router();
     loop {
-        let (stream, peer) = listener.accept().await?;
+        let (stream, peer) = crate::http::accept(&listener).await;
         let Ok(permit) = permits.clone().try_acquire_owned() else {
             continue;
         };

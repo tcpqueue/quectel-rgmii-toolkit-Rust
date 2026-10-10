@@ -108,7 +108,7 @@ function fetchSMS() {
       this.messageIndices = [];
       this.serviceCenters = data.serviceCenters || [];
       (data.messages || []).forEach((msg) => {
-        const date = msg.date ? this.parseCustomDate(String(msg.date).replace(/\+\d{2}$/, '')) : new Date(NaN);
+        const date = msg.date ? this.parseCustomDate(String(msg.date).replace(/[+-]\d{2}$/, '')) : new Date(NaN);
         this.pushSMSMessage(
           msg.sender || '',
           Number.isNaN(date.getTime()) ? new Date() : date,
@@ -394,7 +394,8 @@ function fetchSMS() {
     parseCustomDate(dateStr) {
       const [datePart, timePart] = String(dateStr || '').split(',');
       if (!datePart || !timePart) return new Date(NaN);
-      const [day, month, year] = datePart.split('/').map((part) => parseInt(part, 10));
+      // Modems report SMS times as yy/MM/dd,hh:mm:ss±zz.
+      const [year, month, day] = datePart.split('/').map((part) => parseInt(part, 10));
       const [hour, minute, second] = timePart.split(':').map((part) => parseInt(part, 10));
       return new Date(Date.UTC(2000 + year, month - 1, day, hour, minute, second));
     },
@@ -406,7 +407,7 @@ function fetchSMS() {
       const hour = date.getUTCHours().toString().padStart(2, '0');
       const minute = date.getUTCMinutes().toString().padStart(2, '0');
       const second = date.getUTCSeconds().toString().padStart(2, '0');
-      return `${day}/${month}/${year},${hour}:${minute}:${second}`;
+      return `${year.toString().padStart(2, '0')}/${month}/${day},${hour}:${minute}:${second}`;
     },
 
     async deleteSelectedSMS() {

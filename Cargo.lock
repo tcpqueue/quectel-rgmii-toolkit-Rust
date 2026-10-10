@@ -1723,7 +1723,7 @@ dependencies = [
 
 [[package]]
 name = "simpleadmin-httpd"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "axum",

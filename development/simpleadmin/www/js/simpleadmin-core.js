@@ -40,6 +40,19 @@
     }
 
 
+    // A failed WebSocket handshake hides its HTTP status. Ask once over plain HTTP whether the
+    // session has ended (service restart, timeout or password change) and return to the login page.
+    let sessionCheck = null;
+    function checkSession() {
+      if (sessionCheck || typeof fetch !== 'function') return;
+      sessionCheck = fetch('/api/get_uptime', { cache: 'no-store', credentials: 'same-origin' })
+        .then((response) => {
+          if (response.status === 401) global.location.replace('/login.html');
+        })
+        .catch(() => {})
+        .finally(() => { sessionCheck = null; });
+    }
+
     function connect() {
       if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve(ws);
       if (connectPromise) return connectPromise;
@@ -57,6 +70,7 @@
           connectPromise = null;
           reject(error);
           rejectAll(error);
+          checkSession();
         };
         socket.onclose = () => {
           if (ws === socket) ws = null;
@@ -458,24 +472,6 @@
       setSensitiveVisible
     };
   })();
-
-  root.Time = root.Time || {
-    parseSmsDate(value) {
-      const dateStr = String(value || '').replace(/\+\d{2}$/, '');
-      const parts = dateStr.split(',');
-      if (parts.length !== 2) return new Date(NaN);
-      const dateParts = parts[0].split('/').map(Number);
-      const timeParts = parts[1].split(':').map(Number);
-      if (dateParts.length !== 3 || timeParts.length !== 3) return new Date(NaN);
-      const [day, month, year] = dateParts;
-      const [hour, minute, second] = timeParts;
-      return new Date(Date.UTC(2000 + year, month - 1, day, hour, minute, second));
-    },
-    formatDateTime(date) {
-      const pad = (value) => value.toString().padStart(2, '0');
-      return `${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-    }
-  };
 
   root.Sms = root.Sms || {
     parseConcatHeader(hex) {

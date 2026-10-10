@@ -152,6 +152,21 @@ impl Auth {
             mock_root: Mutex::new("admin".into()),
         })
     }
+    /// Queues one password check. Clients locked out by earlier failures get the remaining
+    /// wait instead; the check repeats after the queue, so a parallel burst cannot skip it.
+    pub async fn password_attempt(
+        &self,
+        ip: Option<IpAddr>,
+    ) -> std::result::Result<tokio::sync::MutexGuard<'_, ()>, Duration> {
+        if let Some(wait) = self.throttle.check(ip) {
+            return Err(wait);
+        }
+        let guard = self.mutation.lock().await;
+        match self.throttle.check(ip) {
+            Some(wait) => Err(wait),
+            None => Ok(guard),
+        }
+    }
     pub fn create(&self) -> String {
         use rand::RngCore;
         let mut bytes = [0; 32];
