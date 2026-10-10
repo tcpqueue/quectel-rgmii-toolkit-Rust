@@ -9,6 +9,7 @@ mod forwarding;
 mod http;
 mod install_credentials;
 mod mock;
+mod ota;
 mod parser;
 mod persistence;
 mod resolver;

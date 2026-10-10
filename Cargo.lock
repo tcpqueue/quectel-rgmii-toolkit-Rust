@@ -1723,7 +1723,7 @@ dependencies = [
 
 [[package]]
 name = "simpleadmin-httpd"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1738,10 +1738,12 @@ dependencies = [
  "hyper",
  "hyper-util",
  "libc",
+ "miniz_oxide",
  "rand 0.8.8",
  "rcgen",
  "regex",
  "reqwest",
+ "ring",
  "rustls-pemfile",
  "serde",
  "serde_json",

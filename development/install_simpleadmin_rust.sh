@@ -9,6 +9,7 @@ SIMPLEADMIN_DIR="/usrdata/simpleadmin"
 TTL_VALUE_FILE="$SIMPLEADMIN_DIR/ttlvalue"
 AT_DEVICES_FILE="$SIMPLEADMIN_DIR/at_devices.conf"
 SYSTEMD_UNIT="simpleadmin-httpd.service"
+OTA_UNIT="simpleadmin-ota.service"
 SYSTEMD_DIR=""
 WANTS_DIR=""
 SERVICE_UNIT_INSTALLED="0"
@@ -365,6 +366,7 @@ install_simpleadmin_files() {
     chmod 600 "$SIMPLEADMIN_DIR/simpleadmin.auth"
 
     cp -f "$SIMPLEADMIN_SRC/systemd/$SYSTEMD_UNIT" "$SIMPLEADMIN_DIR/systemd/$SYSTEMD_UNIT"
+    cp -f "$SIMPLEADMIN_SRC/systemd/$OTA_UNIT" "$SIMPLEADMIN_DIR/systemd/$OTA_UNIT"
     install_fallback_scripts
     install_systemd_unit || warn "systemd 服务无法安装到 /lib/systemd/system；如果服务无法启动，将使用 post_boot 兜底"
 }
@@ -479,6 +481,8 @@ install_systemd_unit() {
     mkdir -p "$WANTS_DIR" 2>/dev/null || return 1
     remove_stale_etc_unit
     cp -f "$SIMPLEADMIN_DIR/systemd/$SYSTEMD_UNIT" "$SYSTEMD_DIR/$SYSTEMD_UNIT" || return 1
+    # Started on demand for online updates, never at boot.
+    cp -f "$SIMPLEADMIN_DIR/systemd/$OTA_UNIT" "$SYSTEMD_DIR/$OTA_UNIT" || warn "在线更新服务单元安装失败，在线更新将不可用"
     link_unit "$SYSTEMD_UNIT" || return 1
     SERVICE_UNIT_INSTALLED="1"
     log "systemd 服务已安装: $SYSTEMD_DIR/$SYSTEMD_UNIT"

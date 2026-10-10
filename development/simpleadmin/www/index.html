@@ -479,6 +479,32 @@
 <p class="ui-foot" id="ttlValueHelper">设置 TTL 值为 0 以禁用。</p>
 </section>
 
+<section class="ui-group sa-ota" aria-labelledby="otaHeading">
+<div class="ui-group-head"><h2 id="otaHeading">在线更新</h2></div>
+<div class="ui-card">
+<div class="ui-row"><span class="ui-row-label">当前版本</span><div class="ui-row-control"><span class="ui-tag" id="otaCurrent" data-no-i18n v-text="'v' + (ota.current || '-')"></span></div></div>
+<div class="ui-row is-stack"><span class="ui-row-label">最新版本</span><div class="ui-row-control">
+<span class="ui-tag" id="otaLatest" :class="otaHasUpdate() ? 'is-good' : ''" v-text="otaLatestText()"></span>
+<a v-if="ota.latest && ota.latest.url" :href="ota.latest.url" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">更新说明</a>
+<button id="otaCheckButton" class="btn btn-sm" type="button" :disabled="otaBusy()" @click="otaCheck()">检查更新</button>
+<button id="otaInstallButton" class="btn btn-sm btn-primary" type="button" v-show="otaHasUpdate()" :disabled="otaBusy()" @click="otaInstall()">立即更新</button>
+</div></div>
+<div class="ui-row is-stack" v-show="ota.phase === 'downloading' || ota.phase === 'installing'"><span class="ui-row-label" v-text="otaPhaseText()"></span><div class="ui-row-control"><progress class="sa-ota-progress" :value="ota.phase === 'downloading' ? ota.received : null" :max="ota.total || 1"></progress><span class="ui-tag" data-no-i18n v-show="ota.phase === 'downloading' && ota.total" v-text="otaPercent()"></span></div></div>
+</div>
+<p class="ui-foot" :class="{ 'is-error': otaFailed }" id="otaMessage" role="status" aria-live="polite" v-show="otaMessage" v-text="otaMessage"></p>
+<details class="sa-ota-log" v-if="ota.last_result && !ota.last_result.ok && ota.last_result.log"><summary>安装日志</summary><pre data-no-i18n v-text="ota.last_result.log"></pre></details>
+<form @submit.prevent="otaSave()" class="ui-card sa-ota-settings">
+<div class="ui-row is-stack"><label for="otaMode">自动更新</label><div class="ui-row-control">
+<select id="otaMode" class="form-select" v-model="otaForm.mode"><option value="off">关闭</option><option value="check">每天检查，手动安装</option><option value="auto">每天检查并自动安装</option></select>
+</div></div>
+<div class="ui-row is-stack"><label for="otaSource">更新源</label><div class="ui-row-control"><input id="otaSource" class="form-control" type="text" autocapitalize="none" spellcheck="false" :placeholder="ota.default_source || 'owner/repo'" v-model.trim="otaForm.source"/></div></div>
+<div class="ui-row is-stack"><label for="otaProxy">GitHub 代理</label><div class="ui-row-control"><input id="otaProxy" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，例如 https://ghfast.top/" v-model.trim="otaForm.proxy"/></div></div>
+<div class="ui-row is-stack"><label for="otaKey">验证公钥</label><div class="ui-row-control"><input id="otaKey" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，自定义源的 Ed25519 公钥" v-model.trim="otaForm.public_key"/></div></div>
+<div class="ui-actions"><span class="ui-status" role="status" aria-live="polite" v-text="otaSaveMessage"></span><button type="submit" class="btn btn-primary" :disabled="otaSaving">保存</button></div>
+</form>
+<p class="ui-foot">更新源填写 GitHub 仓库（owner/repo）或存放更新文件的网址；代理只用于 GitHub，可填写前缀或含 {url} 的模板。安装包必须带有效签名，只会升级到更高版本，账号密码与端口保持不变。</p>
+</section>
+
 <section class="ui-group" aria-labelledby="atTerminalHeading">
 <div class="ui-group-head"><h2 id="atTerminalHeading">AT 终端</h2></div>
 <div class="ui-card sa-at-terminal">

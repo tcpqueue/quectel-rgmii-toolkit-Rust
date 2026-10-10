@@ -56,6 +56,15 @@ function simpleSettings() {
         isSavingRootPassword: false,
         rootPasswordSaveMessage: "",
         rebootCountdownTimer: null,
+        ota: { phase: 'idle' },
+        otaForm: { mode: 'check', source: '', proxy: '', public_key: '' },
+        otaFormLoaded: false,
+        otaMessage: "",
+        otaFailed: false,
+        otaSaving: false,
+        otaSaveMessage: "",
+        otaPollTimer: null,
+        otaRestartFrom: "",
 
         t(key) {
           return SimpleAdmin.Lang ? SimpleAdmin.Lang.t(key) : key;
@@ -536,6 +545,173 @@ function simpleSettings() {
             });
         },
 
+        // ---------- 在线更新 ----------
+        otaError(text) {
+          const message = String(text || '');
+          const known = [
+            ['update signature is not trusted', '更新签名无效或不受信任'],
+            ['package checksum does not match', '安装包校验失败'],
+            ['HTTP 404', '更新源中没有找到更新文件'],
+            ['download interrupted', '下载中断'],
+            ['download failed', '下载失败'],
+            ['download is larger than expected', '下载内容大小异常'],
+            ['already running', '已有更新任务在进行'],
+            ['is already the latest release', '已是最新版本'],
+            ['installation failed', '安装失败，请查看安装日志'],
+            ['did not finish within', '安装超过 20 分钟仍未完成'],
+            ['cannot start the installer', '无法在网页服务之外启动安装程序，请使用 Windows 设备助手安装此版本'],
+            ['update source must be', '更新源需为 owner/repo 或 http(s) 地址'],
+            ['GitHub proxy must be', 'GitHub 代理需为 http(s) 地址'],
+            ['public key must be', '公钥需为 Base64 编码的 32 字节 Ed25519 公钥'],
+            ['invalid update manifest', '更新清单无效'],
+          ];
+          const hit = known.find(([key]) => message.includes(key));
+          if (!hit) return message;
+          const detail = hit[1] === '下载失败' || hit[1] === '下载中断' ? message.split(': ').slice(1).join(': ') : '';
+          return this.t(hit[1]) + (detail ? ' · ' + detail : '');
+        },
+        otaApply(data) {
+          if (!data || !data.current) return;
+          this.ota = data;
+          if (!this.otaFormLoaded) {
+            const settings = data.settings || {};
+            this.otaForm = {
+              mode: settings.mode || 'check',
+              source: settings.source === data.default_source ? '' : (settings.source || ''),
+              proxy: settings.proxy || '',
+              public_key: settings.public_key || ''
+            };
+            this.otaFormLoaded = true;
+          }
+          if (data.phase === 'idle' && data.error) {
+            this.otaFailed = true;
+            this.otaMessage = this.otaError(data.error);
+          }
+        },
+        async otaRequest(path, body, timeout) {
+          const options = body === undefined ? { timeout } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout };
+          const response = await SimpleAdmin.Api.request(path, options);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || data.ok === false) throw new Error(this.otaError(data.error) || this.t('请求失败'));
+          return data;
+        },
+        async otaRefresh() {
+          try {
+            this.otaApply(await this.otaRequest('/api/ota'));
+          } catch (_) {
+            return;
+          }
+          if (this.ota.phase !== 'idle') { this.otaPoll(); return; }
+          const last = this.ota.last_result;
+          if (last && !this.otaMessage) {
+            this.otaFailed = !last.ok;
+            this.otaMessage = this.t(last.ok ? '上次在线更新成功' : '上次在线更新失败') + ' · v' + last.version;
+          }
+        },
+        otaBusy() {
+          return Boolean(this.otaRestartFrom) || (this.ota.phase && this.ota.phase !== 'idle');
+        },
+        otaHasUpdate() {
+          return Boolean(this.ota.latest && this.ota.latest.newer);
+        },
+        otaLatestText() {
+          if (this.ota.phase === 'checking') return this.t('检查中...');
+          if (!this.ota.latest) return this.t(this.ota.checked_at ? '无法获取' : '尚未检查');
+          return this.ota.latest.newer ? 'v' + this.ota.latest.version : this.t('已是最新版本');
+        },
+        otaPhaseText() {
+          return this.t(this.ota.phase === 'downloading' ? '正在下载' : '正在安装');
+        },
+        otaPercent() {
+          return Math.min(100, Math.floor(100 * (this.ota.received || 0) / Math.max(1, this.ota.total || 0))) + '%';
+        },
+        async otaCheck() {
+          if (this.otaBusy()) return;
+          this.otaMessage = '';
+          this.otaFailed = false;
+          this.ota = Object.assign({}, this.ota, { phase: 'checking' });
+          try {
+            const data = await this.otaRequest('/api/ota/check', {}, 90000);
+            this.otaApply(data);
+            if (!data.error) {
+              this.otaMessage = this.t(data.latest && data.latest.newer ? '发现新版本' : '已是最新版本');
+            }
+          } catch (error) {
+            this.otaFailed = true;
+            this.otaMessage = error.message;
+            await this.otaRefresh();
+          }
+        },
+        async otaInstall() {
+          if (!this.otaHasUpdate() || this.otaBusy()) return;
+          if (!window.confirm('将下载并安装新版本，安装期间管理页面会断开约一分钟。继续吗？')) return;
+          this.otaMessage = '';
+          this.otaFailed = false;
+          this.otaRestartFrom = this.ota.current;
+          try {
+            this.otaApply(await this.otaRequest('/api/ota/install', {}));
+            this.otaPoll();
+          } catch (error) {
+            this.otaRestartFrom = '';
+            this.otaFailed = true;
+            this.otaMessage = error.message;
+          }
+        },
+        // Plain HTTP polling: the WebSocket goes away while the installer restarts the service.
+        otaPoll() {
+          clearTimeout(this.otaPollTimer);
+          this.otaPollTimer = setTimeout(async () => {
+            let data = null;
+            try {
+              const response = await fetch('/api/ota', { cache: 'no-store', credentials: 'same-origin' });
+              if (response.status === 401) { window.location.replace('/login.html'); return; }
+              if (response.ok) data = await response.json();
+            } catch (_) {
+              // The service is restarting.
+            }
+            if (!data) {
+              this.otaFailed = false;
+              this.otaMessage = this.t('服务正在重启，请稍候…');
+              this.otaPoll();
+              return;
+            }
+            if (this.otaRestartFrom && data.current !== this.otaRestartFrom) {
+              this.otaRestartFrom = '';
+              this.otaApply(data);
+              this.otaFailed = false;
+              this.otaMessage = this.t('更新完成，正在刷新页面');
+              setTimeout(() => window.location.reload(), 1500);
+              return;
+            }
+            this.otaApply(data);
+            if (data.phase !== 'idle') { this.otaPoll(); return; }
+            if (data.error) { this.otaRestartFrom = ''; return; }
+            if (data.mock) {
+              this.otaRestartFrom = '';
+              this.otaFailed = false;
+              this.otaMessage = this.t('预览模式：安装包已校验并解包，未执行安装');
+              return;
+            }
+            this.otaMessage = this.t('安装完成，等待服务重启');
+            this.otaPoll();
+          }, 1500);
+        },
+        async otaSave() {
+          if (this.otaSaving) return;
+          this.otaSaving = true;
+          this.otaSaveMessage = '';
+          try {
+            const data = await this.otaRequest('/api/ota/settings', Object.assign({}, this.otaForm));
+            this.otaFormLoaded = false;
+            this.otaApply(data);
+            this.otaSaveMessage = this.t('已保存');
+          } catch (error) {
+            this.otaSaveMessage = this.t('保存失败') + ' · ' + error.message;
+          } finally {
+            this.otaSaving = false;
+          }
+        },
+
         init() {
           if (!this.isRebooted) {
             return;  // 如果设备正在重启，跳过
@@ -545,6 +721,7 @@ function simpleSettings() {
           this.fetchLanguageSetting();  // 获取界面语言设置
           this.fetchCurrentSettings();  // 发送 AT 命令获取当前设置
           this.fetchTTL();  // 获取 TTL 状态
+          this.otaRefresh();
         },
       };
     }

@@ -11,4 +11,5 @@ archive="packages/quectel-rgmii-toolkit-Rust-$version-offline.zip"
 rm -f "$archive"
 zip -q -j "$archive" SimpleAdmin-Setup.exe
 cp SimpleAdmin-Setup.exe packages/SimpleAdmin-Setup.exe
-(cd packages && sha256sum SimpleAdmin-Setup.exe "$(basename "$archive")" > SHA256SUMS-release.txt && cat SHA256SUMS-release.txt)
+bash scripts/ota-package.sh
+(cd packages && sha256sum SimpleAdmin-Setup.exe "$(basename "$archive")" "simpleadmin-ota-$version.tar.gz" simpleadmin-ota.json simpleadmin-ota.json.sig > SHA256SUMS-release.txt && cat SHA256SUMS-release.txt)
