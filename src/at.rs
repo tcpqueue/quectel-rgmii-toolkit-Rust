@@ -32,6 +32,12 @@ pub fn commands(page: &str) -> Vec<&'static str> {
             "AT+CGSN",
             "AT+QMAP=\"LANIP\"",
         ],
+        // PDP contexts, then the IMS setting alone: firmware without it must not hide the rest.
+        "pdp" => vec![
+            "AT+CGDCONT?;+CGACT?;+CGPADDR",
+            "AT+QCFG=\"ims\"",
+            "AT+QSIMDET?;+QNWPREFCFG=\"roam_pref\";+QUIMSLOT?",
+        ],
         "sms" => vec![SMS_LIST],
         "model" => vec!["AT+CGMM"],
         _ => vec![],
@@ -77,6 +83,7 @@ fn cacheable(command: &str) -> bool {
             "bands",
             "settings",
             "model",
+            "pdp",
         ]
         .iter()
         .flat_map(|page| commands(page))

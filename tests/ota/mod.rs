@@ -229,31 +229,98 @@ fn system_tar_packages_are_readable() {
     );
 }
 
+/// Runs the generated runner with `script` as the installer and a stand-in `systemctl` that
+/// records its calls and reports the web service as running or stopped.
+#[cfg(unix)]
+fn run_runner(script: &str, service_running: bool) -> (Value, String, bool) {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let tree = dir.path().join("development");
+    std::fs::create_dir_all(&tree).unwrap();
+    std::fs::write(tree.join("install_simpleadmin_rust.sh"), script).unwrap();
+    let bin = dir.path().join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let calls = dir.path().join("calls");
+    std::fs::write(
+        bin.join("systemctl"),
+        format!(
+            "#!/bin/sh\necho \"$*\" >> '{}'\n[ \"$1\" != is-active ] || exit {}\n",
+            calls.display(),
+            if service_running { 0 } else { 3 }
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(
+        bin.join("systemctl"),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    let runner_path = dir.path().join("run.sh");
+    std::fs::write(&runner_path, runner(dir.path(), "9.9.9").unwrap()).unwrap();
+    let status = std::process::Command::new("bash")
+        .arg(&runner_path)
+        .env(
+            "PATH",
+            format!("{}:{}", bin.display(), std::env::var("PATH").unwrap()),
+        )
+        .status()
+        .unwrap();
+    assert!(status.success());
+    (
+        read_result(dir.path()).unwrap(),
+        std::fs::read_to_string(&calls).unwrap_or_default(),
+        tree.exists(),
+    )
+}
+
 #[test]
 #[cfg(unix)]
 fn runner_records_the_install_outcome() {
     for (script, ok) in [("echo installed", true), ("echo broken; exit 3", false)] {
-        let dir = tempfile::tempdir().unwrap();
-        let tree = dir.path().join("development");
-        std::fs::create_dir_all(&tree).unwrap();
-        std::fs::write(tree.join("install_simpleadmin_rust.sh"), script).unwrap();
-        let runner_path = dir.path().join("run.sh");
-        std::fs::write(&runner_path, runner(dir.path(), "9.9.9").unwrap()).unwrap();
-        let status = std::process::Command::new("bash")
-            .arg(&runner_path)
-            .status()
-            .unwrap();
-        assert!(status.success());
-        let result = read_result(dir.path()).unwrap();
+        let (result, _, tree_left) = run_runner(script, true);
         assert_eq!(result["ok"], ok);
         assert_eq!(result["version"], "9.9.9");
-        assert!(!tree.exists(), "unpacked tree is removed afterwards");
+        assert!(!tree_left, "unpacked tree is removed afterwards");
         if !ok {
             assert!(result["log"].as_str().unwrap().contains("broken"));
         }
     }
     assert!(runner(Path::new("/tmp/x'y"), "1.0.0").is_err());
     assert!(runner(Path::new("/tmp"), "1.0.0;reboot").is_err());
+}
+
+#[test]
+#[cfg(unix)]
+fn failed_install_restarts_a_stopped_web_service() {
+    // Success, or a failure that left the service running: nothing to restart.
+    for (script, running) in [("exit 0", false), ("exit 1", true)] {
+        let (_, calls, _) = run_runner(script, running);
+        assert!(!calls.contains("start"), "{calls}");
+    }
+    let (result, calls, _) = run_runner("exit 1", false);
+    assert_eq!(result["ok"], false);
+    assert!(calls.contains("start simpleadmin-httpd.service"), "{calls}");
+    assert!(result["log"].as_str().unwrap().contains("正在恢复网页服务"));
+}
+
+#[tokio::test]
+async fn failed_check_is_retried_within_the_hour() {
+    let dir = tempfile::tempdir().unwrap();
+    let ota = Ota::new(
+        dir.path().join("ota-settings.json"),
+        dir.path().join("work"),
+        false,
+        Arc::new(Store::new(true)),
+    );
+    // Nothing listens on the discard port, so the check fails at once.
+    *ota.settings.lock().unwrap() = Settings {
+        source: "http://127.0.0.1:9".into(),
+        ..Settings::default()
+    };
+    let started = Instant::now();
+    assert!(ota.check_locked().await.is_err());
+    let next = ota.state.lock().unwrap().next_check.unwrap();
+    assert!(next >= started + RETRY_AFTER && next <= Instant::now() + RETRY_AFTER);
 }
 
 #[tokio::test]
@@ -373,4 +440,24 @@ async fn check_and_install_from_a_custom_source() {
         Arc::new(Store::new(true)),
     );
     assert_eq!(reloaded.settings().public_key, trusted["public_key"]);
+}
+
+#[test]
+fn ghfast_is_the_default_proxy_and_can_be_cleared() {
+    let defaults = Settings::default();
+    assert_eq!(defaults.proxy, DEFAULT_PROXY);
+    let (manifest, _) = Ota::urls(&defaults, None);
+    assert!(
+        manifest.starts_with("https://ghfast.top/https://github.com/"),
+        "{manifest}"
+    );
+    // A settings file without the field gets the default; an explicit empty proxy means direct.
+    let missing: Settings = serde_json::from_str(r#"{"mode":"check"}"#).unwrap();
+    assert_eq!(missing.proxy, DEFAULT_PROXY);
+    let cleared: Settings = serde_json::from_str(r#"{"mode":"check","proxy":""}"#).unwrap();
+    let cleared = cleared.normalize().unwrap();
+    assert_eq!(
+        Ota::urls(&cleared, None).0,
+        format!("https://github.com/{DEFAULT_SOURCE}/releases/latest/download/{MANIFEST}")
+    );
 }

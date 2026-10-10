@@ -19,6 +19,9 @@ use std::{
 
 pub const MANIFEST: &str = "simpleadmin-ota.json";
 pub const DEFAULT_SOURCE: &str = "tcpqueue/quectel-rgmii-toolkit-Rust";
+/// GitHub is often unreachable from Chinese mobile networks, so updates go through this proxy
+/// unless the setting is cleared.
+pub const DEFAULT_PROXY: &str = "https://ghfast.top/";
 const OFFICIAL_KEY: &str = include_str!("ota-public-key.txt");
 const MAX_MANIFEST: usize = 16 * 1024;
 const MAX_PACKAGE: u64 = 64 * 1024 * 1024;
@@ -28,6 +31,8 @@ const LOG: &str = "simpleadmin-ota.log";
 const RUNNER: &str = "simpleadmin-ota-run.sh";
 const UNIT: &str = "simpleadmin-ota.service";
 const CHECK_EVERY: Duration = Duration::from_secs(24 * 3600);
+/// A failed check (no network yet, GitHub unreachable) is retried sooner than the daily check.
+const RETRY_AFTER: Duration = Duration::from_secs(3600);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -55,7 +60,7 @@ impl Default for Settings {
         Self {
             mode: Mode::Check,
             source: DEFAULT_SOURCE.into(),
-            proxy: String::new(),
+            proxy: DEFAULT_PROXY.into(),
             public_key: String::new(),
         }
     }
@@ -384,6 +389,12 @@ result="$work/{RESULT}"
 exec >"$work/{LOG}" 2>&1
 echo "[信息] 在线更新到 v{version}"
 if bash "$work/development/install_simpleadmin_rust.sh"; then status=OK; else status=FAIL; fi
+# The installer stops the web service before replacing it; bring it back if it failed later.
+if [ "$status" = FAIL ] && command -v systemctl >/dev/null 2>&1 && ! systemctl is-active --quiet simpleadmin-httpd.service; then
+    echo "[信息] 安装失败，正在恢复网页服务"
+    systemctl daemon-reload || true
+    systemctl start simpleadmin-httpd.service || echo "[错误] 网页服务未能恢复，请用设备助手重新安装"
+fi
 rm -rf "$work/development"
 printf 'OTA_STATUS=%s\nOTA_VERSION=%s\nOTA_FINISHED=%s\n' "$status" '{version}' "$(date +%s)" > "$result.tmp"
 mv -f "$result.tmp" "$result"
@@ -428,7 +439,8 @@ struct State {
     latest: Option<Manifest>,
     release_url: Option<String>,
     checked_at: Option<i64>,
-    checked: Option<Instant>,
+    /// When the background task checks next: a day after a success, an hour after a failure.
+    next_check: Option<Instant>,
 }
 pub struct Ota {
     path: PathBuf,
@@ -477,6 +489,7 @@ impl Ota {
             "mock": self.mock,
             "settings": settings,
             "default_source": DEFAULT_SOURCE,
+            "default_proxy": DEFAULT_PROXY,
             "phase": s.phase,
             "received": s.received,
             "total": s.total,
@@ -507,7 +520,7 @@ impl Ota {
                 let mut s = self.state.lock().unwrap();
                 s.latest = None;
                 s.release_url = None;
-                s.checked = None;
+                s.next_check = None;
                 s.checked_at = None;
                 s.error.clear();
             }
@@ -633,7 +646,14 @@ impl Ota {
         let result = self.fetch_manifest(&settings).await;
         let mut s = self.state.lock().unwrap();
         s.phase = "idle";
-        s.checked = Some(Instant::now());
+        s.next_check = Some(
+            Instant::now()
+                + if result.is_ok() {
+                    CHECK_EVERY
+                } else {
+                    RETRY_AFTER
+                },
+        );
         s.checked_at = Some(chrono::Utc::now().timestamp_millis());
         match result {
             Ok(manifest) => {
@@ -751,8 +771,8 @@ impl Ota {
                     .state
                     .lock()
                     .unwrap()
-                    .checked
-                    .is_none_or(|t| t.elapsed() >= CHECK_EVERY);
+                    .next_check
+                    .is_none_or(|t| Instant::now() >= t);
                 if settings.mode != Mode::Off && due {
                     let newer_release = match this.busy.try_lock() {
                         Ok(_guard) => this

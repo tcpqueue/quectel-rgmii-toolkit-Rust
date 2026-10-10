@@ -352,7 +352,7 @@ fn method_allowed(path: &str, action: &str, method: &str) -> bool {
         "/api/network_data" => {
             matches!(
                 action,
-                "" | "settings" | "cell_lock_status" | "model" | "bands"
+                "" | "settings" | "cell_lock_status" | "model" | "bands" | "pdp"
             )
         }
         "/api/settings_data" => matches!(action, "" | "status"),
@@ -595,6 +595,23 @@ async fn network(app: &Arc<App>, p: &Params) -> Result<Value> {
             Ok(data)
         }
         "cell_lock_status" => Ok(app.cell_lock.snapshot()),
+        "pdp" => Ok(parser::pdp(&app.at.page("pdp", force).await?)),
+        "sim_detect" => {
+            // Keep the insert level the module already uses; only the switch changes.
+            let state = parser::pdp(
+                &app.at
+                    .fetch("AT+QSIMDET?;+QNWPREFCFG=\"roam_pref\";+QUIMSLOT?", true)
+                    .await?,
+            );
+            let level = state["sim_detect_level"]
+                .as_u64()
+                .ok_or_else(|| anyhow::anyhow!("cannot read the SIM detection level"))?;
+            run_action(
+                app,
+                &actions::sim_detect(p.flag("enabled", false), level as u32)?,
+            )
+            .await
+        }
         "model" => module_model(app, p).await,
         "bands" => {
             let command = if p.get("mode").is_empty() {

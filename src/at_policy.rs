@@ -12,6 +12,11 @@ pub fn action(command: &str) -> bool {
         "+CMGS",
         "+QSCAN=",
         "+CGDCONT=",
+        "+CGACT=",
+        "+QCFG=\"IMS\",",
+        "+QSIMDET=",
+        "+QNWPREFCFG=\"ROAM_PREF\",",
+        "+QUIMSLOT=",
         "+QMAPWAC=",
         "+QCFG=\"USBNET\",",
         "+QMAP=\"MPDN_RULE\",0",
@@ -42,6 +47,9 @@ pub fn timeout(command: &str) -> Duration {
                     10000
                 } else if up.contains("QSCAN") {
                     120000
+                } else if up.contains("+CGACT=") {
+                    // The network decides; the manual allows up to 150 s.
+                    150000
                 } else if up.contains("+QNWLOCK=") && up.contains("\",") {
                     // Setting or clearing a lock re-selects the cell; an RM520N-EU answers after ~1.3 s.
                     10000
@@ -162,5 +170,26 @@ mod tests {
         ] {
             assert!(timeout(cmd) >= Duration::from_secs(5), "{cmd}");
         }
+    }
+    #[test]
+    fn pdp_and_switch_writes_are_actions() {
+        for cmd in [
+            "AT+CGACT=1,3",
+            "AT+CGDCONT=3",
+            "AT+QCFG=\"ims\",2",
+            "AT+QSIMDET=1,1",
+            "AT+QNWPREFCFG=\"roam_pref\",1",
+            "AT+QUIMSLOT=2",
+        ] {
+            assert!(action(cmd), "{cmd}");
+        }
+        for query in [
+            "AT+CGDCONT?;+CGACT?;+CGPADDR",
+            "AT+QCFG=\"ims\"",
+            "AT+QUIMSLOT?",
+        ] {
+            assert!(!action(query), "{query}");
+        }
+        assert_eq!(timeout("AT+CGACT=1,3"), Duration::from_secs(150));
     }
 }

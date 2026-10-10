@@ -114,6 +114,28 @@ pub fn imei(p: &Params) -> Result<String> {
     }
     Ok(format!("AT+EGMR=1,7,\"{v}\";+CFUN=1,1"))
 }
+/// Checks a PDP type and APN before they are put inside AT+CGDCONT quotes.
+fn pdp_context(pdp: &str, apn: &str) -> Result<()> {
+    if !["IP", "IPV6", "IPV4V6"].contains(&pdp) {
+        bail!("invalid pdp type")
+    }
+    if apn.len() > 100
+        || !apn
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b".-_".contains(&c))
+    {
+        bail!("invalid APN")
+    }
+    Ok(())
+}
+/// AT+QSIMDET keeps the insert level the board was configured with; a wrong level makes the
+/// module report a missing SIM.
+pub fn sim_detect(enabled: bool, level: u32) -> Result<String> {
+    if level > 1 {
+        bail!("invalid SIM detection level")
+    }
+    Ok(format!("AT+QSIMDET={},{level}", u32::from(enabled)))
+}
 pub fn network(p: &Params) -> Result<String> {
     Ok(match p.get("action") {
         "lock_bands" => format!(
@@ -155,6 +177,25 @@ pub fn network(p: &Params) -> Result<String> {
             }
             lte_lock(pairs)?
         }
+        "pdp_save" => {
+            let pdp = p.get("pdpType").to_ascii_uppercase();
+            let apn = p.get("apn").trim();
+            pdp_context(&pdp, apn)?;
+            format!(
+                "AT+CGDCONT={},\"{pdp}\",\"{apn}\"",
+                p.integer("cid", 1, 42)?
+            )
+        }
+        "pdp_delete" => format!("AT+CGDCONT={}", p.integer("cid", 1, 42)?),
+        "pdp_activate" => format!("AT+CGACT=1,{}", p.integer("cid", 1, 42)?),
+        "pdp_deactivate" => format!("AT+CGACT=0,{}", p.integer("cid", 1, 42)?),
+        // 0 follows the MBN, 1 forces IMS on, 2 forces it off; applies after a reboot.
+        "ims" => format!("AT+QCFG=\"ims\",{}", p.integer("mode", 0, 2)?),
+        "roaming" => format!(
+            "AT+QNWPREFCFG=\"roam_pref\",{}",
+            if p.flag("enabled", true) { 255 } else { 1 }
+        ),
+        "sim_slot" => format!("AT+QUIMSLOT={}", p.integer("slot", 1, 2)?),
         "save_settings" => {
             let mut commands = Vec::new();
             let mut pdp = p.get("pdpType").to_ascii_uppercase();
@@ -163,16 +204,7 @@ pub fn network(p: &Params) -> Result<String> {
                 if pdp.is_empty() {
                     pdp = "IPV4V6".into()
                 }
-                if !["IP", "IPV6", "IPV4V6"].contains(&pdp.as_str()) {
-                    bail!("invalid pdp type")
-                }
-                if apn.len() > 100
-                    || !apn
-                        .bytes()
-                        .all(|c| c.is_ascii_alphanumeric() || b".-_".contains(&c))
-                {
-                    bail!("invalid APN")
-                }
+                pdp_context(&pdp, apn)?;
                 commands.push(format!("+CGDCONT=1,\"{pdp}\",\"{apn}\""));
             }
             let mode = p.get("modePref");
@@ -327,5 +359,44 @@ mod tests {
             let p = Params::parse(&format!("action=lock_scanned_cells&{query}"), "").unwrap();
             assert_eq!(network(&p).is_ok(), ok, "{query}");
         }
+    }
+    #[test]
+    fn pdp_and_switch_commands() {
+        let cmd = |q: &str| network(&Params::parse(q, "").unwrap());
+        assert_eq!(
+            cmd("action=pdp_save&cid=3&pdpType=ipv4v6&apn=ctwap").unwrap(),
+            "AT+CGDCONT=3,\"IPV4V6\",\"ctwap\""
+        );
+        assert_eq!(
+            cmd("action=pdp_save&cid=5&pdpType=IP&apn=").unwrap(),
+            "AT+CGDCONT=5,\"IP\",\"\""
+        );
+        assert_eq!(cmd("action=pdp_delete&cid=3").unwrap(), "AT+CGDCONT=3");
+        assert_eq!(cmd("action=pdp_activate&cid=3").unwrap(), "AT+CGACT=1,3");
+        assert_eq!(cmd("action=pdp_deactivate&cid=1").unwrap(), "AT+CGACT=0,1");
+        assert_eq!(cmd("action=ims&mode=2").unwrap(), "AT+QCFG=\"ims\",2");
+        assert_eq!(
+            cmd("action=roaming&enabled=0").unwrap(),
+            "AT+QNWPREFCFG=\"roam_pref\",1"
+        );
+        assert_eq!(
+            cmd("action=roaming&enabled=1").unwrap(),
+            "AT+QNWPREFCFG=\"roam_pref\",255"
+        );
+        assert_eq!(cmd("action=sim_slot&slot=2").unwrap(), "AT+QUIMSLOT=2");
+        for bad in [
+            "action=pdp_save&cid=0&pdpType=IP&apn=a",
+            "action=pdp_save&cid=43&pdpType=IP&apn=a",
+            "action=pdp_save&cid=1&pdpType=PPP&apn=a",
+            "action=pdp_save&cid=1&pdpType=IP&apn=a%22%3B%2BCFUN%3D0",
+            "action=pdp_activate&cid=x",
+            "action=ims&mode=3",
+            "action=sim_slot&slot=3",
+        ] {
+            assert!(cmd(bad).is_err(), "{bad}");
+        }
+        assert_eq!(sim_detect(false, 1).unwrap(), "AT+QSIMDET=0,1");
+        assert_eq!(sim_detect(true, 0).unwrap(), "AT+QSIMDET=1,0");
+        assert!(sim_detect(true, 2).is_err());
     }
 }

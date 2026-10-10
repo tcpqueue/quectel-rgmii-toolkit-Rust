@@ -766,6 +766,78 @@ pub fn settings(raw: &str) -> Value {
     }
     out
 }
+/// A PDP address from AT+CGPADDR: IPv4, or IPv6 written as 16 dotted decimal bytes (the
+/// module's default) or in colon form. Unassigned addresses are dropped.
+fn pdp_address(raw: &str) -> Option<std::net::IpAddr> {
+    use std::net::{IpAddr, Ipv6Addr};
+    let raw = raw.trim();
+    let ip = if let Ok(ip) = raw.parse::<IpAddr>() {
+        ip
+    } else {
+        let bytes: Vec<u8> = raw
+            .split('.')
+            .map(|b| b.parse().ok())
+            .collect::<Option<_>>()?;
+        IpAddr::V6(Ipv6Addr::from(<[u8; 16]>::try_from(bytes).ok()?))
+    };
+    (!ip.is_unspecified()).then_some(ip)
+}
+/// PDP contexts (AT+CGDCONT?, AT+CGACT?, AT+CGPADDR) and the network feature switches
+/// (AT+QCFG="ims", AT+QSIMDET?, AT+QNWPREFCFG="roam_pref", AT+QUIMSLOT?).
+pub fn pdp(raw: &str) -> Value {
+    let mut contexts: Vec<Value> = Vec::new();
+    let mut states = std::collections::HashMap::new();
+    let mut addresses: std::collections::HashMap<String, Vec<std::net::IpAddr>> =
+        std::collections::HashMap::new();
+    let mut out = json!({"ims": null, "volte": null, "sim_detect": null, "sim_detect_level": null, "roaming": null, "sim_slot": null});
+    for line in lines(raw) {
+        let Some((key, tail)) = line.split_once(':') else {
+            continue;
+        };
+        let p = fields(tail);
+        match key.trim() {
+            "+CGDCONT" if p.len() >= 3 && p[0].parse::<u32>().is_ok() => contexts.push(json!({
+                "cid": number(&p[0]),
+                "type": p[1],
+                "apn": p[2],
+            })),
+            "+CGACT" if p.len() >= 2 => {
+                states.insert(p[0].clone(), p[1] == "1");
+            }
+            "+CGPADDR" if !p.is_empty() => {
+                addresses.insert(
+                    p[0].clone(),
+                    p[1..].iter().filter_map(|a| pdp_address(a)).collect(),
+                );
+            }
+            "+QCFG" if p.len() >= 2 && p[0].eq_ignore_ascii_case("ims") => {
+                // <ims_conf>: 0 follows the MBN, 1 forces IMS on, 2 forces it off.
+                out["ims"] = json!(number(&p[1]));
+                if let Some(volte) = p.get(2) {
+                    out["volte"] = json!(volte == "1");
+                }
+            }
+            "+QSIMDET" if p.len() >= 2 => {
+                out["sim_detect"] = json!(p[0] == "1");
+                out["sim_detect_level"] = json!(number(&p[1]));
+            }
+            "+QNWPREFCFG" if p.len() >= 2 && p[0] == "roam_pref" => {
+                out["roaming"] = json!(number(&p[1]))
+            }
+            "+QUIMSLOT" | "+QUSIMSLOT" if !p.is_empty() => out["sim_slot"] = json!(number(&p[0])),
+            _ => {}
+        }
+    }
+    for context in &mut contexts {
+        let cid = context["cid"].to_string();
+        context["active"] = json!(states.get(&cid));
+        let ips = addresses.get(&cid).cloned().unwrap_or_default();
+        context["ipv4"] = json!(ips.iter().find(|ip| ip.is_ipv4()).map(|ip| ip.to_string()));
+        context["ipv6"] = json!(ips.iter().find(|ip| ip.is_ipv6()).map(|ip| ip.to_string()));
+    }
+    out["contexts"] = json!(contexts);
+    out
+}
 pub fn scan(raw: &str) -> Value {
     let (mut lte, mut nr) = (vec![], vec![]);
     for line in lines(raw).filter(|s| s.contains("+QSCAN:")) {
@@ -905,5 +977,46 @@ mod tests {
         assert_eq!(d["prxqrsrp"], "-85");
         assert_eq!(d["drxqrsrp"], "-");
         assert_eq!(d["rx3qrsrp"], "-");
+    }
+    #[test]
+    fn pdp_contexts_and_switches_from_an_rm520n() {
+        // Captured from an RM520N-EU on China Telecom.
+        let raw = "+CGDCONT: 1,\"IPV4V6\",\"ctnet\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\n\
+                   +CGDCONT: 2,\"IPV4V6\",\"IMS\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\n\
+                   +CGDCONT: 3,\"IPV4V6\",\"ctwap\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\nOK\r\n\
+                   +CGACT: 1,1\r\n+CGACT: 2,1\r\n+CGACT: 3,0\r\nOK\r\n\
+                   +CGPADDR: 1,\"10.80.4.9\",\"36.14.4.73.176.32.2.149.24.221.44.126.75.241.233.236\"\r\n\
+                   +CGPADDR: 2,\"36.14.5.73.176.0.91.219.24.221.44.126.68.199.226.52\"\r\n\
+                   +CGPADDR: 3,\"0.0.0.0\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\"\r\nOK\r\n\
+                   +QCFG: \"ims\",1,1\r\nOK\r\n\
+                   +QSIMDET: 1,1\r\nOK\r\n+QNWPREFCFG: \"roam_pref\",255\r\nOK\r\n+QUIMSLOT: 1\r\nOK\r\n";
+        let d = pdp(raw);
+        let c = &d["contexts"];
+        assert_eq!(c.as_array().unwrap().len(), 3);
+        assert_eq!(c[0]["cid"], 1);
+        assert_eq!(c[0]["type"], "IPV4V6");
+        assert_eq!(c[0]["apn"], "ctnet");
+        assert_eq!(c[0]["active"], true);
+        assert_eq!(c[0]["ipv4"], "10.80.4.9");
+        assert_eq!(c[0]["ipv6"], "240e:449:b020:295:18dd:2c7e:4bf1:e9ec");
+        assert!(c[1]["ipv4"].is_null());
+        assert_eq!(c[1]["ipv6"], "240e:549:b000:5bdb:18dd:2c7e:44c7:e234");
+        assert_eq!(c[2]["active"], false);
+        assert!(c[2]["ipv4"].is_null() && c[2]["ipv6"].is_null());
+        assert_eq!(d["ims"], 1);
+        assert_eq!(d["volte"], true);
+        assert_eq!(d["sim_detect"], true);
+        assert_eq!(d["sim_detect_level"], 1);
+        assert_eq!(d["roaming"], 255);
+        assert_eq!(d["sim_slot"], 1);
+    }
+    #[test]
+    fn pdp_without_ims_support_keeps_the_rest() {
+        let d = pdp(
+            "+CGDCONT: 1,\"IP\",\"internet\",\"0.0.0.0\",0,0\r\nOK\r\nERROR\r\n+QUIMSLOT: 2\r\nOK\r\n",
+        );
+        assert!(d["ims"].is_null());
+        assert!(d["contexts"][0]["active"].is_null());
+        assert_eq!(d["sim_slot"], 2);
     }
 }

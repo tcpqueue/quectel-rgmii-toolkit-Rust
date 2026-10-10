@@ -260,6 +260,57 @@
 <p class="ui-foot">只提交修改过的项目，保存后模块会重新注册网络。</p>
 </section>
 
+<section class="ui-group" aria-labelledby="pdpTitle">
+<div class="ui-group-head"><h2 id="pdpTitle">PDP 上下文</h2><span class="ui-sub" id="pdpSummary" v-text="pdpSummary()"></span></div>
+<div class="ui-card">
+<div class="ui-scroll-x sa-pdp-table">
+<table class="table">
+<thead>
+<tr><th scope="col">CID</th><th scope="col">类型</th><th scope="col">APN</th><th scope="col">地址</th><th scope="col">状态</th><th scope="col">操作</th></tr>
+</thead>
+<tbody id="pdpTableBody">
+<tr v-if="!pdp.contexts.length"><td colspan="6" class="ui-empty" v-text="pdpLoaded ? tr('没有 PDP 上下文') : tr('正在读取...')"></td></tr>
+<tr v-for="ctx in pdp.contexts" :key="ctx.cid" class="sa-pdp-row" :data-cid="ctx.cid">
+<th scope="row" data-no-i18n>{{ ctx.cid }}</th>
+<td data-no-i18n>{{ ctx.type }}</td>
+<td data-no-i18n>{{ ctx.apn || '-' }}</td>
+<td data-no-i18n class="sa-pdp-address"><span v-if="ctx.ipv4">{{ ctx.ipv4 }}</span><span v-if="ctx.ipv6">{{ ctx.ipv6 }}</span><span v-if="!ctx.ipv4 && !ctx.ipv6">-</span></td>
+<td><span class="ui-tag" :class="ctx.active ? 'is-good' : ''" v-text="ctx.active ? tr('已激活') : tr('未激活')"></span></td>
+<td class="sa-pdp-buttons"><button type="button" class="btn btn-sm sa-pdp-toggle" :class="ctx.active ? 'btn-outline-danger' : 'btn-outline-success'" :disabled="pdpBusy" @click="togglePdp(ctx)" v-text="ctx.active ? tr('去激活') : tr('激活')"></button><button type="button" class="btn btn-outline-primary btn-sm sa-pdp-edit" :disabled="pdpBusy" @click="editPdp(ctx)">编辑</button><button type="button" class="btn btn-outline-danger btn-sm sa-pdp-delete" :disabled="pdpBusy" @click="deletePdp(ctx)">删除</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sa-pdp-form" v-if="pdpForm.open">
+<div class="ui-row is-stack"><label for="pdpFormCid">CID</label><div class="ui-row-control"><input id="pdpFormCid" class="form-control" type="number" min="1" max="42" inputmode="numeric" v-model="pdpForm.cid" :disabled="pdpForm.editing"/></div></div>
+<div class="ui-row is-stack"><label for="pdpFormType">IP 协议类型</label><div class="ui-row-control"><select id="pdpFormType" class="form-select" v-model="pdpForm.type"><option value="IPV4V6">IPV4V6</option><option value="IP">IPv4</option><option value="IPV6">IPv6</option></select></div></div>
+<div class="ui-row is-stack"><label for="pdpFormApn">APN</label><div class="ui-row-control"><input id="pdpFormApn" class="form-control" type="text" autocomplete="off" placeholder="留空则使用网络下发的 APN" v-model="pdpForm.apn"/></div></div>
+<div class="ui-actions is-end"><button type="button" class="btn btn-secondary" @click="cancelPdp()" :disabled="pdpBusy">取消</button><button type="button" class="btn btn-primary" id="pdpFormSave" @click="savePdp()" :disabled="pdpBusy">保存</button></div>
+</div>
+<div class="ui-actions">
+<span class="ui-status" id="pdpMessage" :class="{'text-danger': pdpFailed}" role="status" aria-live="polite" v-text="pdpMessage"></span>
+<button type="button" class="btn btn-secondary" @click="loadPdp(true)" :disabled="pdpBusy">刷新</button>
+<button type="button" class="btn btn-primary" id="pdpNew" @click="newPdp()" :disabled="pdpBusy">新增 PDP</button>
+</div>
+</div>
+<p class="ui-foot">模块可能拒绝修改已激活的 PDP，可先去激活再修改；去激活正在使用的 PDP 会导致断网。</p>
+</section>
+
+<section class="ui-group" aria-labelledby="networkSwitchTitle">
+<div class="ui-group-head"><h2 id="networkSwitchTitle">网络功能开关</h2></div>
+<div class="ui-card sa-network-switches">
+<div class="ui-row"><div class="ui-row-text"><span>IMS / VoLTE <code data-no-i18n>AT+QCFG="ims"</code></span><small id="imsState" v-text="imsText()"></small></div>
+<div class="sa-switch-buttons"><button v-for="option in imsOptions" :key="option.value" type="button" class="btn btn-sm" :class="pdp.ims === option.value ? 'btn-primary' : 'btn-outline-primary'" :disabled="pdpBusy || pdp.ims === null || pdp.ims === option.value" @click="setIms(option.value)" v-text="tr(option.label)"></button></div></div>
+<div class="ui-row"><div class="ui-row-text"><span>SIM 热插拔检测 <code data-no-i18n>AT+QSIMDET</code></span><small v-text="pdp.sim_detect === null ? tr('读取失败') : (pdp.sim_detect ? tr('已开启') : tr('已关闭'))"></small></div>
+<div class="sa-switch-buttons"><button type="button" class="btn btn-sm" :class="pdp.sim_detect ? 'btn-outline-danger' : 'btn-outline-success'" :disabled="pdpBusy || pdp.sim_detect === null" @click="setSimDetect(!pdp.sim_detect)" v-text="pdp.sim_detect ? tr('关闭热插拔') : tr('开启热插拔')"></button></div></div>
+<div class="ui-row"><div class="ui-row-text"><span>数据漫游 <code data-no-i18n>AT+QNWPREFCFG="roam_pref"</code></span><small v-text="roamingText()"></small></div>
+<div class="sa-switch-buttons"><button type="button" class="btn btn-sm" :class="pdp.roaming === 1 ? 'btn-outline-success' : 'btn-outline-danger'" :disabled="pdpBusy || pdp.roaming === null" @click="setRoaming(pdp.roaming === 1)" v-text="pdp.roaming === 1 ? tr('开启漫游') : tr('关闭漫游')"></button></div></div>
+<div class="ui-row"><div class="ui-row-text"><span>SIM 卡槽 <code data-no-i18n>AT+QUIMSLOT</code></span><small v-text="pdp.sim_slot ? tr('当前：卡槽') + ' ' + pdp.sim_slot : tr('读取失败')"></small></div>
+<div class="sa-switch-buttons"><button v-for="slot in [1, 2]" :key="slot" type="button" class="btn btn-sm btn-outline-primary" :disabled="pdpBusy || !pdp.sim_slot || pdp.sim_slot === slot" @click="setSimSlot(slot)" v-text="tr('切换到卡槽') + ' ' + slot"></button></div></div>
+</div>
+<p class="ui-foot">IMS 和 SIM 热插拔检测在重启模块后生效；切换卡槽会立即重新注册网络。</p>
+</section>
+
 <section class="ui-group" aria-labelledby="cellLockTitle">
 <div class="ui-group-head"><h2 id="cellLockTitle">小区锁定</h2></div>
 <div class="ui-card sa-lock-policy">
@@ -498,7 +549,7 @@
 <select id="otaMode" class="form-select" v-model="otaForm.mode"><option value="off">关闭</option><option value="check">每天检查，手动安装</option><option value="auto">每天检查并自动安装</option></select>
 </div></div>
 <div class="ui-row is-stack"><label for="otaSource">更新源</label><div class="ui-row-control"><input id="otaSource" class="form-control" type="text" autocapitalize="none" spellcheck="false" :placeholder="ota.default_source || 'owner/repo'" v-model.trim="otaForm.source"/></div></div>
-<div class="ui-row is-stack"><label for="otaProxy">GitHub 代理</label><div class="ui-row-control"><input id="otaProxy" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，例如 https://ghfast.top/" v-model.trim="otaForm.proxy"/></div></div>
+<div class="ui-row is-stack"><label for="otaProxy">GitHub 代理</label><div class="ui-row-control"><input id="otaProxy" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="留空则直连 GitHub" v-model.trim="otaForm.proxy"/></div></div>
 <div class="ui-row is-stack"><label for="otaKey">验证公钥</label><div class="ui-row-control"><input id="otaKey" class="form-control" type="text" autocapitalize="none" spellcheck="false" placeholder="可选，自定义源的 Ed25519 公钥" v-model.trim="otaForm.public_key"/></div></div>
 <div class="ui-actions"><span class="ui-status" role="status" aria-live="polite" v-text="otaSaveMessage"></span><button type="submit" class="btn btn-primary" :disabled="otaSaving">保存</button></div>
 </form>
