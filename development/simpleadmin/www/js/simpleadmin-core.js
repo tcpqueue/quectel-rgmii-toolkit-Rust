@@ -8,6 +8,8 @@
     // Default wait for an API reply; scans, SMS sends and manual AT commands pass longer limits.
     const defaultTimeout = 30000;
     const longTimeout = 150000;
+    // AT+QSCAN may take up to 180 s on the module.
+    const scanTimeout = 190000;
     let ws = null;
     let connectPromise = null;
     let nextId = 1;
@@ -201,7 +203,7 @@
       },
       networkData(params = {}) {
         // Scans and PDP (de)activation wait on the network for up to 150 s.
-        return this.postJSON('/api/network_data', params, ['scan', 'pdp_activate', 'pdp_deactivate'].includes(params.action) ? longTimeout : undefined);
+        return this.postJSON('/api/network_data', params, params.action === 'scan' ? scanTimeout : ['pdp_activate', 'pdp_deactivate'].includes(params.action) ? longTimeout : undefined);
       },
       settingsData(params = {}) {
         return this.postJSON('/api/settings_data', params, params.action === 'manual_at' ? longTimeout : undefined);

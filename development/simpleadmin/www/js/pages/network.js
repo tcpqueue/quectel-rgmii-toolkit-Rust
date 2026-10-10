@@ -67,7 +67,7 @@ function cellLocking() {
           }
         },
         // Runs one change, reports it under the table and reloads the real state either way.
-        async runPdp(params, confirmText, doneText) {
+        async runPdp(params, confirmText, doneText, prefix = '') {
           if (this.pdpBusy) return null;
           if (confirmText && !window.confirm(this.tr(confirmText))) return null;
           this.pdpBusy = true;
@@ -78,7 +78,7 @@ function cellLocking() {
             if (!data || data.ok === false) {
               throw new Error((data && (data.error || data.response)) || '');
             }
-            this.pdpMessage = this.tr(doneText || '已保存');
+            this.pdpMessage = prefix + this.tr(doneText || '已保存');
             return data;
           } catch (error) {
             const detail = String((error && error.message) || '').trim();
@@ -128,7 +128,8 @@ function cellLocking() {
           return this.runPdp(
             { action: 'pdp_delete', cid: String(ctx.cid) },
             ctx.active ? '该 PDP 正在使用，模块可能拒绝删除，建议先去激活。仍要删除？' : '确定删除这个 PDP 上下文？',
-            '已删除'
+            '已删除',
+            `CID ${ctx.cid} `
           );
         },
         togglePdp(ctx) {
@@ -136,10 +137,11 @@ function cellLocking() {
             return this.runPdp(
               { action: 'pdp_deactivate', cid: String(ctx.cid) },
               ctx.cid === 1 ? 'CID 1 通常是上网用的默认连接，去激活会断网。继续？' : '确定去激活这个 PDP？',
-              '已去激活'
+              '已去激活',
+              `CID ${ctx.cid} `
             );
           }
-          return this.runPdp({ action: 'pdp_activate', cid: String(ctx.cid) }, null, '已激活');
+          return this.runPdp({ action: 'pdp_activate', cid: String(ctx.cid) }, null, '已激活', `CID ${ctx.cid} `);
         },
         imsText() {
           const option = this.imsOptions.find((o) => o.value === this.pdp.ims);
@@ -166,14 +168,47 @@ function cellLocking() {
         setSimSlot(slot) {
           return this.runPdp({ action: 'sim_slot', slot: String(slot) }, '切换卡槽会断开当前网络，确定切换？', '已切换');
         },
+        // 模块实际锁定（AT+QNWLOCK 查询）与已保存的持久化规则合起来，才能分清临时锁定和持久锁定。
+        lockModule: { lte: null, nr: null },
+        moduleLock(state) {
+          return (this.lockModule || {})[state.radio] || null;
+        },
+        lockKind(state) {
+          if (state.phase === 'fallback' || state.phase === 'fallback_error') return state.phase;
+          const locked = !!this.moduleLock(state);
+          if (locked) return state.persistent ? 'persistent' : 'temporary';
+          return state.persistent ? 'pending' : 'unlocked';
+        },
         lockStatusText(state) {
-          const key=({temporary:'临时锁频',persistent:'持久化锁频',connected:'已拨号，锁频保持',unlocked:'未锁定',fallback:'已超时回退，开机恢复已关闭',fallback_error:'回退失败，正在重试'})[state.phase] || (state.persistent?'等待开机恢复':'未锁定');
-          return this.lockLanguage==='zh-CN'?key:SimpleAdmin.Lang.t(key);
+          const key = ({
+            persistent: '持久锁定 · 重启后自动恢复',
+            temporary: '临时锁定 · 重启后失效',
+            pending: '持久锁定已保存 · 等待恢复',
+            unlocked: '未锁定',
+            fallback: '已超时回退，开机恢复已关闭',
+            fallback_error: '回退失败，正在重试'
+          })[this.lockKind(state)];
+          return this.tr(key);
+        },
+        lockTone(state) {
+          return ({ persistent: 'is-good', temporary: 'is-warn', pending: 'is-warn', fallback: 'is-bad', fallback_error: 'is-bad' })[this.lockKind(state)] || '';
+        },
+        // 显示成 “EARFCN/PCI” 或 “ARFCN/PCI · n78 · 30 kHz”。
+        lockValuesText(state) {
+          const v = this.moduleLock(state) || state.values;
+          if (!v || !v.length) return '';
+          if (state.radio === 'lte') {
+            return Array.from({ length: v[0] }, (_, i) => `${v[1 + i * 2]}/${v[2 + i * 2]}`).join(', ');
+          }
+          return `${v[1]}/${v[0]} · n${v[3]} · ${v[2]} kHz`;
+        },
+        canUnlock(state) {
+          return !!this.moduleLock(state) || state.persistent;
         },
         async refreshCellLocks() {
           if(this.lockRefreshBusy) return;
           this.lockRefreshBusy=true;
-          try {const data=await SimpleAdmin.Api.networkData({action:'cell_lock_status'});this.lockRadios=data.radios||[];} finally {this.lockRefreshBusy=false;}
+          try {const data=await SimpleAdmin.Api.networkData({action:'cell_lock_status'});this.lockRadios=data.radios||[];if(data.module)this.lockModule=data.module;} finally {this.lockRefreshBusy=false;}
         },
         async requestCellLock(params) {
           this.lockBusy=true;this.lockMessage='';
@@ -181,6 +216,7 @@ function cellLocking() {
             const data=await SimpleAdmin.Api.networkData({persistence:this.lockPersistence,auto_unlock:this.lockAutoUnlock?'1':'0',...params});
             if(data.ok===false) throw new Error(data.error||data.response||'锁频失败');
             this.lockRadios=data.cell_lock.radios;this.lockMessage=data.warning||SimpleAdmin.Lang.t('已保存');
+            this.refreshCellLocks().catch(()=>{});
             return data;
           } catch(error) {this.lockMessage=error.message;throw error;} finally {this.lockBusy=false;}
         },
@@ -222,62 +258,81 @@ function cellLocking() {
         resultDoneCell: false,
         resultDoneNeighbourCell: false,
 
+        // 邻区扫描读 AT+QENG（约 1 秒，只含服务小区和 LTE 邻区）；完整扫描用 AT+QSCAN（几分钟）。
+        scanKind: 'neighbour',
+        scanError: '',
+        setScanKind(kind) {
+          if (this.isLoading || this.lockBusy || this.scanKind === kind) return;
+          this.scanKind = kind;
+          this.clearTableRowsBodyCellScan();
+        },
+        canStartScan() {
+          return !this.isLoading && !this.lockBusy && (this.scanKind === 'neighbour' || ['Full Scan', 'LTE Only', 'NR5G Only'].includes(this.cellScanMode));
+        },
+        scanButtonText() {
+          if (this.isCellScanning) return this.tr(this.scanKind === 'neighbour' ? '正在读取...' : '扫描中... 请稍候.');
+          return this.tr(this.scanKind === 'neighbour' ? '读取邻区' : '开始扫描');
+        },
         startCellScan() {
           this.clearTableRowsBodyCellScan();
+          this.scanError = '';
 
           this.isLoading = true;
           this.isCellScanning = true;
 
-          SimpleAdmin.Api.networkData({ action: 'scan', mode: this.cellScanMode })
+          const params = this.scanKind === 'neighbour' ? { action: 'neighbours' } : { action: 'scan', mode: this.cellScanMode };
+          SimpleAdmin.Api.networkData(params)
             .then(data => {
+              if (data && data.ok === false) throw new Error(data.error || data.response || '');
               this.nr5g_cells_parsed = data.nr5g_cells_parsed || [];
               this.lte_cells_parsed = data.lte_cells_parsed || [];
-            })
-            .then(() => {
-              this.isLoading = false;
-              this.isCellScanning = false;
               this.resultDoneCell = true;
             })
             .catch(error => {
               console.error("Error processing scan data:", error);
+              this.scanError = this.tr('扫描失败') + (error && error.message ? ' · ' + error.message : '');
+            })
+            .finally(() => {
               this.isLoading = false;
               this.isCellScanning = false;
             });
 
         },
         scannedCellsForMode() {
-          if (this.cellScanMode === 'Full Scan') return [...this.nr5g_cells_parsed, ...this.lte_cells_parsed];
+          if (this.scanKind === 'neighbour' || this.cellScanMode === 'Full Scan') return [...this.nr5g_cells_parsed, ...this.lte_cells_parsed];
           if (this.cellScanMode === 'NR5G Only') return this.nr5g_cells_parsed;
           if (this.cellScanMode === 'LTE Only') return this.lte_cells_parsed;
           return [];
         },
-        cellSelectionKey(cell) {
-          return JSON.stringify([cell.type, cell.provider, cell.freq, cell.pci, cell.band].map(String));
+        cellSource(cell) {
+          return cell.role ? this.tr(cell.role) : cell.provider;
         },
+        cellSelectionKey(cell) {
+          return JSON.stringify([cell.type, cell.freq, cell.pci, cell.band].map(String));
+        },
+        // NR5G-SA 每次只能锁一个小区，LTE 最多 10 个；两种制式不能同时选。
         toggleCellSelection(cell) {
           if (this.lockBusy || this.isLoading || !cell) return;
           const index = this.selectedCells.findIndex(selected => this.cellSelectionKey(selected) === this.cellSelectionKey(cell));
-          if (this.cellScanMode === "NR5G Only") {
-            // 如果是 NR5G Only 模式，只能选择一个小区
-
-            if (index === -1) {
-              // 如果没有选择当前小区，则清空之前的选择，只保留当前选择
-              this.selectedCells = [{ ...cell }];
-            } else {
-              // 如果当前小区已经选择，取消选择
-              this.selectedCells = [];
-            }
-          } else if (this.cellScanMode === "LTE Only") {
-            // 如果是 LTE Only 模式，允许选择多个小区
-            if (index === -1) {
-              // 如果没有选择当前小区，则添加到 selectedCells 数组
-              this.selectedCells.push({ ...cell });
-            } else {
-              // 如果已经选择当前小区，则从 selectedCells 数组中删除
-              this.selectedCells.splice(index, 1);
-            }
+          if (index !== -1) {
+            this.selectedCells.splice(index, 1);
+          } else if (cell.type === 'NR5G' || this.selectedType() !== 'LTE') {
+            this.selectedCells = [{ ...cell }];
+          } else {
+            this.selectedCells.push({ ...cell });
           }
-
+        },
+        selectedType() {
+          return this.selectedCells.length ? this.selectedCells[0].type : null;
+        },
+        persistenceLabel() {
+          return this.tr(this.lockPersistence === 'persistent' ? '持久' : '临时');
+        },
+        lockSelectedText() {
+          if (this.lockLanguage !== 'zh-CN') {
+            return SimpleAdmin.Lang.t(this.lockPersistence === 'persistent' ? '持久锁定所选' : '临时锁定所选');
+          }
+          return (this.lockPersistence === 'persistent' ? '持久锁定所选' : '临时锁定所选') + (this.selectedCells.length ? `（${this.selectedCells.length}）` : '');
         },
         isCellSelected(cell) {
           const key = this.cellSelectionKey(cell);
@@ -309,24 +364,23 @@ function cellLocking() {
 
           try {
             let params;
-            if (this.cellScanMode === "NR5G Only") {
+            const mode = this.selectedType() === 'NR5G' ? 'NR5G Only' : 'LTE Only';
+            if (mode === "NR5G Only") {
               if (this.selectedCells.length !== 1) {
                 alert('NR5G-SA 每次只能锁定一个小区');
                 return;
               }
               const { earfcn1: earfcn, pci1: pci, scs, band } = this.getCellDetails(this.selectedCells[0]);
               params = { pci, earfcn, scs, band };
-            } else if (this.cellScanMode === "LTE Only") {
+            } else {
               if (this.selectedCells.length > 10) {
                 alert("最多只能选择 10 条小区进行锁定");
                 return;
               }
               const cells = this.selectedCells.map(cell => this.getCellDetails(cell));
               params = { earfcn: cells.map(cell => cell.earfcn1).join(','), pci: cells.map(cell => cell.pci1).join(',') };
-            } else {
-              return;
             }
-            await this.requestCellLock({ action: 'lock_scanned_cells', mode: this.cellScanMode, ...params });
+            await this.requestCellLock({ action: 'lock_scanned_cells', mode, ...params });
             await this.startModalCountdown(3);
             await this.init();
           } catch (error) {
@@ -336,7 +390,7 @@ function cellLocking() {
         },
 
         getCellDetails(selectedCell) {
-          const type = this.cellScanMode === 'NR5G Only' ? 'NR5G' : 'LTE';
+          const type = selectedCell.type;
           const cell = this.scannedCellsForMode().find(c => c.type === type && this.cellSelectionKey(c) === this.cellSelectionKey(selectedCell));
           if (!cell) {
             throw new Error('找不到对应的小区，请重新扫描后选择');
@@ -542,6 +596,7 @@ function cellLocking() {
               this.apn = settings.apn || '-';
               this.cellLockStatus = settings.cellLockStatus || '未知';
               this.lockRadios = settings.cell_lock?.radios || [];
+              if (settings.cell_lock?.module) this.lockModule = settings.cell_lock.module;
               this.prefNetwork = settings.prefNetwork || '-';
               this.bands = settings.bands || '-';
               this.nrModeControlCurrent = settings.nrModeControlNum || null;
