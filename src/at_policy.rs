@@ -46,7 +46,8 @@ pub fn timeout(command: &str) -> Duration {
                 if up.contains("+QMAP=\"MPDN_RULE\",") {
                     10000
                 } else if up.contains("QSCAN") {
-                    120000
+                    // An RM520N-EU needs ~77 s for LTE+NR, and well over 120 s while it re-registers.
+                    180000
                 } else if up.contains("+CGACT=") {
                     // The network decides; the manual allows up to 150 s.
                     150000
@@ -140,6 +141,9 @@ mod tests {
                 || cmd.to_ascii_uppercase().contains("+QMAP=\"MPDN_RULE\",")
             {
                 10000
+            } else if cmd.contains("+QSCAN=") {
+                // Go's 120 s cut off full scans on a real module.
+                180000
             } else {
                 c["timeout"].as_u64().unwrap() as u128
             };

@@ -44,20 +44,28 @@ async function freePort() {
     assert.match(await row1.textContent(), /3gnet/);
     assert.match(await row1.locator('.sa-pdp-address').textContent(), /10\.0\.0\.197/);
     assert.match(await row1.locator('.sa-pdp-address').textContent(), /2001:db8::1/);
-    assert.equal((await row1.locator('.ui-tag').textContent()).trim(), '已激活');
-    assert.equal((await rows.nth(1).locator('.ui-tag').textContent()).trim(), '未激活');
+    assert.equal((await row1.locator('.sa-pdp-state').textContent()).trim(), '已激活');
+    assert.equal(await row1.locator('.sa-pdp-toggle').isChecked(), true, 'an active context shows its switch on');
+    assert.equal((await rows.nth(1).locator('.sa-pdp-state').textContent()).trim(), '未激活');
+    assert.equal(await rows.nth(1).locator('.sa-pdp-toggle').isChecked(), false);
     assert.equal((await rows.nth(1).locator('.sa-pdp-address').textContent()).trim(), '-');
     assert.equal((await page.locator('#pdpSummary').textContent()).trim(), '3 个上下文 · 2 个已激活');
     assert.equal((await page.locator('#imsState').textContent()).trim(), '强制开启 · VoLTE 可用');
     const switches = page.locator('.sa-network-switches .ui-row');
     assert.match(await switches.nth(1).textContent(), /已关闭/);
+    assert.equal(await page.locator('#simDetectSwitch').isChecked(), false);
     assert.match(await switches.nth(2).textContent(), /已开启/);
-    assert.match(await switches.nth(3).textContent(), /当前：卡槽 1/);
+    assert.equal(await page.locator('#roamingSwitch').isChecked(), true);
+    assert.match(await switches.nth(3).textContent(), /正在使用卡槽 1/);
+    // The current choice is the highlighted segment.
+    assert.equal((await switches.nth(0).locator('button.active').textContent()).trim(), '强制开启');
+    assert.equal((await switches.nth(3).locator('button.active').textContent()).trim(), '卡槽 1');
 
     // Deactivating CID 1 asks first.
     await row1.locator('.sa-pdp-toggle').click(); await settle();
     assert.match(dialogs.at(-1), /CID 1/);
     assert.ok(sent('action=pdp_deactivate&', 'cid=1'), frames.join('\n'));
+    assert.equal((await page.locator('#pdpMessage').textContent()).trim(), 'CID 1 已去激活');
     // Activating needs no confirmation.
     const before = dialogs.length;
     await rows.nth(1).locator('.sa-pdp-toggle').click(); await settle();
@@ -88,10 +96,10 @@ async function freePort() {
     await switches.nth(0).locator('button', {hasText: '强制关闭'}).click(); await settle();
     assert.match(dialogs.at(-1), /重启/);
     assert.ok(sent('action=ims', 'mode=2'));
-    await switches.nth(1).locator('button').click(); await settle();
+    await page.locator('#simDetectSwitch').click(); await settle();
     assert.ok(sent('action=sim_detect&', 'enabled=1'));
     assert.equal((await page.locator('#pdpMessage').textContent()).trim(), '已保存，重启模块后生效');
-    await switches.nth(2).locator('button').click(); await settle();
+    await page.locator('#roamingSwitch').click(); await settle();
     assert.ok(sent('action=roaming', 'enabled=0'));
     // Cancelling the slot switch sends nothing.
     answer = false;

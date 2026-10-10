@@ -352,7 +352,7 @@ fn method_allowed(path: &str, action: &str, method: &str) -> bool {
         "/api/network_data" => {
             matches!(
                 action,
-                "" | "settings" | "cell_lock_status" | "model" | "bands" | "pdp"
+                "" | "settings" | "cell_lock_status" | "model" | "bands" | "pdp" | "neighbours"
             )
         }
         "/api/settings_data" => matches!(action, "" | "status"),
@@ -590,11 +590,27 @@ async fn network(app: &Arc<App>, p: &Params) -> Result<Value> {
     let action = p.get("action");
     match action {
         "" | "settings" => {
-            let mut data = parser::network(&app.at.page("network", force).await?);
+            let raw = app.at.page("network", force).await?;
+            let mut data = parser::network(&raw);
             data["cell_lock"] = app.cell_lock.snapshot();
+            data["cell_lock"]["module"] = parser::cell_locks(&raw);
             Ok(data)
         }
-        "cell_lock_status" => Ok(app.cell_lock.snapshot()),
+        "cell_lock_status" => {
+            // The saved rules alone cannot tell a temporary lock apart from no lock.
+            let mut data = app.cell_lock.snapshot();
+            let raw = app
+                .at
+                .fetch(crate::at::commands("network")[0], force)
+                .await?;
+            data["module"] = parser::cell_locks(&raw);
+            Ok(data)
+        }
+        "neighbours" => Ok(parser::neighbours(
+            &app.at
+                .run("AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"")
+                .await?,
+        )),
         "pdp" => Ok(parser::pdp(&app.at.page("pdp", force).await?)),
         "sim_detect" => {
             // Keep the insert level the module already uses; only the switch changes.

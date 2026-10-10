@@ -657,7 +657,8 @@ pub fn bands(raw: &str) -> Value {
 }
 pub fn network(raw: &str) -> Value {
     let mut out = json!({"sim":"-","apn":"-","cellLockStatus":"未锁定","prefNetwork":"-","nrModeControl":"未禁用","nrModeControlNum":"0","bands":"-","pdpType":"-"});
-    let (mut lte, mut nr) = (false, false);
+    let locks = cell_locks(raw);
+    let (lte, nr) = (!locks["lte"].is_null(), !locks["nr"].is_null());
     let mut bands = vec![];
     for line in lines(raw) {
         let Some((key, tail)) = line.split_once(':') else {
@@ -673,11 +674,6 @@ pub fn network(raw: &str) -> Value {
                     out["apn"] = json!(p[2])
                 }
             }
-            "+QNWLOCK" if p.len() > 1 => match p[0].as_str() {
-                "common/4g" => lte = p[1] != "0",
-                "common/5g" => nr = p.len() >= 5,
-                _ => {}
-            },
             "+QNWPREFCFG" if p.len() > 1 => match p[0].as_str() {
                 "mode_pref" => out["prefNetwork"] = json!(p[1]),
                 "nr5g_disable_mode" => out["nrModeControlNum"] = json!(p[1]),
@@ -854,19 +850,136 @@ pub fn scan(raw: &str) -> Value {
             "46020" => "中国铁通",
             _ => "",
         };
-        let mut cell = json!({"type":if is_nr{"NR5G"}else{"LTE"},"provider":if carrier.is_empty(){format!("{} {}",p[1],p[2])}else{carrier.into()},"band":p[12],"freq":p[3],"pci":p[4],"rsrp":p[5]});
+        let provider = if carrier.is_empty() {
+            format!("{} {}", p[1], p[2])
+        } else {
+            carrier.into()
+        };
+        // A shared cell (e.g. 460-11 and 460-01) is reported once per PLMN: keep one row.
+        let list = if is_nr { &mut nr } else { &mut lte };
+        if let Some(seen) = list
+            .iter_mut()
+            .find(|c: &&mut Value| c["freq"] == p[3].as_str() && c["pci"] == p[4].as_str())
+        {
+            let names = text(seen, "provider").to_owned();
+            if !names.split(" / ").any(|n| n == provider) {
+                seen["provider"] = json!(format!("{names} / {provider}"));
+            }
+            continue;
+        }
+        let mut cell = json!({"type":if is_nr{"NR5G"}else{"LTE"},"provider":provider,"band":p[12],"freq":p[3],"pci":p[4],"rsrp":p[5]});
         if is_nr {
-            // QSCAN reports <scs> as an index while QNWLOCK takes kHz; "-" means not reported.
-            cell["scs"] = match p[8].as_str() {
-                "0" => json!(15),
-                "1" => json!(30),
-                "2" => json!(60),
-                "3" => json!(120),
-                _ => Value::Null,
-            };
+            cell["scs"] = scs_khz(&p[8]);
             nr.push(cell)
         } else {
             lte.push(cell)
+        }
+    }
+    json!({"nr5g_cells_parsed":nr,"lte_cells_parsed":lte})
+}
+/// QSCAN and QENG report `<scs>` as an index while QNWLOCK takes kHz; "-" means not reported.
+fn scs_khz(index: &str) -> Value {
+    match index {
+        "0" => json!(15),
+        "1" => json!(30),
+        "2" => json!(60),
+        "3" => json!(120),
+        _ => Value::Null,
+    }
+}
+/// Locks the module currently applies, from the `AT+QNWLOCK="common/4g"|"common/5g"` queries:
+/// LTE as `[count, earfcn, pci, ...]`, NR as `[pci, arfcn, scs, band]`, null when unlocked.
+pub fn cell_locks(raw: &str) -> Value {
+    let mut out = json!({"lte":null,"nr":null});
+    for line in lines(raw) {
+        let Some(tail) = line.trim().strip_prefix("+QNWLOCK:") else {
+            continue;
+        };
+        let p = fields(tail);
+        let values: Vec<u64> = p.iter().skip(1).filter_map(|s| s.parse().ok()).collect();
+        match p.first().map(String::as_str) {
+            Some("common/4g") if values.first().is_some_and(|n| *n > 0) => {
+                out["lte"] = json!(values)
+            }
+            Some("common/5g") if values.len() >= 4 => out["nr"] = json!(values),
+            _ => {}
+        }
+    }
+    out
+}
+/// LTE operating band for a downlink EARFCN (3GPP TS 36.101 table 5.7.3-1).
+pub fn lte_band(earfcn: u32) -> Option<u32> {
+    const BANDS: [(u32, u32, u32); 27] = [
+        (1, 0, 599),
+        (2, 600, 1199),
+        (3, 1200, 1949),
+        (4, 1950, 2399),
+        (5, 2400, 2649),
+        (7, 2750, 3449),
+        (8, 3450, 3799),
+        (12, 5010, 5179),
+        (13, 5180, 5279),
+        (14, 5280, 5379),
+        (17, 5730, 5849),
+        (18, 5850, 5999),
+        (19, 6000, 6149),
+        (20, 6150, 6449),
+        (25, 8040, 8689),
+        (26, 8690, 9039),
+        (28, 9210, 9659),
+        (32, 9920, 10359),
+        (34, 36200, 36349),
+        (38, 37750, 38249),
+        (39, 38250, 38649),
+        (40, 38650, 39649),
+        (41, 39650, 41589),
+        (42, 41590, 43589),
+        (43, 43590, 45589),
+        (66, 66436, 67335),
+        (71, 68586, 68935),
+    ];
+    BANDS
+        .iter()
+        .find(|(_, low, high)| (*low..=*high).contains(&earfcn))
+        .map(|b| b.0)
+}
+/// Serving cell plus the LTE neighbours from `AT+QENG="servingcell";+QENG="neighbourcell"`.
+/// The module only reports 3G/4G neighbours, and inter-frequency entries without a PCI are
+/// dropped because they cannot be locked.
+pub fn neighbours(raw: &str) -> Value {
+    let (mut lte, mut nr) = (vec![], vec![]);
+    let at = |p: &[String], i: usize| p.get(i).cloned().unwrap_or_default();
+    for line in lines(raw) {
+        let Some(tail) = line.trim().strip_prefix("+QENG:") else {
+            continue;
+        };
+        let p = fields(tail);
+        let Some(head) = p.first().map(String::as_str) else {
+            continue;
+        };
+        if let Some(role) = match head {
+            "neighbourcell intra" => Some("同频邻区"),
+            "neighbourcell inter" => Some("异频邻区"),
+            _ => None,
+        } {
+            if at(&p, 1) != "LTE" || at(&p, 3).parse::<u32>().is_err() {
+                continue;
+            }
+            let earfcn = at(&p, 2);
+            let band = earfcn.parse().ok().and_then(lte_band);
+            // Neighbour rows give RSRQ before RSRP.
+            lte.push(json!({"type":"LTE","role":role,"band":band.map(|b| b.to_string()).unwrap_or_else(|| "-".into()),"freq":earfcn,"pci":at(&p,3),"rsrp":at(&p,5)}));
+            continue;
+        }
+        // Serving cell rows; a cell without a PCI (still searching) cannot be locked.
+        if let Some(k) = p.iter().position(|s| s == "LTE") {
+            if at(&p, k + 5).parse::<u32>().is_ok() {
+                lte.insert(0, json!({"type":"LTE","role":"服务小区","band":at(&p,k+7),"freq":at(&p,k+6),"pci":at(&p,k+5),"rsrp":at(&p,k+11)}));
+            }
+        } else if let Some(k) = p.iter().position(|s| s == "NR5G-SA")
+            && at(&p, k + 5).parse::<u32>().is_ok()
+        {
+            nr.push(json!({"type":"NR5G","role":"服务小区","band":at(&p,k+8),"freq":at(&p,k+7),"pci":at(&p,k+5),"rsrp":at(&p,k+10),"scs":scs_khz(&at(&p,k+13))}));
         }
     }
     json!({"nr5g_cells_parsed":nr,"lte_cells_parsed":lte})
@@ -888,6 +1001,100 @@ mod tests {
         assert_eq!(cells[1]["band"], "28");
         assert_eq!(cells[1]["scs"], 15);
         assert!(cells[2]["scs"].is_null());
+    }
+    #[test]
+    fn scan_merges_cells_shared_between_carriers() {
+        // Captured from an RM520N-EU: shared cells repeat once per PLMN.
+        let raw = "+QSCAN: \"NR5G\",460,11,627264,249,-91,-11,37,1,C9A824009,C94B00,273,78,24,12,-\r\n\
+                   +QSCAN: \"NR5G\",460,01,627264,249,-91,-11,37,1,C9A824009,C94B00,273,78,24,12,-\r\n\
+                   +QSCAN: \"NR5G\",460,00,504990,109,-88,-11,33,1,22382F002,58D006,273,41,30,6,-\r\n\
+                   +QSCAN: \"NR5G\",460,15,504990,109,-88,-11,33,1,22382F002,58D006,273,41,30,6,-\r\n\
+                   +QSCAN: \"LTE\",460,11,1800,499,-97,-7,16,121,B595E30,CE8A,100,3\r\n\
+                   +QSCAN: \"LTE\",460,01,1800,499,-97,-7,16,121,B595E30,CE8A,100,3\r\n\
+                   +QSCAN: \"LTE\",460,00,1300,261,-,-,-,0,F581B56,99D2,-,3\r\n\
+                   +QSCAN: \"LTE\",460,00,1300,262,-93,-18,31,110,F581B57,99D2,100,3\r\nOK\r\n";
+        let data = scan(raw);
+        let nr = data["nr5g_cells_parsed"].as_array().unwrap();
+        assert_eq!(nr.len(), 2);
+        assert_eq!(nr[0]["provider"], "中国电信 / 中国联通");
+        assert_eq!(nr[1]["provider"], "中国移动 / 中国广电");
+        assert_eq!(nr[1]["scs"], 30);
+        let lte = data["lte_cells_parsed"].as_array().unwrap();
+        assert_eq!(
+            lte.len(),
+            3,
+            "same EARFCN with another PCI is a different cell"
+        );
+        assert_eq!(lte[0]["provider"], "中国电信 / 中国联通");
+    }
+    #[test]
+    fn neighbours_lists_serving_and_lockable_lte_neighbours() {
+        let raw = "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",460,11,7127233,345,1600,3,5,5,CE8A,-78,-7,-50,16,0,-,40\r\n\
+                   +QENG: \"neighbourcell intra\",\"LTE\",1600,346,-9,-84,-60,10,30,6,52,6,44\r\n\
+                   +QENG: \"neighbourcell inter\",\"LTE\",38950,276,-3,-88,-65,0,37,7,16,6\r\n\
+                   +QENG: \"neighbourcell inter\",\"LTE\",39148,-,-,-,-,-,37,0,30,7\r\nOK\r\n";
+        let lte = neighbours(raw)["lte_cells_parsed"].clone();
+        let cells = lte.as_array().unwrap();
+        assert_eq!(cells.len(), 3, "entries without a PCI cannot be locked");
+        assert_eq!(cells[0]["role"], "服务小区");
+        assert_eq!(cells[0]["freq"], "1600");
+        assert_eq!(cells[0]["pci"], "345");
+        assert_eq!(cells[0]["band"], "3");
+        assert_eq!(cells[0]["rsrp"], "-78");
+        assert_eq!(cells[1]["role"], "同频邻区");
+        assert_eq!(
+            cells[1]["rsrp"], "-84",
+            "neighbour rows list RSRQ before RSRP"
+        );
+        assert_eq!(cells[2]["band"], "40");
+        // Captured in SA: the module reports only the serving cell.
+        let sa = neighbours(
+            "+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"FDD\",460,11,C9A82340B,751,C94B00,428910,1,6,-72,-10,33,0,-\r\nOK\r\nOK\r\n",
+        );
+        assert_eq!(sa["lte_cells_parsed"].as_array().unwrap().len(), 0);
+        let nr = &sa["nr5g_cells_parsed"][0];
+        assert_eq!(
+            (
+                &nr["freq"],
+                &nr["pci"],
+                &nr["band"],
+                &nr["scs"],
+                &nr["rsrp"]
+            ),
+            (
+                &json!("428910"),
+                &json!("751"),
+                &json!("1"),
+                &json!(15),
+                &json!("-72")
+            )
+        );
+    }
+    #[test]
+    fn lte_band_follows_earfcn_ranges() {
+        for (earfcn, band) in [
+            (100, 1),
+            (1300, 3),
+            (1800, 3),
+            (2452, 5),
+            (3590, 8),
+            (38950, 40),
+            (40936, 41),
+        ] {
+            assert_eq!(lte_band(earfcn), Some(band), "EARFCN {earfcn}");
+        }
+        assert_eq!(lte_band(70000), None);
+    }
+    #[test]
+    fn cell_locks_reads_module_lock_values() {
+        let unlocked =
+            cell_locks("+QNWLOCK: \"common/4g\",0\r\nOK\r\n+QNWLOCK: \"common/5g\",0\r\nOK\r\n");
+        assert!(unlocked["lte"].is_null() && unlocked["nr"].is_null());
+        let locked = cell_locks(
+            "+QNWLOCK: \"common/4g\",2,1300,262,1600,345\r\nOK\r\n+QNWLOCK: \"common/5g\",249,633984,30,78\r\nOK\r\n",
+        );
+        assert_eq!(locked["lte"], json!([2, 1300, 262, 1600, 345]));
+        assert_eq!(locked["nr"], json!([249, 633984, 30, 78]));
     }
     #[test]
     fn traffic_direction_follows_quectel_sent_received_order() {

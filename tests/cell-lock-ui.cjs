@@ -12,7 +12,7 @@ const scanTable = html.match(/<div class="ui-scroll-x sa-scan-table">\s*(<table 
 const lockButton = html.match(/<button[^>]*@click="lockSelectedCells\(\)"[\s\S]*?<\/button>/)[0];
 const nr = {type: 'NR5G', provider: '中国联通', band: '78', freq: '627264', pci: '317', rsrp: '-72', scs: 30};
 const samePci = {...nr, freq: '633984'};
-const shared = {...nr, provider: '中国电信'};
+const shared = {...nr, pci: '318'};
 const lte = Array.from({length: 11}, (_, i) => ({
   type: 'LTE', provider: '中国联通', band: '3', freq: String(1650 + i), pci: '0', rsrp: '-85'
 }));
@@ -38,8 +38,10 @@ const lte = Array.from({length: 11}, (_, i) => ({
       window.SimpleAdmin = {
         Pages: {}, Lang: {getCurrentLanguage: () => 'zh-CN', t: text => text},
         Api: {networkData: async params => {
+          // A finished lock refreshes the status; only changes are recorded.
+          if (params.action === 'cell_lock_status') return {radios: [], module: {lte: null, nr: null}};
           requests.push(params);
-          if (params.action === 'scan') return window.scanResult;
+          if (params.action === 'scan' || params.action === 'neighbours') return window.scanResult;
           if (window.holdLock) await new Promise(resolve => { window.releaseLock = resolve; });
           if (rejectLock) return {ok: false, error: 'cell lock rejected: ERROR'};
           return {ok: true, cell_lock: {radios: []}};
@@ -55,6 +57,7 @@ const lte = Array.from({length: 11}, (_, i) => ({
       window.countdowns = 0;
       window.scanResult = {nr5g_cells_parsed: [nr, samePci, shared], lte_cells_parsed: lte};
       window.cellApp = Vue.createApp({data: () => state}).mount('#app');
+      cellApp.scanKind = 'full';
     }, {nr, samePci, shared, lte});
     const rows = page.locator('#cellScanTableBody .table-row');
     const checked = () => page.locator('#cellScanTableBody input:checked').count();
@@ -91,7 +94,7 @@ const lte = Array.from({length: 11}, (_, i) => ({
     await rows.nth(2).click();
     await page.evaluate(() => { cellApp.lockPersistence = 'persistent'; });
     await lock.click();
-    assert.equal(await checked(), 1, 'shared cells on another provider must remain selectable');
+    assert.equal(await checked(), 1, 'another PCI on the same frequency is selectable');
     assert.equal(await page.evaluate(() => requests[0].earfcn), '627264');
     assert.equal(await page.evaluate(() => requests[0].persistence), 'persistent');
 
@@ -167,9 +170,32 @@ const lte = Array.from({length: 11}, (_, i) => ({
     assert.equal(await page.evaluate(() => cellApp.selectedCells.length), 0);
     assert.equal(await lock.isDisabled(), true);
     await scan('Full Scan');
+    await resetRequests();
     await rows.nth(0).click();
-    assert.equal(await checked(), 0, 'full scan must not show unsupported selection');
-    assert.equal(await lock.isDisabled(), true);
+    assert.equal(await checked(), 1, 'full scan rows are selectable');
+    await rows.nth(3).click();
+    assert.equal(await checked(), 1, 'an LTE cell replaces a selected NR cell');
+    await rows.nth(4).click();
+    assert.equal(await checked(), 2, 'LTE cells add up');
+    await rows.nth(1).click();
+    assert.equal(await checked(), 1, 'an NR cell replaces selected LTE cells');
+    await lock.click();
+    assert.equal(await page.evaluate(() => requests[0].mode), 'NR5G Only', 'the lock follows the selected cell type');
+    await rows.nth(3).click();
+    await lock.click();
+    assert.equal(await page.evaluate(() => requests[1].mode), 'LTE Only');
+    assert.match(await lock.textContent(), /持久锁定所选/);
+    await page.evaluate(() => { cellApp.lockPersistence = 'temporary'; });
+    assert.match(await lock.textContent(), /临时锁定所选/);
+
+    // Neighbour scan asks for AT+QENG and shows where each cell came from.
+    await page.evaluate(() => { scanResult.lte_cells_parsed = [{type: 'LTE', role: '服务小区', band: '3', freq: '1600', pci: '345', rsrp: '-78'}]; scanResult.nr5g_cells_parsed = []; });
+    await page.evaluate(() => cellApp.setScanKind('neighbour'));
+    await resetRequests();
+    await page.evaluate(() => cellApp.startCellScan());
+    await page.waitForFunction(() => cellApp.resultDoneCell && !cellApp.isLoading);
+    assert.deepEqual(await page.evaluate(() => requests), [{action: 'neighbours'}]);
+    assert.match(await rows.nth(0).textContent(), /服务小区/);
     assert.equal(await page.locator('thead').count(), 1, 'repeated scans must not duplicate the table header');
     assert.deepEqual(errors, []);
     console.log('Cell lock UI passed: first selection, replacement, deselection, exact frequency, PCI=0, limits, scan reset, request errors and table state.');

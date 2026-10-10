@@ -229,7 +229,7 @@
 <div class="ui-card sa-band-footer">
 <div class="ui-row"><div class="ui-row-text"><span>活动频段</span><small v-text="bands"></small></div><button @click="resetBandLocking" class="btn btn-warning btn-sm" type="button">恢复全部</button></div>
 </div>
-<p class="ui-foot">勾选要保留的频段后点击“锁定”；“恢复全部”会解除所有制式的频段限制。</p>
+<p class="ui-foot">勾选要保留的频段后点击“锁定”；“恢复全部”会解除所有制式的频段限制。频段锁定由模块自动保存，重启后仍然有效，没有临时/持久之分。</p>
 </section>
 
 <section class="ui-group" aria-labelledby="networkParamsTitle">
@@ -266,7 +266,7 @@
 <div class="ui-scroll-x sa-pdp-table">
 <table class="table">
 <thead>
-<tr><th scope="col">CID</th><th scope="col">类型</th><th scope="col">APN</th><th scope="col">地址</th><th scope="col">状态</th><th scope="col">操作</th></tr>
+<tr><th scope="col">CID</th><th scope="col">类型</th><th scope="col">APN</th><th scope="col">地址</th><th scope="col">激活</th><th scope="col">操作</th></tr>
 </thead>
 <tbody id="pdpTableBody">
 <tr v-if="!pdp.contexts.length"><td colspan="6" class="ui-empty" v-text="pdpLoaded ? tr('没有 PDP 上下文') : tr('正在读取...')"></td></tr>
@@ -275,8 +275,8 @@
 <td data-no-i18n>{{ ctx.type }}</td>
 <td data-no-i18n>{{ ctx.apn || '-' }}</td>
 <td data-no-i18n class="sa-pdp-address"><span v-if="ctx.ipv4">{{ ctx.ipv4 }}</span><span v-if="ctx.ipv6">{{ ctx.ipv6 }}</span><span v-if="!ctx.ipv4 && !ctx.ipv6">-</span></td>
-<td><span class="ui-tag" :class="ctx.active ? 'is-good' : ''" v-text="ctx.active ? tr('已激活') : tr('未激活')"></span></td>
-<td class="sa-pdp-buttons"><button type="button" class="btn btn-sm sa-pdp-toggle" :class="ctx.active ? 'btn-outline-danger' : 'btn-outline-success'" :disabled="pdpBusy" @click="togglePdp(ctx)" v-text="ctx.active ? tr('去激活') : tr('激活')"></button><button type="button" class="btn btn-outline-primary btn-sm sa-pdp-edit" :disabled="pdpBusy" @click="editPdp(ctx)">编辑</button><button type="button" class="btn btn-outline-danger btn-sm sa-pdp-delete" :disabled="pdpBusy" @click="deletePdp(ctx)">删除</button></td>
+<td><label class="sa-pdp-state" :class="{'is-on': ctx.active}"><input class="form-check-input ui-switch sa-pdp-toggle" type="checkbox" role="switch" :checked="ctx.active" :disabled="pdpBusy" :aria-label="'CID ' + ctx.cid" @click.prevent="togglePdp(ctx)"/><span v-text="ctx.active ? tr('已激活') : tr('未激活')"></span></label></td>
+<td class="sa-pdp-buttons"><button type="button" class="btn btn-outline-primary btn-sm sa-pdp-edit" :disabled="pdpBusy" @click="editPdp(ctx)">编辑</button><button type="button" class="btn btn-outline-danger btn-sm sa-pdp-delete" :disabled="pdpBusy" @click="deletePdp(ctx)">删除</button></td>
 </tr>
 </tbody>
 </table>
@@ -293,66 +293,69 @@
 <button type="button" class="btn btn-primary" id="pdpNew" @click="newPdp()" :disabled="pdpBusy">新增 PDP</button>
 </div>
 </div>
-<p class="ui-foot">模块可能拒绝修改已激活的 PDP，可先去激活再修改；去激活正在使用的 PDP 会导致断网。</p>
+<p class="ui-foot">点“激活”开关即可激活或去激活。模块可能拒绝修改已激活的 PDP，可先关掉开关再修改；去激活正在使用的 PDP 会导致断网。</p>
 </section>
 
 <section class="ui-group" aria-labelledby="networkSwitchTitle">
 <div class="ui-group-head"><h2 id="networkSwitchTitle">网络功能开关</h2></div>
 <div class="ui-card sa-network-switches">
-<div class="ui-row"><div class="ui-row-text"><span>IMS / VoLTE <code data-no-i18n>AT+QCFG="ims"</code></span><small id="imsState" v-text="imsText()"></small></div>
-<div class="sa-switch-buttons"><button v-for="option in imsOptions" :key="option.value" type="button" class="btn btn-sm" :class="pdp.ims === option.value ? 'btn-primary' : 'btn-outline-primary'" :disabled="pdpBusy || pdp.ims === null || pdp.ims === option.value" @click="setIms(option.value)" v-text="tr(option.label)"></button></div></div>
-<div class="ui-row"><div class="ui-row-text"><span>SIM 热插拔检测 <code data-no-i18n>AT+QSIMDET</code></span><small v-text="pdp.sim_detect === null ? tr('读取失败') : (pdp.sim_detect ? tr('已开启') : tr('已关闭'))"></small></div>
-<div class="sa-switch-buttons"><button type="button" class="btn btn-sm" :class="pdp.sim_detect ? 'btn-outline-danger' : 'btn-outline-success'" :disabled="pdpBusy || pdp.sim_detect === null" @click="setSimDetect(!pdp.sim_detect)" v-text="pdp.sim_detect ? tr('关闭热插拔') : tr('开启热插拔')"></button></div></div>
-<div class="ui-row"><div class="ui-row-text"><span>数据漫游 <code data-no-i18n>AT+QNWPREFCFG="roam_pref"</code></span><small v-text="roamingText()"></small></div>
-<div class="sa-switch-buttons"><button type="button" class="btn btn-sm" :class="pdp.roaming === 1 ? 'btn-outline-success' : 'btn-outline-danger'" :disabled="pdpBusy || pdp.roaming === null" @click="setRoaming(pdp.roaming === 1)" v-text="pdp.roaming === 1 ? tr('开启漫游') : tr('关闭漫游')"></button></div></div>
-<div class="ui-row"><div class="ui-row-text"><span>SIM 卡槽 <code data-no-i18n>AT+QUIMSLOT</code></span><small v-text="pdp.sim_slot ? tr('当前：卡槽') + ' ' + pdp.sim_slot : tr('读取失败')"></small></div>
-<div class="sa-switch-buttons"><button v-for="slot in [1, 2]" :key="slot" type="button" class="btn btn-sm btn-outline-primary" :disabled="pdpBusy || !pdp.sim_slot || pdp.sim_slot === slot" @click="setSimSlot(slot)" v-text="tr('切换到卡槽') + ' ' + slot"></button></div></div>
+<div class="ui-row"><div class="ui-row-text"><span>IMS / VoLTE</span><small id="imsState" v-text="imsText()"></small></div>
+<div class="ui-segmented sa-switch-segmented" role="radiogroup" aria-label="IMS / VoLTE"><button v-for="option in imsOptions" :key="option.value" type="button" role="radio" :class="{active: pdp.ims === option.value}" :aria-checked="pdp.ims === option.value" :disabled="pdpBusy || pdp.ims === null" @click="pdp.ims !== option.value && setIms(option.value)" v-text="tr(option.label)"></button></div></div>
+<label class="ui-row is-toggle"><span class="ui-row-text"><span>SIM 热插拔检测</span><small v-text="pdp.sim_detect === null ? tr('读取失败') : (pdp.sim_detect ? tr('已开启 · 拔插 SIM 卡后自动识别') : tr('已关闭 · 换卡后需重启模块'))"></small></span><input id="simDetectSwitch" class="form-check-input ui-switch" type="checkbox" role="switch" :checked="!!pdp.sim_detect" :disabled="pdpBusy || pdp.sim_detect === null" @click.prevent="setSimDetect(!pdp.sim_detect)"/></label>
+<label class="ui-row is-toggle"><span class="ui-row-text"><span>数据漫游</span><small v-text="roamingText()"></small></span><input id="roamingSwitch" class="form-check-input ui-switch" type="checkbox" role="switch" :checked="pdp.roaming !== null && pdp.roaming !== 1" :disabled="pdpBusy || pdp.roaming === null" @click.prevent="setRoaming(pdp.roaming === 1)"/></label>
+<div class="ui-row"><div class="ui-row-text"><span>SIM 卡槽</span><small v-text="pdp.sim_slot ? tr('正在使用卡槽') + ' ' + pdp.sim_slot : tr('读取失败')"></small></div>
+<div class="ui-segmented sa-switch-segmented" role="radiogroup" aria-label="SIM 卡槽"><button v-for="slot in [1, 2]" :key="slot" type="button" role="radio" :class="{active: pdp.sim_slot === slot}" :aria-checked="pdp.sim_slot === slot" :disabled="pdpBusy || !pdp.sim_slot" @click="pdp.sim_slot !== slot && setSimSlot(slot)" v-text="tr('卡槽') + ' ' + slot"></button></div></div>
 </div>
-<p class="ui-foot">IMS 和 SIM 热插拔检测在重启模块后生效；切换卡槽会立即重新注册网络。</p>
+<p class="ui-foot">高亮的选项和打开的开关就是当前设置。IMS 和 SIM 热插拔检测在重启模块后生效；切换卡槽会立即重新注册网络。</p>
 </section>
 
 <section class="ui-group" aria-labelledby="cellLockTitle">
 <div class="ui-group-head"><h2 id="cellLockTitle">小区锁定</h2></div>
 <div class="ui-card sa-lock-policy">
-<div class="ui-row is-stack"><span class="ui-row-label">生效方式</span><div class="ui-row-control"><div class="ui-segmented sa-lock-mode" role="radiogroup" aria-label="生效方式"><label><input type="radio" name="cell-lock-mode" value="temporary" v-model="lockPersistence"/><span>临时锁频</span></label><label><input type="radio" name="cell-lock-mode" value="persistent" v-model="lockPersistence"/><span>持久化锁频</span></label></div></div></div>
-<label v-if="lockPersistence==='persistent'" class="ui-row is-toggle"><span>锁频后 3 分钟未拨号成功则取消，并停用开机恢复</span><input class="form-check-input ui-switch" type="checkbox" role="switch" v-model="lockAutoUnlock"/></label>
-<div v-for="state in lockRadios" :key="state.radio" class="ui-row sa-lock-status"><strong data-no-i18n>{{ state.radio==='lte' ? 'LTE' : 'NR5G-SA' }}</strong><span class="sa-lock-state">{{ lockStatusText(state) }}</span><span v-if="state.remaining_seconds!==null" class="ui-tag is-warn">{{ state.remaining_seconds }} s</span><code v-if="state.values">{{ state.values.join(', ') }}</code><span class="sa-lock-buttons"><button v-if="state.values && !state.persistent" type="button" class="btn btn-outline-primary btn-sm" @click="restoreSavedLock(state)" :disabled="lockBusy">重新启用</button><button v-if="state.persistent" type="button" class="btn btn-outline-danger btn-sm" @click="cancelSavedLock(state)" :disabled="lockBusy">取消锁频</button></span><small v-if="state.error" class="text-danger">{{ state.error }}</small></div>
+<div v-for="state in lockRadios" :key="state.radio" class="ui-row sa-lock-status"><div class="ui-row-text"><span><strong data-no-i18n>{{ state.radio==='lte' ? 'LTE' : 'NR5G-SA' }}</strong> <span class="ui-tag sa-lock-state" :class="lockTone(state)">{{ lockStatusText(state) }}</span></span><small><code v-if="lockValuesText(state)" data-no-i18n>{{ lockValuesText(state) }}</code><span v-if="state.remaining_seconds!==null">{{ tr('未拨号成功将在') }} {{ state.remaining_seconds }} {{ tr('秒后自动解锁') }}</span><span v-if="state.error" class="text-danger">{{ state.error }}</span></small></div><span class="sa-lock-buttons"><button v-if="!canUnlock(state) && state.values" type="button" class="btn btn-outline-primary btn-sm" @click="restoreSavedLock(state)" :disabled="lockBusy">重新启用</button><button v-if="canUnlock(state)" type="button" class="btn btn-outline-danger btn-sm" @click="cancelSavedLock(state)" :disabled="lockBusy">解锁</button></span></div>
+<div class="ui-row is-stack"><span class="ui-row-label">新锁定的生效方式</span><div class="ui-row-control"><div class="ui-segmented sa-lock-mode" role="radiogroup" aria-label="新锁定的生效方式"><label><input type="radio" name="cell-lock-mode" value="temporary" v-model="lockPersistence"/><span>临时（重启后失效）</span></label><label><input type="radio" name="cell-lock-mode" value="persistent" v-model="lockPersistence"/><span>持久（重启后自动恢复）</span></label></div></div></div>
+<label v-if="lockPersistence==='persistent'" class="ui-row is-toggle"><span>锁定后 3 分钟未拨号成功则自动解锁，并停用开机恢复</span><input class="form-check-input ui-switch" type="checkbox" role="switch" v-model="lockAutoUnlock"/></label>
 <p v-if="lockMessage" role="status" class="ui-note sa-forward-message" v-text="lockMessage"></p>
 </div>
-<p class="ui-foot">临时锁频重启后失效；持久化锁频在应用启动后自动恢复，适用于下方手动或扫描小区锁定。</p>
+<p class="ui-foot">上面是模块当前的小区锁定。“生效方式”作用于下方扫描锁定和手动锁定，锁定按钮上会写明“临时”或“持久”。频段锁定与此无关，模块会一直保存。</p>
 </section>
 
 <section class="ui-group" aria-labelledby="cellScanTitle">
 <div class="ui-group-head"><h2 id="cellScanTitle">扫描小区</h2></div>
 <div class="ui-card">
-<div class="ui-row is-stack"><label for="cellSelect">扫描模式</label><div class="ui-row-control">
-<select class="form-select" id="cellSelect" v-model="cellScanMode" @change="clearTableRowsBodyCellScan()" :disabled="isLoading || lockBusy">
+<div class="ui-row is-stack"><span class="ui-row-label">扫描方式</span><div class="ui-row-control"><div class="ui-segmented sa-scan-kind" role="radiogroup" aria-label="扫描方式">
+<button type="button" role="radio" :class="{active: scanKind === 'neighbour'}" :aria-checked="scanKind === 'neighbour'" :disabled="isLoading || lockBusy" @click="setScanKind('neighbour')">邻区扫描</button>
+<button type="button" role="radio" :class="{active: scanKind === 'full'}" :aria-checked="scanKind === 'full'" :disabled="isLoading || lockBusy" @click="setScanKind('full')">完整扫描</button>
+</div></div></div>
+<div class="ui-row is-stack"><span class="ui-row-label" v-text="scanKind === 'neighbour' ? tr('邻区扫描') : tr('扫描模式')"></span><div class="ui-row-control">
+<select v-show="scanKind === 'full'" class="form-select" id="cellSelect" v-model="cellScanMode" @change="clearTableRowsBodyCellScan()" :disabled="isLoading || lockBusy">
 <option disabled="" value="Unspecified">当前：选择扫描模式</option>
 <option value="Full Scan">全面扫描</option>
 <option value="LTE Only">仅LTE</option>
 <option value="NR5G Only">仅NR5G</option>
 </select>
-<button :disabled='isLoading || lockBusy || cellScanMode === "Unspecified" || cellScanMode === "选择扫描模式"' @click="startCellScan()" class="btn btn-primary" type="button" v-text="isCellScanning ? '扫描中... 请稍候.' : '开始扫描'"></button>
+<span v-show="scanKind === 'neighbour'" class="ui-status sa-scan-hint">约 1 秒。读取当前服务小区和模块已测到的 LTE 邻区；5G SA 下模块只报告服务小区。</span>
+<button id="cellScanStart" :disabled="!canStartScan()" @click="startCellScan()" class="btn btn-primary" type="button" v-text="scanButtonText()"></button>
 </div></div>
 <div class="ui-scroll-x sa-scan-table">
 <table class="table">
 <thead>
-<tr><th scope="col">选择</th><th scope="col">网络</th><th scope="col">运营商</th><th scope="col">频段</th><th scope="col">频点</th><th scope="col">PCI</th><th scope="col">RSRP</th><th scope="col">信号</th></tr>
+<tr><th scope="col">选择</th><th scope="col">网络</th><th scope="col" v-text="scanKind === 'neighbour' ? tr('来源') : tr('运营商')"></th><th scope="col">频段</th><th scope="col">频点</th><th scope="col">PCI</th><th scope="col">RSRP</th><th scope="col">信号</th></tr>
 </thead>
 <tbody id="cellScanTableBody">
-<tr v-if="!scannedCellsForMode().length"><td colspan="8" class="ui-empty">暂无扫描结果</td></tr>
+<tr v-if="!scannedCellsForMode().length"><td colspan="8" class="ui-empty" v-text="scanError || (resultDoneCell ? tr('没有可锁定的小区') : tr('暂无扫描结果'))"></td></tr>
 <tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :class="{'is-selected': isCellSelected(cell)}" :data-cell-index="index" @click="toggleCellSelection(cell)">
 <th scope="row"><input type="checkbox" class="checkbox-cell" :data-cell-index="index" :checked="isCellSelected(cell)" disabled/></th>
-<td>{{ cell.type }}</td><td>{{ cell.provider }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
+<td>{{ cell.type }}</td><td>{{ cellSource(cell) }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
 <td><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line v-for="bar in signalBars(cell.rsrp)" :key="bar.x" :x1="bar.x" y1="20" :x2="bar.x" :y2="bar.y"/></svg></td>
 </tr>
 </tbody>
 </table>
 </div>
 <div class="ui-actions sa-cell-scan-actions">
-<span class="ui-status" id="cellSelectHelper">点选结果行后锁定；扫描需要几分钟，请勿离开此页面。</span>
+<span class="ui-status" id="cellSelectHelper" v-text="scanKind === 'neighbour' ? tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。') : tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。完整扫描需要几分钟，请勿离开此页面。')"></span>
 <button :disabled="isLoading || lockBusy || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">清除</button>
-<button :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-primary" type="button">锁定所选</button>
+<button id="cellLockSelected" :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-primary" type="button" v-text="lockSelectedText()"></button>
 </div>
 </div>
 </section>
@@ -391,14 +394,13 @@
 <option>30</option>
 <option>60</option>
 <option>120</option>
-<option>240</option>
 </select>
 <input aria-label="band" class="form-control" placeholder="Band" type="text" inputmode="numeric" v-model="band"/>
 </div></div>
 </div>
 <div class="ui-actions is-end" v-show="networkModeCell !== '-'">
-<button @click="cellLockEnableLTE()" class="btn btn-primary" type="button" v-show="networkModeCell == 'LTE'">锁定LTE小区</button>
-<button @click="cellLockEnableNR()" class="btn btn-primary" type="button" v-show="networkModeCell == 'NR5G-SA'">锁定NR5G-SA小区</button>
+<button @click="cellLockEnableLTE()" class="btn btn-primary" type="button" v-show="networkModeCell == 'LTE'" v-text="tr(lockPersistence === 'persistent' ? '持久锁定 LTE 小区' : '临时锁定 LTE 小区')"></button>
+<button @click="cellLockEnableNR()" class="btn btn-primary" type="button" v-show="networkModeCell == 'NR5G-SA'" v-text="tr(lockPersistence === 'persistent' ? '持久锁定 NR5G-SA 小区' : '临时锁定 NR5G-SA 小区')"></button>
 <button @click="cellLockDisableLTE()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁LTE'">解锁LTE小区</button>
 <button @click="cellLockDisableNR()" class="btn btn-danger" type="button" v-show="networkModeCell == '解锁NR5G-SA'">解锁NR5G-SA小区</button>
 </div>
