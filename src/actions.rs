@@ -256,7 +256,8 @@ pub fn settings(p: &Params) -> Result<Vec<String>> {
                     p.get("ip").parse::<Ipv4Addr>().context("invalid dmz ip")?
                 )
             } else {
-                "AT+QMAP=\"DMZ\",0".into()
+                // The manual requires <IP_family> with <enable>.
+                "AT+QMAP=\"DMZ\",0,4".into()
             }
         }
         "lanip" => {

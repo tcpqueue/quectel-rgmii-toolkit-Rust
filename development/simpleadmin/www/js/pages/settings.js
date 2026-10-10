@@ -366,6 +366,16 @@ function simpleSettings() {
           }
         },
 
+        // For settings the module only applies after a reboot (DNS proxy, LAN DHCP pool, USB protocol).
+        async runRebootAction(params) {
+          const data = await this.runNetworkAction(params);
+          if (data) {
+            this.setNetworkMessage(this.t("已保存，重启模块后生效"), false);
+            this.showRebootModal();
+          }
+          return data;
+        },
+
         async ipPassThroughEnable() {
           if (this.ipPassMode === "未指定") {
             this.setNetworkMessage(this.t("请选择 IP 透传模式"), true);
@@ -397,17 +407,17 @@ function simpleSettings() {
         },
 
         onBoardDNSV6ProxyEnable() {
-          return this.runNetworkAction({ action: 'dns_proxy', family: '6', enabled: '1' });
+          return this.runRebootAction({ action: 'dns_proxy', family: '6', enabled: '1' });
         },
         onBoardDNSV4ProxyEnable() {
-          return this.runNetworkAction({ action: 'dns_proxy', family: '4', enabled: '1' });
+          return this.runRebootAction({ action: 'dns_proxy', family: '4', enabled: '1' });
         },
 
         onBoardDNSV6ProxyDisable() {
-          return this.runNetworkAction({ action: 'dns_proxy', family: '6', enabled: '0' });
+          return this.runRebootAction({ action: 'dns_proxy', family: '6', enabled: '0' });
         },
         onBoardDNSV4ProxyDisable() {
-          return this.runNetworkAction({ action: 'dns_proxy', family: '4', enabled: '0' });
+          return this.runRebootAction({ action: 'dns_proxy', family: '4', enabled: '0' });
         },
 
 
@@ -417,9 +427,7 @@ function simpleSettings() {
             return;
           }
           // The new protocol applies after a reboot; only offer it when the module accepted the change.
-          if (await this.runNetworkAction({ action: 'usbnet', mode: this.usbNetMode })) {
-            this.showRebootModal();
-          }
+          await this.runRebootAction({ action: 'usbnet', mode: this.usbNetMode });
         },
 
         fetchCurrentSettings() {
@@ -531,7 +539,8 @@ function simpleSettings() {
           const endIp = `${gwIpParts[0]}.${gwIpParts[1]}.${gwIpParts[2]}.${Number(this.lanIpEnd)}`;
 
           this.isSavingLANIP = true;
-          return this.runNetworkAction({ action: 'lanip', start: startIp, end: endIp, gateway })
+          // Without <effect> the module applies the new pool after a reboot.
+          return this.runRebootAction({ action: 'lanip', start: startIp, end: endIp, gateway })
             .then((data) => {
               if (!data) return;
               this.lanIpSaveSuccess = true;
