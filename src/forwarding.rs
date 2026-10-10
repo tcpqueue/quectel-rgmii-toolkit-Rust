@@ -343,6 +343,9 @@ struct State {
     records: VecDeque<Record>,
     cooldown: [Option<Instant>; 6],
     poll_error: String,
+    /// False when the saved file could not be loaded; the next save rewrites it even if the
+    /// settings equal the defaults now in memory.
+    stored: bool,
     test_at: Option<Instant>,
     outcomes: HashMap<String, (usize, bool)>,
 }
@@ -394,6 +397,7 @@ impl Forwarder {
                 queue: VecDeque::new(),
                 records: VecDeque::new(),
                 cooldown: [None; 6],
+                stored: poll_error.is_empty(),
                 poll_error,
                 test_at: None,
                 outcomes: HashMap::new(),
@@ -406,7 +410,9 @@ impl Forwarder {
         }
     }
     pub fn snapshot(&self) -> Value {
-        let s = self.state.lock().unwrap();
+        self.snapshot_locked(&self.state.lock().unwrap())
+    }
+    fn snapshot_locked(&self, s: &State) -> Value {
         let channels: Vec<_> = s.settings.channels.iter().map(|c|json!({"platform":c.platform,"enabled":c.enabled,"number":c.number,"has_url":!c.url.is_empty(),"has_token":!c.token.is_empty(),"has_secret":!c.secret.is_empty()})).collect();
         json!({"sms_enabled":s.settings.sms_enabled,"delete_after_day":s.settings.delete_after_day,"cleanup":self.cleanup.status(),"enabled":s.settings.enabled,"device_name":s.settings.device_name,"channels":channels,"queued":s.queue.len(),"ready":s.detector.initialized,"error":s.poll_error,"records":s.records,"retry_seconds":180})
     }
@@ -451,8 +457,11 @@ impl Forwarder {
         self.persist(next).await
     }
     async fn persist(&self, next: Settings) -> Result<Value> {
-        if self.state.lock().unwrap().settings == next {
-            return Ok(self.snapshot());
+        {
+            let s = self.state.lock().unwrap();
+            if s.stored && s.settings == next {
+                return Ok(self.snapshot_locked(&s));
+            }
         }
         let bytes = serde_json::to_vec(&next)?;
         let path = self.path.clone();
@@ -475,6 +484,7 @@ impl Forwarder {
             }
             s.cooldown = [None; 6];
             s.poll_error.clear();
+            s.stored = true;
         }
         saved?;
         Ok(self.snapshot())

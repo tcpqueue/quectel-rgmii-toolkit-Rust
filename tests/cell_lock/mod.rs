@@ -164,3 +164,19 @@ async fn guard_is_optional_and_user_unlock_cannot_be_restored_by_startup() {
     lock.restore(&at).await;
     assert!(at.trace.lock().unwrap().is_empty());
 }
+#[tokio::test]
+async fn damaged_lock_file_is_replaced_by_the_next_change() {
+    let (_, at, dir) = setup();
+    let path = dir.path().join("cell-lock.json");
+    std::fs::write(&path, "{damaged").unwrap();
+    let lock = CellLock::new(path.clone(), Arc::new(Store::new(true)));
+    assert_eq!(
+        lock.snapshot()["radios"][1]["error"],
+        "Cannot load persistent cell locks"
+    );
+    // A temporary lock keeps no boot rule, which equals the defaults in memory.
+    lock.apply(&at, &params("temporary")).await.unwrap();
+    let reloaded = CellLock::new(path, Arc::new(Store::new(true)));
+    assert_eq!(reloaded.snapshot()["radios"][0]["error"], "");
+    assert_eq!(reloaded.snapshot()["radios"][1]["persistent"], false);
+}

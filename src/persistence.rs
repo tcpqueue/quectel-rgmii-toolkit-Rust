@@ -88,8 +88,11 @@ impl Store {
             return Ok(());
         }
         let mut committed = false;
+        // Only files on a read-only root need a remount (/usrdata is its own writable volume),
+        // and the root is left as it was found, so an installer's or user's rw window survives.
+        let remounted = self.managed && on_root_filesystem(path) && !root_writable();
         let result = (|| -> Result<()> {
-            if self.managed {
+            if remounted {
                 remount(true)?
             }
             let parent = path.parent().context("missing settings directory")?;
@@ -120,7 +123,7 @@ impl Store {
             let _ = fs::remove_file(&temp);
             result
         })();
-        let restored = if self.managed { remount(false) } else { Ok(()) };
+        let restored = if remounted { remount(false) } else { Ok(()) };
         match (result, restored) {
             (Ok(()), Ok(())) => Ok(()),
             (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(SavedError { committed, error }),
@@ -132,6 +135,52 @@ impl Store {
     }
 }
 
+/// Whether `path` would be written to the root filesystem (checked on its nearest existing folder).
+fn on_root_filesystem(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let Ok(root) = fs::metadata("/") else {
+            return true;
+        };
+        let mut folder = path.parent();
+        while let Some(current) = folder {
+            match fs::metadata(current) {
+                Ok(meta) => return meta.dev() == root.dev(),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => folder = current.parent(),
+                Err(_) => return true,
+            }
+        }
+        true
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        true
+    }
+}
+fn root_writable() -> bool {
+    fs::read_to_string("/proc/self/mounts")
+        .ok()
+        .and_then(|mounts| root_mount_writable(&mounts))
+        .unwrap_or(false)
+}
+/// Reads the effective (last listed) `/` mount from a mount table.
+fn root_mount_writable(mounts: &str) -> Option<bool> {
+    mounts
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let (_, point, _, options) = (
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+            );
+            (point == "/").then(|| options.split(',').any(|o| o == "rw"))
+        })
+        .next_back()
+}
 fn remount(writable: bool) -> Result<()> {
     let mut child = std::process::Command::new("mount")
         .args([
@@ -201,6 +250,31 @@ fn process_lock() -> Result<File> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn root_remount_follows_the_effective_root_mount() {
+        let table = "rootfs / rootfs rw 0 0\n/dev/ubiblock0_0 / squashfs ro,relatime 0 0\nubi0:usrfs /usrdata ubifs rw,relatime 0 0\n";
+        assert_eq!(root_mount_writable(table), Some(false));
+        let remounted = "/dev/ubiblock0_0 / ubifs ro 0 0\n/dev/ubiblock0_0 / ubifs rw,sync 0 0\n";
+        assert_eq!(root_mount_writable(remounted), Some(true));
+        assert_eq!(
+            root_mount_writable("ubi0:usrfs /usrdata ubifs rw 0 0\n"),
+            None
+        );
+        assert_eq!(root_mount_writable("/dev/x / ext4 rwx 0 0\n"), Some(false));
+    }
+    #[test]
+    #[cfg(unix)]
+    fn root_check_uses_the_nearest_existing_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let existing = on_root_filesystem(&dir.path().join("file"));
+        assert_eq!(
+            on_root_filesystem(&dir.path().join("missing/deeper/file")),
+            existing
+        );
+        assert!(on_root_filesystem(Path::new("/etc/shadow")));
+        // /proc is always a separate filesystem.
+        assert!(!on_root_filesystem(Path::new("/proc/self/x")));
+    }
     #[test]
     fn skips_identical_settings_and_preserves_mode() {
         let dir = tempfile::tempdir().unwrap();
