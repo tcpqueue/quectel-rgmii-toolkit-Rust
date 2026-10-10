@@ -262,17 +262,6 @@
       });
     });
 
-    const sidebar = document.getElementById('simpleadminSidebar');
-    if (sidebar) {
-      document.querySelectorAll('.sa-sidebar-toggle').forEach((sidebarToggle) => {
-        if (sidebarToggle.dataset.simpleadminSidebarBound === '1') return;
-        sidebarToggle.dataset.simpleadminSidebarBound = '1';
-        sidebarToggle.addEventListener('click', () => {
-          sidebar.classList.toggle('open');
-        });
-      });
-    }
-
     global.addEventListener('popstate', () => {
       showPage(global.location.hash, { updateHash: false });
     });

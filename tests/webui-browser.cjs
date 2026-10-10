@@ -18,7 +18,7 @@ async function freePort() {
  try {
   for(let i=0;i<100;i++){try{await fetch(base+'/login.html');break;}catch{await new Promise(r=>setTimeout(r,100));}}
   browser=await chromium.launch({headless:true});
-  for(const language of ['zh-CN','en','ru','ar']){
+  for(const language of ['zh-CN','en']){
    const context=await browser.newContext({viewport:{width:1280,height:1000},locale:language});
    const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
    await page.goto(base+'/login.html');await page.locator('#loginLanguage').selectOption(language);

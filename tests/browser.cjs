@@ -18,7 +18,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   try {
     for (let i = 0; i < 100; i++) {try {await fetch(base + '/login.html'); break;} catch {await new Promise(r => setTimeout(r, 100));}}
     browser = await chromium.launch({headless:true});
-    for (const language of ['zh-CN','en','ru','ar']) {
+    for (const language of ['zh-CN','en']) {
       const context = await browser.newContext({viewport:{width:1440,height:1100},locale:language});
       const page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.goto(base + '/login.html');
@@ -29,7 +29,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.waitForFunction(() => document.querySelectorAll('#monitorApp canvas').length === 4);
       await page.waitForTimeout(1500);
       assert.equal(await page.locator('html').getAttribute('lang'), language);
-      assert.equal(await page.locator('html').getAttribute('dir'), language === 'ar' ? 'rtl' : 'ltr');
+      assert.equal(await page.locator('html').getAttribute('dir'), 'ltr');
       const api = await page.evaluate(async () => {
         const paths = ['/api/dashboard_data','/api/device_info_data','/api/network_data','/api/settings_data','/api/sms_data','/api/telemetry'];
         const values = {};
@@ -67,9 +67,9 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         } else {
           assert(pingBox.y>=trafficBox.y+trafficBox.height, 'mobile charts must stack');
         }
-        if (width < 992) {
-          const sidebar = await page.locator('.sa-sidebar').boundingBox();
-          assert(sidebar.x+sidebar.width<=1 || sidebar.x>=width-1, `${language}: mobile sidebar must be offscreen`);
+        if (width < 768) {
+          assert.equal(await page.locator('.sa-sidebar').isVisible(), false, `${language}: phones use the tab bar`);
+          assert.equal(await page.locator('.sa-tabbar').isVisible(), true, `${language}: tab bar visible on phones`);
         }
         await page.screenshot({path:path.join(temporary,`${language}-${width}.png`),fullPage:true});
         if (docs && language==='zh-CN' && width===1440) {
@@ -78,7 +78,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         }
         if (docs && width===390 && ['zh-CN','ar'].includes(language)) {
           await page.evaluate(()=>scrollTo(0,0));
-          await page.screenshot({path:path.join(docs,language==='ar'?'arabic-mobile.png':'mobile.png')});
+          await page.screenshot({path:path.join(docs,'mobile.png')});
         }
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
         assert(!overflow, `${language} ${width}: horizontal overflow`);

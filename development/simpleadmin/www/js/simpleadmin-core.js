@@ -508,58 +508,53 @@
   };
 
 
+  // Appearance: "auto" follows the system; an explicit choice is kept in localStorage.
+  root.Theme = root.Theme || (function () {
+    const storageKey = 'theme';
+    const media = global.matchMedia ? global.matchMedia('(prefers-color-scheme: dark)') : null;
+    function preference() {
+      try {
+        const value = localStorage.getItem(storageKey);
+        return value === 'light' || value === 'dark' ? value : 'auto';
+      } catch (_) {
+        return 'auto';
+      }
+    }
+    function apply() {
+      const choice = preference();
+      const theme = choice === 'auto' ? (media && media.matches ? 'dark' : 'light') : choice;
+      const html = document.documentElement;
+      html.setAttribute('data-bs-theme', theme);
+      html.style.colorScheme = theme;
+      html.classList.toggle('theme-dark', theme === 'dark');
+      html.classList.toggle('theme-light', theme === 'light');
+      global.dispatchEvent(new CustomEvent('simpleadmin:theme-changed', { detail: { theme, preference: choice } }));
+      return theme;
+    }
+    function set(value) {
+      try {
+        if (value === 'light' || value === 'dark') localStorage.setItem(storageKey, value);
+        else localStorage.removeItem(storageKey);
+      } catch (_) {
+        // Private browsing: the choice lasts for this page only.
+      }
+      return apply();
+    }
+    if (media && typeof media.addEventListener === 'function') {
+      media.addEventListener('change', () => { if (preference() === 'auto') apply(); });
+    }
+    return { preference, apply, set };
+  })();
+
   root.UI = root.UI || {
     setText(selectorOrElement, value) {
       const element = typeof selectorOrElement === 'string'
         ? document.querySelector(selectorOrElement)
         : selectorOrElement;
       if (element) element.textContent = value;
-    },
-    initDarkMode(buttonId) {
-      const html = document.documentElement;
-      if (!html) return;
-
-      const storageKey = 'theme';
-      const normalizeTheme = (theme) => theme === 'dark' ? 'dark' : 'light';
-      const applyTheme = (theme) => {
-        const normalized = normalizeTheme(theme);
-        html.setAttribute('data-bs-theme', normalized);
-        html.style.colorScheme = normalized;
-        html.classList.toggle('theme-dark', normalized === 'dark');
-        html.classList.toggle('theme-light', normalized === 'light');
-        if (document.body) {
-          document.body.setAttribute('data-bs-theme', normalized);
-          document.body.classList.toggle('theme-dark', normalized === 'dark');
-          document.body.classList.toggle('theme-light', normalized === 'light');
-        }
-        localStorage.setItem(storageKey, normalized);
-
-        const label = normalized === 'dark' ? '浅色模式' : '暗夜模式';
-        document.querySelectorAll('.sa-titlebar-theme-toggle').forEach((currentToggle) => {
-          currentToggle.dataset.simpleadminI18nKey = label;
-          currentToggle.textContent = root.Lang ? root.Lang.t(label) : label;
-        });
-        const legacyToggle = document.getElementById(buttonId || 'darkModeToggle');
-        if (legacyToggle) {
-          legacyToggle.dataset.simpleadminI18nKey = label;
-          legacyToggle.textContent = root.Lang ? root.Lang.t(label) : label;
-        }
-      };
-
-      applyTheme(localStorage.getItem(storageKey) || html.getAttribute('data-bs-theme') || 'light');
-
-      const toggles = Array.from(document.querySelectorAll('.sa-titlebar-theme-toggle'));
-      const legacyToggle = document.getElementById(buttonId || 'darkModeToggle');
-      if (legacyToggle && !toggles.includes(legacyToggle)) toggles.push(legacyToggle);
-      toggles.forEach((toggle) => {
-        if (!toggle || toggle.dataset.simpleadminDarkModeBound === '1') return;
-        toggle.dataset.simpleadminDarkModeBound = '1';
-        toggle.addEventListener('click', () => {
-          applyTheme(html.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark');
-        });
-      });
     }
   };
+
 
   root.MockAT = root.MockAT || (function () {
     function normalizePayload(payload) {

@@ -241,12 +241,16 @@ async fn cross_origin_mutations_and_public_path_bypass_fail() {
     assert_eq!(app.router().oneshot(request).await.unwrap().status(), 403);
     for uri in [
         "/js/locales.js/../secret",
+        "/css/app.css/../../index.html",
         "/api/module_model/../dashboard_data",
         "/cgi-bin/dashboard_data",
     ] {
         let response = call(&app, uri, "", "").await;
         assert!([401, 303].contains(&response.status().as_u16()));
     }
+    // The login page's stylesheet loads before signing in.
+    let response = call(&app, "/css/app.css", "", "").await;
+    assert!(![401, 303].contains(&response.status().as_u16()));
 }
 #[tokio::test]
 async fn root_change_requires_current_password_and_revokes_all() {
