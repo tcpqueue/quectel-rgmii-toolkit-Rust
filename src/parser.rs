@@ -759,14 +759,41 @@ pub fn scan(raw: &str) -> Value {
             "46020" => "中国铁通",
             _ => "",
         };
-        let cell = json!({"type":if is_nr{"NR5G"}else{"LTE"},"provider":if carrier.is_empty(){format!("{} {}",p[1],p[2])}else{carrier.into()},"band":p[12],"freq":p[3],"pci":p[4],"rsrp":p[5]});
-        if is_nr { nr.push(cell) } else { lte.push(cell) }
+        let mut cell = json!({"type":if is_nr{"NR5G"}else{"LTE"},"provider":if carrier.is_empty(){format!("{} {}",p[1],p[2])}else{carrier.into()},"band":p[12],"freq":p[3],"pci":p[4],"rsrp":p[5]});
+        if is_nr {
+            // QSCAN reports <scs> as an index while QNWLOCK takes kHz; "-" means not reported.
+            cell["scs"] = match p[8].as_str() {
+                "0" => json!(15),
+                "1" => json!(30),
+                "2" => json!(60),
+                "3" => json!(120),
+                _ => Value::Null,
+            };
+            nr.push(cell)
+        } else {
+            lte.push(cell)
+        }
     }
     json!({"nr5g_cells_parsed":nr,"lte_cells_parsed":lte})
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn nr_scan_maps_scs_index_to_khz() {
+        // Captured from an RM520N-EU (RM520NEUDAR03A08M4G); the last line is synthetic.
+        let raw = "+QSCAN: \"NR5G\",460,11,633984,249,-80,-11,33,1,C9A82400C,C94B00,273,78,28,4,-\r\n\
+                   +QSCAN: \"NR5G\",460,00,152890,866,-80,-14,41,0,223DB7017,58D006,160,28,22,6,-\r\n\
+                   +QSCAN: \"NR5G\",460,00,524910,296,-84,-11,37,-,22382F005,58D006,162,41,28,2,-\r\nOK\r\n";
+        let cells = &scan(raw)["nr5g_cells_parsed"];
+        assert_eq!(cells[0]["freq"], "633984");
+        assert_eq!(cells[0]["pci"], "249");
+        assert_eq!(cells[0]["band"], "78");
+        assert_eq!(cells[0]["scs"], 30);
+        assert_eq!(cells[1]["band"], "28");
+        assert_eq!(cells[1]["scs"], 15);
+        assert!(cells[2]["scs"].is_null());
+    }
     #[test]
     fn traffic_direction_follows_quectel_sent_received_order() {
         for (sent, received) in [(1024, 8192), (0, 4096), (4096, 0), (0, 0)] {

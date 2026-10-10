@@ -39,8 +39,8 @@ impl Rule {
             v.len() == 4
                 && v[0] <= 1007
                 && v[1] <= 3279165
-                && [15, 30, 60, 120, 240].contains(&v[2])
                 && (1..=1024).contains(&v[3])
+                && actions::nr_scs_valid(v[3], v[2])
         };
         if !valid {
             bail!("invalid saved cell lock")
@@ -56,6 +56,38 @@ impl Rule {
 #[serde(default, deny_unknown_fields)]
 struct Settings {
     rules: [Option<Rule>; 2],
+}
+/// SA bands the active carrier configuration (MBN) allows; empty when unknown.
+/// The user band list can include more, but the modem rejects locks outside this one.
+fn policy_nr_bands(raw: &str) -> Vec<u32> {
+    raw.lines()
+        .filter_map(|line| line.trim().strip_prefix("+QNWPREFCFG:"))
+        .map(parser::fields)
+        .find(|p| p.len() > 1 && p[0] == "nr5g_band")
+        .map(|p| p[1].split(':').filter_map(|b| b.parse().ok()).collect())
+        .unwrap_or_default()
+}
+/// Runs a lock or unlock. The modem answers +CME ERROR: 904 to an unlock when
+/// nothing is locked, so an unlock also succeeds once the modem reports no lock.
+async fn run_lock(at: &At, radio: usize, command: &str) -> Result<String> {
+    let response = at.run(command).await?;
+    if parser::ok(&response) {
+        return Ok(response);
+    }
+    if command == format!("{}0", PREFIXES[radio]) {
+        let query = PREFIXES[radio].trim_end_matches(',');
+        if let Ok(state) = at.run(query).await
+            && parser::ok(&state)
+            && state
+                .lines()
+                .filter_map(|line| line.trim().strip_prefix("+QNWLOCK:"))
+                .map(parser::fields)
+                .any(|p| p.len() > 1 && query.ends_with(&format!("\"{}\"", p[0])) && p[1] == "0")
+        {
+            return Ok(state);
+        }
+    }
+    bail!("cell lock rejected: {response}")
 }
 #[derive(Default)]
 struct Runtime {
@@ -178,12 +210,23 @@ impl CellLock {
             r.command(radio)?;
             Some(r)
         };
+        if let Some(band) = rule.as_ref().filter(|_| radio == 1).map(|r| r.values[3]) {
+            let allowed = at
+                .run("AT+QNWPREFCFG=\"policy_band\"")
+                .await
+                .map(|raw| policy_nr_bands(&raw))
+                .unwrap_or_default();
+            if !allowed.is_empty() && !allowed.contains(&band) {
+                let allowed: Vec<_> = allowed.iter().map(u32::to_string).collect();
+                bail!(
+                    "n{band} is not allowed by the carrier configuration; SA bands: {}",
+                    allowed.join(":")
+                );
+            }
+        }
         let _guard = self.mutation.lock().await;
         let previous = self.state.lock().unwrap().settings.clone();
-        let response = at.run(&command).await?;
-        if !parser::ok(&response) {
-            bail!("cell lock rejected: {response}");
-        }
+        let response = run_lock(at, radio, &command).await?;
         let mut next = previous.clone();
         next.rules[radio] = if persistent { rule.clone() } else { None };
         let mut warning = None;
@@ -316,11 +359,7 @@ impl CellLock {
                     rule.enabled = false;
                 }
                 let saved = self.persist(next).await;
-                let unlocked = at
-                    .run(&format!("{prefix}0"))
-                    .await
-                    .ok()
-                    .is_some_and(|raw| parser::ok(&raw));
+                let unlocked = run_lock(at, radio, &format!("{prefix}0")).await.is_ok();
                 at.invalidate().await;
                 let mut state = self.state.lock().unwrap();
                 let r = &mut state.runtime[radio];

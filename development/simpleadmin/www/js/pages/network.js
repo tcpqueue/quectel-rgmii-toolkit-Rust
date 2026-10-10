@@ -214,11 +214,14 @@ function cellLocking() {
             throw new Error('找不到对应的小区，请重新扫描后选择');
           }
 
-          // 返回找到的小区的详细信息
+          // NR 的子载波间隔取扫描结果；填错可能导致模块死机，不使用默认值
+          if (type === 'NR5G' && !cell.scs) {
+            throw new Error('扫描结果缺少子载波间隔，无法锁定此小区，请重新扫描或手动锁定');
+          }
           return {
             earfcn1: cell.freq,
             pci1: cell.pci,
-            scs: 30, // 默认子载波间隔
+            scs: cell.scs,
             band: cell.band
           };
         },

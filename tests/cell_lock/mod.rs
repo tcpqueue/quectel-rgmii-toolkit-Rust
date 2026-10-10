@@ -165,6 +165,59 @@ async fn guard_is_optional_and_user_unlock_cannot_be_restored_by_startup() {
     assert!(at.trace.lock().unwrap().is_empty());
 }
 #[tokio::test]
+async fn nr_band_outside_carrier_policy_is_rejected_before_locking() {
+    let (lock, at, _dir) = setup();
+    // RM520N-EU with the CMCC MBN: the user band list has n78, the policy only 28:41.
+    at.overrides.lock().unwrap().insert(
+        "AT+QNWPREFCFG=\"policy_band\"".into(),
+        "+QNWPREFCFG: \"lte_band\",3:8:38:40:41\n+QNWPREFCFG: \"nsa_nr5g_band\",41\n+QNWPREFCFG: \"nr5g_band\",28:41\nOK".into(),
+    );
+    let error = lock.apply(&at, &params("temporary")).await.unwrap_err();
+    assert!(error.to_string().contains("n78"), "{error}");
+    assert!(error.to_string().contains("28:41"), "{error}");
+    assert!(
+        !at.trace
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|c| c.starts_with("AT+QNWLOCK=\"common/5g\",0,"))
+    );
+    let n41 = Params::parse(
+        "",
+        "action=lock_nr_manual&pci=108&earfcn=504990&scs=30&band=41",
+    )
+    .unwrap();
+    lock.apply(&at, &n41).await.unwrap();
+}
+#[tokio::test]
+async fn unlock_without_a_lock_succeeds_after_904() {
+    let (lock, at, _dir) = setup();
+    {
+        let mut overrides = at.overrides.lock().unwrap();
+        overrides.insert(
+            "AT+QNWLOCK=\"common/5g\",0".into(),
+            "+CME ERROR: 904".into(),
+        );
+        overrides.insert(
+            "AT+QNWLOCK=\"common/5g\"".into(),
+            "+QNWLOCK: \"common/5g\",0\nOK".into(),
+        );
+    }
+    lock.apply(&at, &Params::parse("", "action=unlock_nr").unwrap())
+        .await
+        .unwrap();
+    // Still locked: the 904 is a real failure.
+    at.overrides.lock().unwrap().insert(
+        "AT+QNWLOCK=\"common/5g\"".into(),
+        "+QNWLOCK: \"common/5g\",108,504990,30,41\nOK".into(),
+    );
+    assert!(
+        lock.apply(&at, &Params::parse("", "action=unlock_nr").unwrap())
+            .await
+            .is_err()
+    );
+}
+#[tokio::test]
 async fn damaged_lock_file_is_replaced_by_the_next_change() {
     let (_, at, dir) = setup();
     let path = dir.path().join("cell-lock.json");
