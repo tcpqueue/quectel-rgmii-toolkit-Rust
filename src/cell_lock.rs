@@ -67,6 +67,8 @@ struct Runtime {
 struct State {
     settings: Settings,
     runtime: [Runtime; 2],
+    /// False when the saved file could not be loaded; the next change rewrites it.
+    stored: bool,
 }
 pub struct CellLock {
     state: Mutex<State>,
@@ -100,6 +102,7 @@ impl CellLock {
             .unwrap_or_default();
         Self {
             state: Mutex::new(State {
+                stored: loaded.is_ok(),
                 settings: loaded.unwrap_or_default(),
                 runtime: std::array::from_fn(|_| Runtime {
                     error: error.clone(),
@@ -120,15 +123,20 @@ impl CellLock {
         }).collect::<Vec<_>>()})
     }
     async fn persist(&self, settings: Settings) -> Result<()> {
-        if self.state.lock().unwrap().settings == settings {
-            return Ok(());
+        {
+            let state = self.state.lock().unwrap();
+            if state.stored && state.settings == settings {
+                return Ok(());
+            }
         }
         let path = self.path.clone();
         let store = self.store.clone();
         let bytes = serde_json::to_vec(&settings)?;
         let result = tokio::task::spawn_blocking(move || store.write(&path, &bytes, 0o600)).await?;
         if result.is_ok() || result.as_ref().is_err_and(|e| e.committed) {
-            self.state.lock().unwrap().settings = settings;
+            let mut state = self.state.lock().unwrap();
+            state.settings = settings;
+            state.stored = true;
         }
         result?;
         Ok(())

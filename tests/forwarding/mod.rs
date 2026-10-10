@@ -458,3 +458,19 @@ async fn webhook_posts_json_and_requires_http_success() {
     );
     server.abort();
 }
+#[tokio::test]
+async fn damaged_settings_file_is_rewritten_even_with_default_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("forwarding.json");
+    std::fs::write(&path, "{damaged").unwrap();
+    let f = Forwarder::new(path.clone(), Arc::new(Store::new(true)));
+    assert_eq!(f.snapshot()["error"], "invalid saved forwarding settings");
+    // Saving what is already in memory still repairs the file and clears the warning.
+    f.save(Settings::default()).await.unwrap();
+    assert_eq!(f.snapshot()["error"], "");
+    let loaded = Forwarder::new(path.clone(), Arc::new(Store::new(true)));
+    assert_eq!(loaded.snapshot()["error"], "");
+    let first = std::fs::metadata(&path).unwrap().modified().unwrap();
+    loaded.save(Settings::default()).await.unwrap();
+    assert_eq!(first, std::fs::metadata(&path).unwrap().modified().unwrap());
+}

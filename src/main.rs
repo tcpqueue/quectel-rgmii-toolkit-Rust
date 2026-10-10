@@ -217,7 +217,18 @@ fn entry() -> Result<()> {
         if !app.config.mock {
             let value = system::ttl(&app.config.ttl_file);
             if value > 0 {
-                system::apply_ttl(value, false).await?;
+                // A busy firewall (xtables lock) at boot must not keep the web service down.
+                tokio::spawn(async move {
+                    for attempt in 1..=6 {
+                        match system::apply_ttl(value, false).await {
+                            Ok(_) => break,
+                            Err(error) => {
+                                eprintln!("TTL restore attempt {attempt} failed: {error:#}")
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                    }
+                });
             }
         }
         app.start();
