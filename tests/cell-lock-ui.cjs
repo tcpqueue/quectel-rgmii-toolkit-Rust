@@ -7,7 +7,8 @@ const root = path.resolve(__dirname, '..');
 const assets = path.join(root, 'development/simpleadmin/www');
 const html = fs.readFileSync(path.join(assets, 'index.html'), 'utf8');
 const scanMode = html.match(/<select[^>]*id="cellSelect"[\s\S]*?<\/select>/)[0];
-const scanTable = html.match(/<table class="table">\s*<thead>[\s\S]*?id="cellScanTableBody"[\s\S]*?<\/table>/)[0];
+// Anchor on the scan table's own wrapper; the page has other tables before it.
+const scanTable = html.match(/<div class="ui-scroll-x sa-scan-table">\s*(<table class="table">[\s\S]*?<\/table>)/)[1];
 const lockButton = html.match(/<button[^>]*@click="lockSelectedCells\(\)"[\s\S]*?<\/button>/)[0];
 const nr = {type: 'NR5G', provider: '中国联通', band: '78', freq: '627264', pci: '317', rsrp: '-72', scs: 30};
 const samePci = {...nr, freq: '633984'};

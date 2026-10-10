@@ -38,6 +38,134 @@ function cellLocking() {
         lockPersistence: 'temporary', lockAutoUnlock: true, lockBusy: false, lockMessage: '', lockRadios: [],
         lockTimer: null, lockEventsBound: false, lockRefreshBusy: false,
         lockLanguage: SimpleAdmin.Lang.getCurrentLanguage(),
+        pdp: { contexts: [], ims: null, volte: null, sim_detect: null, sim_detect_level: null, roaming: null, sim_slot: null },
+        pdpLoaded: false, pdpBusy: false, pdpMessage: '', pdpFailed: false,
+        pdpForm: { open: false, editing: false, cid: '', type: 'IPV4V6', apn: '' },
+        imsOptions: [{ value: 0, label: '跟随 MBN' }, { value: 1, label: '强制开启' }, { value: 2, label: '强制关闭' }],
+        // ---------- PDP 上下文与网络功能开关 ----------
+        tr(key) {
+          return this.lockLanguage === 'zh-CN' ? key : SimpleAdmin.Lang.t(key);
+        },
+        pdpSummary() {
+          if (!this.pdpLoaded) return '';
+          const total = this.pdp.contexts.length;
+          const active = this.pdp.contexts.filter((c) => c.active).length;
+          return this.lockLanguage === 'zh-CN'
+            ? `${total} 个上下文 · ${active} 个已激活`
+            : `${total} contexts · ${active} active`;
+        },
+        async loadPdp(force = false) {
+          try {
+            const data = await SimpleAdmin.Api.networkData(force ? { action: 'pdp', force: '1' } : { action: 'pdp' });
+            if (data && data.ok !== false && Array.isArray(data.contexts)) {
+              this.pdp = Object.assign({}, this.pdp, data);
+              this.pdpLoaded = true;
+            }
+          } catch (error) {
+            this.pdpMessage = this.tr('读取失败') + (error && error.message ? ' · ' + error.message : '');
+            this.pdpFailed = true;
+          }
+        },
+        // Runs one change, reports it under the table and reloads the real state either way.
+        async runPdp(params, confirmText, doneText) {
+          if (this.pdpBusy) return null;
+          if (confirmText && !window.confirm(this.tr(confirmText))) return null;
+          this.pdpBusy = true;
+          this.pdpFailed = false;
+          this.pdpMessage = this.tr('正在执行...');
+          try {
+            const data = await SimpleAdmin.Api.networkData(params);
+            if (!data || data.ok === false) {
+              throw new Error((data && (data.error || data.response)) || '');
+            }
+            this.pdpMessage = this.tr(doneText || '已保存');
+            return data;
+          } catch (error) {
+            const detail = String((error && error.message) || '').trim();
+            this.pdpMessage = this.tr('操作失败') + (detail ? ' · ' + detail : '');
+            this.pdpFailed = true;
+            return null;
+          } finally {
+            await this.loadPdp(true);
+            this.pdpBusy = false;
+          }
+        },
+        newPdp() {
+          const used = new Set(this.pdp.contexts.map((c) => c.cid));
+          let cid = 1;
+          while (used.has(cid) && cid < 42) cid++;
+          this.pdpForm = { open: true, editing: false, cid: String(cid), type: 'IPV4V6', apn: '' };
+        },
+        editPdp(ctx) {
+          const type = ['IP', 'IPV6', 'IPV4V6'].includes(ctx.type) ? ctx.type : 'IPV4V6';
+          this.pdpForm = { open: true, editing: true, cid: String(ctx.cid), type, apn: ctx.apn || '' };
+        },
+        cancelPdp() {
+          this.pdpForm.open = false;
+        },
+        async savePdp() {
+          const cid = Number(this.pdpForm.cid);
+          const apn = String(this.pdpForm.apn || '').trim();
+          if (!Number.isInteger(cid) || cid < 1 || cid > 42) {
+            this.pdpMessage = this.tr('CID 必须是 1–42');
+            this.pdpFailed = true;
+            return;
+          }
+          if (!/^[A-Za-z0-9._-]{0,100}$/.test(apn)) {
+            this.pdpMessage = this.tr('APN 只能包含字母、数字、点、横线和下划线');
+            this.pdpFailed = true;
+            return;
+          }
+          const existing = this.pdp.contexts.find((c) => c.cid === cid);
+          const confirmText = !this.pdpForm.editing && existing
+            ? '该 CID 已存在，确定覆盖？'
+            : (existing && existing.active ? '该 PDP 正在使用，模块可能拒绝修改，修改成功也会重新连接。继续？' : null);
+          if (await this.runPdp({ action: 'pdp_save', cid: String(cid), pdpType: this.pdpForm.type, apn }, confirmText)) {
+            this.pdpForm.open = false;
+          }
+        },
+        deletePdp(ctx) {
+          return this.runPdp(
+            { action: 'pdp_delete', cid: String(ctx.cid) },
+            ctx.active ? '该 PDP 正在使用，模块可能拒绝删除，建议先去激活。仍要删除？' : '确定删除这个 PDP 上下文？',
+            '已删除'
+          );
+        },
+        togglePdp(ctx) {
+          if (ctx.active) {
+            return this.runPdp(
+              { action: 'pdp_deactivate', cid: String(ctx.cid) },
+              ctx.cid === 1 ? 'CID 1 通常是上网用的默认连接，去激活会断网。继续？' : '确定去激活这个 PDP？',
+              '已去激活'
+            );
+          }
+          return this.runPdp({ action: 'pdp_activate', cid: String(ctx.cid) }, null, '已激活');
+        },
+        imsText() {
+          const option = this.imsOptions.find((o) => o.value === this.pdp.ims);
+          if (!option) return this.tr('不支持或读取失败');
+          if (this.pdp.volte === null || this.pdp.volte === undefined) return this.tr(option.label);
+          return this.tr(option.label) + ' · ' + this.tr(this.pdp.volte ? 'VoLTE 可用' : 'VoLTE 不可用');
+        },
+        setIms(mode) {
+          return this.runPdp({ action: 'ims', mode: String(mode) }, 'IMS 设置在重启模块后生效，确定修改？', '已保存，重启模块后生效');
+        },
+        roamingText() {
+          if (this.pdp.roaming === null || this.pdp.roaming === undefined) return this.tr('读取失败');
+          return this.tr(({ 1: '已关闭（仅本网）', 3: '仅友好网络', 255: '已开启' })[this.pdp.roaming] || '已开启');
+        },
+        setRoaming(enabled) {
+          return this.runPdp(
+            { action: 'roaming', enabled: enabled ? '1' : '0' },
+            enabled ? null : '关闭漫游后，在漫游网络下将无法上网。继续？'
+          );
+        },
+        setSimDetect(enabled) {
+          return this.runPdp({ action: 'sim_detect', enabled: enabled ? '1' : '0' }, null, '已保存，重启模块后生效');
+        },
+        setSimSlot(slot) {
+          return this.runPdp({ action: 'sim_slot', slot: String(slot) }, '切换卡槽会断开当前网络，确定切换？', '已切换');
+        },
         lockStatusText(state) {
           const key=({temporary:'临时锁频',persistent:'持久化锁频',connected:'已拨号，锁频保持',unlocked:'未锁定',fallback:'已超时回退，开机恢复已关闭',fallback_error:'回退失败，正在重试'})[state.phase] || (state.persistent?'等待开机恢复':'未锁定');
           return this.lockLanguage==='zh-CN'?key:SimpleAdmin.Lang.t(key);
@@ -356,6 +484,7 @@ function cellLocking() {
           }
           // 初始化时，禁止用户操作（还没有准备好）
           this._initialized = false;
+          this.loadPdp(true);            // PDP 与功能开关独立加载，不阻塞频段查询
 
           await this.getModel();          // 先确定型号
           this.applyModelBands();        // 型号可用后立刻得到当前可用频段

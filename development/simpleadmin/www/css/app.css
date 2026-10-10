@@ -654,6 +654,20 @@ dialog.ui-sheet[open] { animation: ui-pop .24s cubic-bezier(.2, .9, .3, 1.1); }
 .sa-lock-mode { width: 100%; max-width: 320px; }
 .sa-lock-mode > label { flex: 1; }
 .sa-scan-table { border-top: .5px solid var(--separator); }
+.sa-pdp-table .table th:first-child, .sa-pdp-table .table td:first-child { padding-left: 16px; }
+.sa-pdp-table .table td, .sa-pdp-table .table th { vertical-align: middle; }
+.sa-pdp-address { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
+.sa-pdp-address span { display: block; white-space: nowrap; }
+.sa-pdp-buttons { white-space: nowrap; }
+.sa-pdp-buttons .btn + .btn { margin-left: 6px; }
+.sa-pdp-form { border-top: .5px solid var(--separator); }
+.sa-network-switches code { font-size: 11.5px; color: var(--tertiary); margin-left: 4px; }
+.sa-switch-buttons { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+@media (max-width: 767px) {
+  .sa-network-switches .ui-row { flex-wrap: wrap; }
+  .sa-network-switches .ui-row-text { flex-basis: 100%; }
+  .sa-switch-buttons { margin-left: 0; justify-content: flex-start; }
+}
 .sa-scan-table .table th:first-child, .sa-scan-table .table td:first-child { padding-left: 16px; }
 .sa-scan-table .table-row { cursor: pointer; }
 .sa-scan-table .table-row.is-selected { background: color-mix(in srgb, var(--tint) 10%, transparent); }

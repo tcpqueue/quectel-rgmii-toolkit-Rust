@@ -200,7 +200,8 @@
         return this.postJSON('/api/settings_data', { action: 'set_imei', imei });
       },
       networkData(params = {}) {
-        return this.postJSON('/api/network_data', params, params.action === 'scan' ? longTimeout : undefined);
+        // Scans and PDP (de)activation wait on the network for up to 150 s.
+        return this.postJSON('/api/network_data', params, ['scan', 'pdp_activate', 'pdp_deactivate'].includes(params.action) ? longTimeout : undefined);
       },
       settingsData(params = {}) {
         return this.postJSON('/api/settings_data', params, params.action === 'manual_at' ? longTimeout : undefined);
