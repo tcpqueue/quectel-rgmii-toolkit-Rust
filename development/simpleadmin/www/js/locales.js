@@ -487,6 +487,7 @@
 "GitHub 代理需为 http(s) 地址": "The GitHub proxy must be an http(s) address",
 "公钥需为 Base64 编码的 32 字节 Ed25519 公钥": "The key must be a 32-byte Ed25519 public key in Base64",
 "更新清单无效": "Invalid update manifest",
+"更新源中没有找到更新文件": "No update files found at the update source",
 "请求失败": "Request failed",
 "上次在线更新成功": "Last online update succeeded",
 "上次在线更新失败": "Last online update failed",

@@ -551,6 +551,7 @@ function simpleSettings() {
           const known = [
             ['update signature is not trusted', '更新签名无效或不受信任'],
             ['package checksum does not match', '安装包校验失败'],
+            ['HTTP 404', '更新源中没有找到更新文件'],
             ['download interrupted', '下载中断'],
             ['download failed', '下载失败'],
             ['download is larger than expected', '下载内容大小异常'],
