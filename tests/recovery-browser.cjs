@@ -38,7 +38,7 @@ async function freePort() {
     await page.locator('#loginButton').click(); await page.waitForURL(base + '/');
 
     // --- Watchdog settings ---
-    await page.goto(base + '/#settings');
+    await page.goto(base + '/#watchdog');
     const enabled = page.locator('#watchdogEnabled');
     await enabled.waitFor();
     assert.equal(await enabled.isChecked(), false, 'the watchdog is off by default');
@@ -86,14 +86,14 @@ async function freePort() {
     kinds = await eventKinds();
     assert.ok(kinds.includes('internet_lost'), kinds.join(','));
     // Switching off stops the watchdog.
-    await page.goto(base + '/#settings');
+    await page.goto(base + '/#watchdog');
     await page.locator('#watchdogEnabled').waitFor();
     await page.locator('#watchdogEnabled').uncheck();
     await page.locator('#watchdogSave').click();
     await page.waitForFunction(() => document.querySelector('#watchdogState').textContent.includes('已关闭'));
 
-    // --- Events on the overview page ---
-    await page.goto(base + '/#dashboard');
+    // --- Events page ---
+    await page.goto(base + '/#events');
     await page.locator('#eventsList li').first().waitFor();
     const listText = await page.locator('#eventsList').innerText();
     assert.match(listText, /看门狗：第 1 级 重新注册网络/);
@@ -106,7 +106,7 @@ async function freePort() {
     await page.waitForFunction(() => !document.querySelector('#eventsList'));
 
     // --- Band-lock guard ---
-    await page.goto(base + '/#network');
+    await page.goto(base + '/#bands');
     await page.locator('#bandGuardSwitch').waitFor();
     assert.equal(await page.locator('#bandGuardSwitch').isChecked(), true, 'protection is on by default');
     await page.waitForFunction(() => document.querySelectorAll('#checkboxFormSA input[type=checkbox]').length > 0, null, {timeout: 30000});
@@ -145,6 +145,7 @@ async function freePort() {
     assert.ok(sent('action=mbn_autosel', 'enabled=0'));
 
     // --- NR neighbours ---
+    await page.goto(base + '/#cells');
     await page.locator('#cellScanStart').click();
     await page.waitForFunction(() => SimpleAdmin.Vue.apps['#networkApp'].resultDoneCell);
     const nrRow = page.locator('#cellScanTableBody .table-row', {hasText: '627264'});
@@ -160,7 +161,7 @@ async function freePort() {
       await setTarget('down.invalid');
       for (let i = 0; i < 40 && !(await eventKinds()).includes('internet_lost'); i++) await page.waitForTimeout(500);
       await setTarget('www.baidu.com');
-      const checks = [['#network', 'section[aria-labelledby="mbnTitle"]'], ['#network', 'section[aria-labelledby="bandLockTitle"] .sa-band-footer'], ['#settings', 'section[aria-labelledby="watchdogHeading"]'], ['#dashboard', '#eventsApp']];
+      const checks = [['#bands', 'section[aria-labelledby="mbnTitle"]'], ['#bands', 'section[aria-labelledby="bandLockTitle"] .sa-band-footer'], ['#bands', 'section[aria-labelledby="freqLockTitle"]'], ['#watchdog', 'section[aria-labelledby="watchdogHeading"]'], ['#events', '#eventsApp'], ['#notify', 'section[aria-labelledby="notifySendersTitle"]']];
       for (const [hash, selector] of checks) {
         await page.goto(base + '/' + hash);
         await page.locator(selector).waitFor();

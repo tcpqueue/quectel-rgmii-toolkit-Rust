@@ -41,7 +41,8 @@ const lte = Array.from({length: 11}, (_, i) => ({
           // A finished lock refreshes the status; only changes are recorded.
           if (params.action === 'cell_lock_status') return {radios: [], module: {lte: null, nr: null}};
           requests.push(params);
-          if (params.action === 'scan' || params.action === 'neighbours') return window.scanResult;
+          // Scans run as background jobs; this stub finishes them at once.
+          if (params.action === 'scan_start') return {running: null, now: Date.now(), results: {[params.kind]: {mode: params.mode || '', cells: window.scanResult, finished: Date.now(), error: ''}}};
           if (window.holdLock) await new Promise(resolve => { window.releaseLock = resolve; });
           if (rejectLock) return {ok: false, error: 'cell lock rejected: ERROR'};
           return {ok: true, cell_lock: {radios: []}};
@@ -195,7 +196,7 @@ const lte = Array.from({length: 11}, (_, i) => ({
     await resetRequests();
     await page.evaluate(() => cellApp.startCellScan());
     await page.waitForFunction(() => cellApp.resultDoneCell && !cellApp.isLoading);
-    assert.deepEqual(await page.evaluate(() => requests), [{action: 'neighbours'}]);
+    assert.deepEqual(await page.evaluate(() => requests), [{action: 'scan_start', kind: 'neighbour'}]);
     assert.match(await rows.nth(0).textContent(), /服务小区/);
     assert.equal(await page.locator('thead').count(), 1, 'repeated scans must not duplicate the table header');
     assert.deepEqual(errors, []);

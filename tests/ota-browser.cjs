@@ -47,7 +47,7 @@ async function freePort() {
    await page.goto(base+'/login.html');await page.locator('#loginLanguage').selectOption(language);
    await page.locator('#username').fill('admin');await page.locator('#password').fill('admin');
    await page.locator('#loginButton').click();await page.waitForURL(base+'/');
-   await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+   await page.locator('.sa-menu-link[data-page-link="system"]').click();
    await page.waitForFunction(()=>/^v\d+\.\d+\.\d+$/.test(document.querySelector('#otaCurrent')?.textContent||''));
    assert.equal((await page.locator('#otaHeading').textContent()).trim(),say('在线更新','Online update'));
    const message=page.locator('#otaMessage');
@@ -75,7 +75,7 @@ async function freePort() {
    await page.waitForFunction(text=>document.querySelector('#otaMessage')?.textContent.trim()===text,say('预览模式：安装包已校验并解包，未执行安装','Preview mode: the package was verified and unpacked but not installed'),{timeout:20000});
    assert.equal(fs.existsSync(path.join(temporary,'ota-work/development/install_simpleadmin_rust.sh')),true);
    // Saved settings come back after a reload.
-   await page.reload();await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+   await page.reload();await page.locator('.sa-menu-link[data-page-link="system"]').click();
    await page.waitForFunction(value=>document.querySelector('#otaSource')?.value===value,source);
    assert.equal(await page.locator('#otaKey').inputValue(),publicRaw);
    await page.setViewportSize({width:390,height:900});

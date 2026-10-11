@@ -10,6 +10,7 @@ fn notification() -> Notification {
         received_at: "2026-09-06T12:00:00+08:00".into(),
         text: "Test SMS".into(),
         parts: Vec::new(),
+        kind: Kind::Sms,
     }
 }
 
@@ -260,7 +261,7 @@ fn platform_payloads_and_signatures() {
         token: "SCT123456789".into(),
         ..Channel::default()
     };
-    let (url, p) = payload(&server, &n, &n.text, 0, 1, 1700000000).unwrap();
+    let (url, p) = payload(&server, &n, &n.text, 0, 1, 1700000000, false).unwrap();
     assert_eq!(url.as_str(), "https://sctapi.ftqq.com/SCT123456789.send");
     assert!(p["desp"].as_str().unwrap().contains("10086"));
     for platform in ["wecom", "dingtalk", "feishu", "webhook"] {
@@ -270,7 +271,7 @@ fn platform_payloads_and_signatures() {
             secret: "secret".into(),
             ..Channel::default()
         };
-        let (url, p) = payload(&c, &n, &n.text, 0, 1, 1700000000).unwrap();
+        let (url, p) = payload(&c, &n, &n.text, 0, 1, 1700000000, false).unwrap();
         if platform == "dingtalk" {
             let pairs: HashMap<_, _> = url.query_pairs().collect();
             assert_eq!(pairs["timestamp"], "1700000000000");
@@ -344,6 +345,99 @@ async fn expired_jobs_are_not_sent_and_disabling_clears_queue() {
     assert_eq!(f.snapshot()["queued"], 0);
     assert_eq!(f.snapshot()["records"][0]["detail"], "retry window expired");
     assert!(f.client.get().is_none());
+}
+#[test]
+fn senders_pick_their_own_enabled_channels() {
+    let mut s = Settings::default();
+    s.channels[4].enabled = true;
+    s.channels[4].url = "http://127.0.0.1/hook".into();
+    s.enabled = true;
+    s.sms_platforms = vec!["wecom".into()];
+    assert!(
+        s.validate().is_err(),
+        "SMS forwarding has no enabled channel"
+    );
+    s.sms_platforms = vec!["webhook".into()];
+    assert!(s.validate().is_ok());
+    s.outage_enabled = true;
+    assert!(s.validate().is_err(), "outage notices name no channel");
+    s.outage_platforms = vec!["webhook".into(), "webhook".into()];
+    assert!(s.validate().is_err(), "duplicate");
+    s.outage_platforms = vec!["webhook".into()];
+    assert!(s.validate().is_ok());
+    s.outage_min_seconds = 5;
+    assert!(s.validate().is_err());
+    s.outage_min_seconds = 60;
+    s.utc_offset_minutes = 900;
+    assert!(s.validate().is_err());
+    s.utc_offset_minutes = 480;
+    s.language = "fr".into();
+    assert!(s.validate().is_err());
+    // Files written before these fields existed keep forwarding SMS on every channel.
+    let old: Settings = serde_json::from_str(r#"{"enabled":false}"#).unwrap();
+    assert_eq!(old.sms_platforms.len(), 6);
+    assert!(!old.outage_enabled);
+}
+#[test]
+fn outage_notices_are_queued_once_and_only_when_long_enough() {
+    let (f, _dir) = forwarder();
+    let outage = Outage {
+        lost: 1_760_000_000_000,
+        restored: 1_760_000_185_000,
+    };
+    assert_eq!(f.notify_outage(outage), 0, "off by default");
+    {
+        let mut s = f.state.lock().unwrap();
+        s.settings.channels[4].enabled = true;
+        s.settings.channels[4].url = "http://127.0.0.1/hook".into();
+        s.settings.channels[1].enabled = true;
+        s.settings.outage_enabled = true;
+        s.settings.outage_platforms = vec!["webhook".into()];
+        s.settings.utc_offset_minutes = 480;
+    }
+    assert_eq!(f.notify_outage(outage), 1, "only the chosen channel");
+    let job = f.state.lock().unwrap().queue[0].notification.clone();
+    assert_eq!(job.event(), "outage");
+    assert_eq!(
+        job.text,
+        "断网时间: 2025-10-09 16:53:20 (UTC+8)\n恢复时间: 2025-10-09 16:56:25 (UTC+8)\n断网时长: 3 分 5 秒"
+    );
+    f.state.lock().unwrap().settings.outage_min_seconds = 300;
+    assert_eq!(f.notify_outage(outage), 0, "shorter than the threshold");
+    let backwards = Outage {
+        lost: 2_000_000,
+        restored: 1_000_000,
+    };
+    f.state.lock().unwrap().settings.outage_min_seconds = 10;
+    assert_eq!(f.notify_outage(backwards), 0, "clock set during the outage");
+    let c = Channel {
+        platform: "webhook".into(),
+        url: "http://127.0.0.1/hook".into(),
+        ..Channel::default()
+    };
+    let (_, body) = payload(&c, &job, &job.text, 0, 1, 1_700_000_000, false).unwrap();
+    assert_eq!(body["event"], "network.restored");
+    assert_eq!(body["seconds"], 185);
+    assert_eq!(body["lost_at"], "2025-10-09T08:53:20+00:00");
+    let wecom = Channel {
+        platform: "wecom".into(),
+        ..c
+    };
+    let (_, body) = payload(&wecom, &job, &job.text, 0, 1, 1_700_000_000, true).unwrap();
+    assert!(
+        body["text"]["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("[RM520N-EU] Internet restored\n")
+    );
+}
+#[test]
+fn durations_read_naturally() {
+    assert_eq!(duration(5, true), "5 s");
+    assert_eq!(duration(65, false), "1 分 5 秒");
+    assert_eq!(duration(3600, true), "1 h");
+    assert_eq!(duration(3725, false), "1 小时 2 分 5 秒");
+    assert_eq!(clock(0, -330), "1969-12-31 18:30:00 (UTC-5:30)");
 }
 #[test]
 fn rejects_credential_leaks_and_unbounded_configuration() {

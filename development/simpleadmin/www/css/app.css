@@ -664,7 +664,7 @@ dialog.ui-sheet[open] { animation: ui-pop .24s cubic-bezier(.2, .9, .3, 1.1); }
 .sa-pdp-buttons { white-space: nowrap; }
 .sa-pdp-buttons .btn + .btn { margin-left: 6px; }
 .sa-pdp-form { border-top: .5px solid var(--separator); }
-.sa-events-app { margin-top: 16px; }
+.sa-events-app { margin-top: 0; }
 .sa-events-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .sa-events-list li { display: flex; gap: 12px; align-items: baseline; padding: 7px 0 7px 14px; border-top: .5px solid var(--separator); font-size: 13.5px; position: relative; }
 .sa-events-list li:first-child { border-top: 0; }
@@ -844,3 +844,43 @@ a.ui-row .ui-row-value + .ui-chevron { margin-left: 0; }
 .sa-ota-settings { margin-top: 12px; }
 .sa-ota-log { margin: 8px 16px 0; font-size: 12.5px; color: var(--secondary); }
 .sa-ota-log pre { margin: 6px 0 0; padding: 10px 12px; max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; border-radius: 10px; background: var(--fill); color: var(--label); font-size: 12px; }
+
+/* Sub-menu of a menu group (shown on phones, where the sidebar is hidden). */
+.sa-subnav { display: none; }
+@media (max-width: 767px) {
+  .sa-subnav {
+    display: flex; gap: 6px; overflow-x: auto; margin: -6px -16px 16px; padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+  .sa-subnav::-webkit-scrollbar { display: none; }
+  .sa-subnav button {
+    flex: none; border: 0; border-radius: 999px; padding: 7px 14px; background: var(--fill);
+    color: var(--label, inherit); font: 500 14px/1.2 var(--font); cursor: pointer; white-space: nowrap;
+  }
+  .sa-subnav button.active { background: var(--tint); color: var(--on-tint); }
+}
+@media (max-width: 380px) {
+  .sa-subnav { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+}
+/* Channel choices for SMS forwarding and outage notices; scan suggestions for the frequency lock. */
+.sa-chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.sa-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 12px;
+  border: 1px solid var(--separator); border-radius: 999px; background: none; color: inherit;
+  font: 500 13.5px/1.2 var(--font); cursor: pointer; user-select: none;
+}
+.sa-chip input { margin: 0; accent-color: var(--tint); }
+.sa-chip.is-on { border-color: var(--tint); background: color-mix(in srgb, var(--tint) 10%, transparent); }
+.sa-chip.is-unset { color: var(--secondary); }
+.sa-chip small { color: var(--secondary); font-size: 11.5px; }
+button.sa-chip:hover:not(:disabled) { background: var(--fill); }
+.sa-notify-channels .ui-row-control { justify-content: flex-start; }
+.sa-notify .ui-note, .sa-freq .ui-note { margin: 0; padding: 8px 16px; }
+.sa-freq-entry { flex-wrap: wrap; }
+.sa-freq-entry .ui-row-control { flex-wrap: nowrap; }
+.sa-freq-arfcn { min-width: 120px; flex: 1 1 60%; }
+.sa-freq-scs { flex: 0 0 116px; }
+.sa-freq-hint { flex: 1 1 100%; color: var(--secondary); font-size: 12px; text-align: right; min-height: 1em; }
+.sa-freq-hint:empty { display: none; }
+.sa-scan-age { margin: 8px 16px 0; color: var(--secondary); font-size: 12.5px; }
+.sa-forward-table td:nth-child(2) { white-space: nowrap; }

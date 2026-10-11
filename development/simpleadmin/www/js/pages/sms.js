@@ -3,7 +3,7 @@ function fetchSMS() {
     smsEnabled: false,
     smsView: 'inbox',
     selectSmsView(view) {
-      if (!['inbox','compose','forwarding'].includes(view)) return;
+      if (!['inbox','compose'].includes(view)) return;
       this.smsView=view;
       document.querySelector('[data-page="sms"]').dataset.smsView=view;
       this.closeMessageDetail();

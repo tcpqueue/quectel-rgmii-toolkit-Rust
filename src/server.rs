@@ -56,6 +56,8 @@ pub struct App {
     pub events: Arc<crate::events::Events>,
     pub band_guard: Arc<crate::band_guard::BandGuard>,
     pub watchdog: Arc<crate::watchdog::Watchdog>,
+    pub freq_lock: Arc<crate::freq_lock::FreqLock>,
+    pub scans: Arc<crate::scan::Scans>,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap(), axum::Json(value)).into_response()
@@ -174,6 +176,11 @@ impl App {
             config.auth_file.with_file_name("cell-lock.json"),
             store.clone(),
         ));
+        let freq_lock = crate::freq_lock::FreqLock::new(
+            config.auth_file.with_file_name("freq-lock.json"),
+            store.clone(),
+            config.mock,
+        );
         // The install script expects its tree in /tmp/development; previews unpack beside the auth file.
         let ota_work = if config.mock {
             config.auth_file.with_file_name("ota-work")
@@ -203,13 +210,16 @@ impl App {
             events,
             band_guard: Default::default(),
             watchdog,
+            freq_lock,
+            scans: Default::default(),
         }))
     }
     pub fn start(self: &Arc<Self>) {
         self.at.start_refresh();
         self.monitor.start(self.at.clone());
-        self.forwarding.start(self.at.clone());
+        self.forwarding.start(self.at.clone(), &self.events);
         self.cell_lock.start(self.at.clone());
+        self.freq_lock.start(self.at.clone(), self.events.clone());
         self.ota.start();
         self.watchdog
             .start(self.at.clone(), self.monitor.clone(), self.events.clone());
@@ -377,6 +387,8 @@ fn method_allowed(path: &str, action: &str, method: &str) -> bool {
                     | "band_guard"
                     | "mbn"
                     | "watchdog"
+                    | "scan_status"
+                    | "freq_lock"
             )
         }
         "/api/settings_data" => matches!(action, "" | "status"),
@@ -630,15 +642,17 @@ async fn network(app: &Arc<App>, p: &Params) -> Result<Value> {
             data["module"] = parser::cell_locks(&raw);
             Ok(data)
         }
-        "neighbours" => {
-            let mut raw = app
-                .at
-                .run("AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"")
-                .await?;
-            raw.push('\n');
-            raw.push_str(&nr_measurements(app).await);
-            Ok(parser::neighbours(&raw))
+        "neighbours" => neighbours(app).await,
+        "scan_status" => Ok(app.scans.snapshot(crate::telemetry::now())),
+        "scan_start" => scan_start(app, p),
+        "freq_lock" => freq_status(app).await,
+        "freq_lock_set" => {
+            // Finish the lock and its guard even if the client disconnects mid-request.
+            let app = app.clone();
+            let params = Params(p.0.clone());
+            tokio::spawn(async move { freq_lock_set(&app, &params).await }).await?
         }
+        "freq_unlock" => app.freq_lock.unlock(&app.at).await,
         "events" => Ok(app.events.snapshot()),
         "events_clear" => {
             app.events.clear();
@@ -724,6 +738,15 @@ async fn network(app: &Arc<App>, p: &Params) -> Result<Value> {
             &app.at.run(actions::scan_mode(p.get("mode"))?).await?,
         )),
         action if crate::cell_lock::CellLock::handles(action) => {
+            let nr_lock = action == "lock_nr_manual"
+                || (action == "lock_scanned_cells" && p.get("mode") == "NR5G Only");
+            // Bad parameters fail before anything is sent to the module.
+            actions::network(p)?;
+            if nr_lock && freq_lock_active(app).await? {
+                bail!(
+                    "remove the NR5G frequency lock first; it cannot be combined with an NR cell lock"
+                )
+            }
             // Finish the lock and its persistence even if the client disconnects mid-request.
             let lock = app.cell_lock.clone();
             let at = app.at.clone();
@@ -900,6 +923,121 @@ async fn set_language(app: &Arc<App>, p: &Params, body: &str) -> Result<Value> {
     let store = app.store.clone();
     tokio::task::spawn_blocking(move || store.write(&path, bytes.as_bytes(), 0o644)).await??;
     Ok(value)
+}
+async fn neighbours(app: &Arc<App>) -> Result<Value> {
+    let mut raw = app
+        .at
+        .run("AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"")
+        .await?;
+    raw.push('\n');
+    raw.push_str(&nr_measurements(app).await);
+    Ok(parser::neighbours(&raw))
+}
+/// Starts a neighbour or full scan in the background; the page polls `scan_status`.
+fn scan_start(app: &Arc<App>, p: &Params) -> Result<Value> {
+    let kind = p.get("kind").to_owned();
+    let mode = match kind.as_str() {
+        "full" => {
+            actions::scan_mode(p.get("mode"))?;
+            p.get("mode").to_owned()
+        }
+        "neighbour" => String::new(),
+        _ => bail!("invalid scan kind"),
+    };
+    if !app.scans.begin(&kind, &mode, crate::telemetry::now()) {
+        bail!("a scan is already running")
+    }
+    let job = app.clone();
+    tokio::spawn(async move {
+        let result = if kind == "full" {
+            match job.at.run(actions::scan_mode(&mode).unwrap()).await {
+                Ok(raw) => {
+                    let cells = parser::scan(&raw);
+                    let empty = ["lte_cells_parsed", "nr5g_cells_parsed"]
+                        .iter()
+                        .all(|k| cells[k].as_array().is_none_or(|a| a.is_empty()));
+                    if empty && !parser::ok(&raw) {
+                        Err(raw
+                            .trim()
+                            .lines()
+                            .last()
+                            .unwrap_or("scan failed")
+                            .to_owned())
+                    } else {
+                        Ok(cells)
+                    }
+                }
+                Err(e) => Err(e.to_string()),
+            }
+        } else {
+            neighbours(&job).await.map_err(|e| e.to_string())
+        };
+        job.scans.finish(result, crate::telemetry::now());
+    });
+    Ok(app.scans.snapshot(crate::telemetry::now()))
+}
+/// True when the module holds an NR frequency lock or one is saved for restarts.
+async fn freq_lock_active(app: &Arc<App>) -> Result<bool> {
+    let raw = app.at.run(crate::freq_lock::QUERY).await?;
+    Ok(app.freq_lock.persistent() || parser::nr_freq_lock(&raw).is_some_and(|e| !e.is_empty()))
+}
+/// True when the module holds an NR cell lock or one is saved for restarts.
+async fn nr_cell_lock_active(app: &Arc<App>) -> Result<bool> {
+    let raw = app.at.run("AT+QNWLOCK=\"common/5g\"").await?;
+    Ok(app.cell_lock.snapshot()["radios"][1]["persistent"] == true
+        || !parser::cell_locks(&raw)["nr"].is_null())
+}
+/// NR bands a frequency lock may use: the carrier configuration's within the current NSA/SA
+/// band selection.
+async fn freq_allowed_bands(app: &Arc<App>) -> Result<Vec<u32>> {
+    let policy = app
+        .at
+        .run("AT+QNWPREFCFG=\"policy_band\"")
+        .await
+        .unwrap_or_default();
+    let selected = app.at.run(crate::at::commands("bands")[0]).await?;
+    crate::freq_lock::allowed_bands(&policy, &selected)
+}
+async fn freq_status(app: &Arc<App>) -> Result<Value> {
+    let module = parser::nr_freq_lock(&app.at.run(crate::freq_lock::QUERY).await?);
+    let mut data = app.freq_lock.snapshot(module);
+    data["cell_lock_nr"] = json!(nr_cell_lock_active(app).await?);
+    data["allowed_bands"] = json!(freq_allowed_bands(app).await.ok());
+    Ok(data)
+}
+async fn freq_lock_set(app: &Arc<App>, p: &Params) -> Result<Value> {
+    let entries = crate::freq_lock::parse(p.get("entries"))?;
+    let persistent = match p.get("persistence") {
+        "" | "temporary" => false,
+        "persistent" => true,
+        _ => bail!("invalid lock persistence"),
+    };
+    if nr_cell_lock_active(app).await? {
+        bail!("remove the NR5G-SA cell lock first; it cannot be combined with a frequency lock")
+    }
+    let previous = parser::nr_freq_lock(&app.at.run(crate::freq_lock::QUERY).await?)
+        .ok_or_else(|| anyhow::anyhow!("cannot read the current frequency lock"))?;
+    crate::freq_lock::check(&entries, &freq_allowed_bands(app).await?)?;
+    // The serving cell and recent scans tell which SCS a frequency really uses.
+    let serving = app.at.run("AT+QENG=\"servingcell\"").await?;
+    let mut observed = crate::freq_lock::observed_cells(&parser::neighbours(&serving));
+    let scans = app.scans.snapshot(crate::telemetry::now());
+    for kind in crate::scan::KINDS {
+        observed.extend(crate::freq_lock::observed_cells(
+            &scans["results"][kind]["cells"],
+        ));
+    }
+    crate::freq_lock::check_observed(&entries, &observed)?;
+    app.freq_lock
+        .lock(
+            &app.at,
+            &app.events,
+            entries,
+            previous,
+            persistent,
+            p.flag("guard", true),
+        )
+        .await
 }
 /// NR neighbour measurements. When the module has measurement reporting switched off, it is
 /// switched on for one reading and off again, so the module's setting stays as it was.

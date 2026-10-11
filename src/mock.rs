@@ -32,6 +32,29 @@ pub fn response(
     if let Some(raw) = overrides.get(command) {
         return envelope(command, raw);
     }
+    // The NR frequency lock keeps its value, so previews can lock, read back and unlock.
+    static FREQ_LOCK: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+    if command == crate::freq_lock::QUERY {
+        let state = FREQ_LOCK.lock().unwrap();
+        let value = if state.is_empty() {
+            "0"
+        } else {
+            state.as_str()
+        };
+        return envelope(command, &format!("+QNWCFG: \"nr5g_earfcn_lock\",{value}"));
+    }
+    if let Some(value) = command.strip_prefix("AT+QNWCFG=\"nr5g_earfcn_lock\",") {
+        let mut state = FREQ_LOCK.lock().unwrap();
+        if value == "0" && state.is_empty() {
+            return envelope(command, "ERROR");
+        }
+        *state = if value == "0" {
+            String::new()
+        } else {
+            value.into()
+        };
+        return envelope(command, "OK");
+    }
     let source = if command == crate::at::SIGNAL {
         DASHBOARD
     } else {

@@ -4,16 +4,39 @@
   const root = global.SimpleAdmin || (global.SimpleAdmin = {});
   const pages = [
     { id: 'dashboard', selector: '#dashboardApp', factoryName: 'dashboard', title: '首页' },
+    { id: 'events', selector: null, factoryName: null, title: '网络事件' },
     { id: 'network', selector: '#networkApp', factoryName: 'network', title: '网络' },
     { id: 'settings', selector: '#settingsApp', factoryName: 'settings', title: '设置' },
     { id: 'sms', selector: '#smsApp', factoryName: 'sms', title: '短信' },
+    { id: 'notify', selector: '#forwardingApp', factoryName: 'forwarding', title: '消息通知' },
     { id: 'deviceinfo', selector: '#deviceinfoApp', factoryName: 'deviceinfo', title: '设备信息' },
     { id: 'console', selector: null, factoryName: null, title: '控制台', frameSelector: '#consoleFrame', frameSrc: '/console' }
   ];
+  // Menu entries. Several views can share one page (one Vue app): the page then shows only
+  // the parts marked data-views="<view>". A group is one tab-bar entry and one sub-menu.
+  const views = [
+    { id: 'dashboard', page: 'dashboard', group: 'overview', title: '总览' },
+    { id: 'events', page: 'events', group: 'overview', title: '网络事件' },
+    { id: 'bands', page: 'network', group: 'network', title: '频段与频点' },
+    { id: 'cells', page: 'network', group: 'network', title: '小区锁定' },
+    { id: 'connection', page: 'network', group: 'network', title: '拨号与 SIM' },
+    { id: 'sms', page: 'sms', group: 'message', title: '短信' },
+    { id: 'notify', page: 'notify', group: 'message', title: '消息通知' },
+    { id: 'watchdog', page: 'settings', group: 'system', title: '断网恢复' },
+    { id: 'lan', page: 'settings', group: 'system', title: '网络功能' },
+    { id: 'at', page: 'settings', group: 'system', title: 'AT 终端' },
+    { id: 'system', page: 'settings', group: 'system', title: '系统设置' },
+    { id: 'deviceinfo', page: 'deviceinfo', group: 'more', title: '设备信息' },
+    { id: 'console', page: 'console', group: 'more', title: '控制台' }
+  ];
+  // Old addresses and tab-bar entries: a page or group name opens its last view.
+  const aliases = { network: 'bands', settings: 'system', forwarding: 'notify', overview: 'dashboard', message: 'sms', system: 'system' };
+  const lastView = {};
   const mountedPages = new Set();
   let currentPage = '';
+  let currentView = '';
   const revealTimers = new WeakMap();
-  const pageIds = new Set(pages.map((page) => page.id));
+  const viewIds = new Set(views.map((view) => view.id));
 
   function disableBrowserScrollRestore() {
     try {
@@ -96,17 +119,65 @@
     // animate scroll position. Keeping the current URL is safer than showing a scroll.
   }
 
-  function normalizePage(value) {
+  function normalizeView(value) {
     const id = String(value || '').replace(/^#/, '');
-    if (id === 'forwarding') return 'sms';
-    return pageIds.has(id) ? id : 'dashboard';
+    if (viewIds.has(id)) return id;
+    if (aliases[id]) {
+      const group = (views.find((view) => view.id === aliases[id]) || {}).group;
+      return lastView[group] || aliases[id];
+    }
+    return 'dashboard';
+  }
+
+  function getView(id) {
+    return views.find((view) => view.id === id) || views[0];
   }
 
   function getPage(id) {
     return pages.find((page) => page.id === id) || pages[0];
   }
 
+  // One rule per shared view hides the parts of its page that belong to the other views.
+  function installViewStyles() {
+    const rules = views
+      .filter((view) => views.some((other) => other !== view && other.page === view.page))
+      .map((view) => `.sa-page[data-view="${view.id}"] [data-views]:not([data-views~="${view.id}"]){display:none!important}`);
+    const style = document.createElement('style');
+    style.textContent = rules.join('\n');
+    document.head.appendChild(style);
+  }
+
+  // Sub-menu above each grouped page, for phones where the sidebar is hidden.
+  function buildSubnav() {
+    document.querySelectorAll('.sa-page').forEach((section) => {
+      const pageId = section.getAttribute('data-page');
+      const own = views.find((view) => view.page === pageId);
+      if (!own || own.group === 'more') return;
+      const members = views.filter((view) => view.group === own.group);
+      if (members.length < 2) return;
+      const nav = document.createElement('nav');
+      nav.className = 'sa-subnav';
+      nav.setAttribute('aria-label', own.group);
+      members.forEach((view) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('data-view-link', view.id);
+        button.textContent = view.title;
+        button.addEventListener('click', () => showPage(view.id));
+        nav.appendChild(button);
+      });
+      const titlebar = section.querySelector('.sa-page-titlebar');
+      if (titlebar) titlebar.after(nav);
+    });
+  }
+
   function setActiveLink(id) {
+    document.querySelectorAll('[data-view-link]').forEach((button) => {
+      const active = button.getAttribute('data-view-link') === id;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
     document.querySelectorAll('[data-page-link]').forEach((link) => {
       const active = link.getAttribute('data-page-link') === id;
       link.classList.toggle('active', active);
@@ -125,12 +196,19 @@
     section.classList.remove('sa-reveal-running');
   }
 
-  function setActiveSection(id) {
+  function setActiveSection(id, view) {
     document.querySelectorAll('.sa-page').forEach((section) => {
       const active = section.getAttribute('data-page') === id;
       section.classList.toggle('active', active);
+      if (active) section.setAttribute('data-view', view.id);
       if (!active) clearRevealRunning(section);
     });
+    // Shared pages show the view's name as their heading.
+    const heading = document.getElementById(`page-title-${id}`);
+    if (heading && views.filter((v) => v.page === id).length > 1) {
+      heading.setAttribute('data-simpleadmin-i18n-key', view.title);
+      heading.textContent = view.title;
+    }
   }
 
   function collectRevealItems(section) {
@@ -195,18 +273,21 @@
       mountedPages.add(id);
       return;
     }
+    if (!page.factoryName) {
+      mountedPages.add(id);
+      return;
+    }
     const factory = root.Pages && root.Pages[page.factoryName];
     if (typeof factory !== 'function') {
       console.warn('SimpleAdmin page factory missing:', page.factoryName);
       return;
     }
     root.Vue.mount(factory, page.selector);
-    if (id === 'sms') root.Vue.mount(root.Pages.forwarding, '#forwardingApp');
     mountedPages.add(id);
   }
 
   function applyTitle(id) {
-    const page = getPage(id);
+    const page = getView(id);
     const title = root.Lang && typeof root.Lang.t === 'function' ? root.Lang.t(page.title) : page.title;
     if (root.Brand && typeof root.Brand.setPageTitle === 'function') {
       root.Brand.setPageTitle(title);
@@ -221,18 +302,21 @@
   }
 
   function showPage(value, options) {
-    const id = normalizePage(value);
+    const viewId = normalizeView(value);
+    const view = getView(viewId);
+    const id = view.page;
     currentPage = id;
+    currentView = viewId;
+    lastView[view.group] = viewId;
     disableBrowserScrollRestore();
     beginPageSwitch();
-    setActiveSection(id);
-    setActiveLink(id);
+    setActiveSection(id, view);
+    setActiveLink(viewId);
     mountPage(id);
-    if (String(value).replace(/^#/, '') === 'forwarding') root.Vue.apps['#smsApp'].selectSmsView('forwarding');
-    applyTitle(id);
+    applyTitle(viewId);
     closeMobileSidebar();
-    if (!options || options.updateHash !== false) {
-      updateAddressHash(id, options && options.replaceHash === true);
+    if (!options || options.updateHash !== false || String(value).replace(/^#/, '') !== viewId) {
+      updateAddressHash(viewId, (options && options.replaceHash === true) || (options && options.updateHash === false));
     }
     if (root.Lang && typeof root.Lang.apply === 'function') {
       root.Lang.apply(document);
@@ -241,7 +325,7 @@
     scheduleProgressiveReveal(id);
     if (typeof global.dispatchEvent === 'function') {
       global.dispatchEvent(new CustomEvent('simpleadmin:page-changed', {
-        detail: { page: id }
+        detail: { page: id, view: viewId, group: view.group }
       }));
     }
   }
@@ -268,17 +352,19 @@
     // Back/forward fires both popstate and hashchange; switch pages only once.
     const followAddress = () => {
       const hash = global.location.hash.replace(/^#/, '');
-      if (normalizePage(hash) === currentPage && hash !== 'forwarding') return;
+      if (normalizeView(hash) === currentView) return;
       showPage(hash, { updateHash: false });
     };
     global.addEventListener('popstate', followAddress);
     global.addEventListener('hashchange', followAddress);
     global.addEventListener('simpleadmin:language-changed', () => {
-      if (currentPage) applyTitle(currentPage);
+      if (currentView) applyTitle(currentView);
     });
   }
 
   function init() {
+    installViewStyles();
+    buildSubnav();
     disableBrowserScrollRestore();
     document.documentElement.classList.add('sa-progressive-ready');
     bindNavigation();
@@ -288,7 +374,7 @@
   global.addEventListener('load', resetScrollPositionAfterBrowserRestore);
   global.addEventListener('pageshow', resetScrollPositionAfterBrowserRestore);
 
-  root.Spa = { showPage, mountPage, resetScrollPosition };
+  root.Spa = { showPage, mountPage, resetScrollPosition, views, current: () => currentView };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });

@@ -36,6 +36,8 @@ pub fn action(command: &str) -> bool {
         "+QMBNCFG=\"DEACTIVATE\"",
         "+QMBNCFG=\"SELECT\",",
         "+QNWCFG=\"NR5G_MEAS_INFO\",",
+        "+QNWCFG=\"NR5G_EARFCN_LOCK\",",
+        "+QNWCFG=\"LTE_EARFCN_LOCK\",",
     ]
     .iter()
     .any(|p| upper.contains(p.trim_end()))
@@ -69,7 +71,9 @@ pub fn timeout(command: &str) -> Duration {
                     || up.contains("+QMBNCFG=\"SELECT\",")
                 {
                     10000
-                } else if up.contains("+QNWLOCK=") && up.contains("\",") {
+                } else if (up.contains("+QNWLOCK=") || up.contains("_EARFCN_LOCK\""))
+                    && up.contains("\",")
+                {
                     // Setting or clearing a lock re-selects the cell; an RM520N-EU answers after ~1.3 s.
                     10000
                 } else {

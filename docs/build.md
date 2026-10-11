@@ -51,6 +51,7 @@ PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/browser
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/cell-lock-ui.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/pdp-browser.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/recovery-browser.cjs
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/views-browser.cjs
 node tests/traffic-ui.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/traffic-direction-browser.cjs
 node tests/tls.cjs

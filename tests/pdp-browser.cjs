@@ -32,7 +32,7 @@ async function freePort() {
     await page.locator('#loginLanguage').selectOption('zh-CN');
     await page.locator('#username').fill('admin'); await page.locator('#password').fill('admin');
     await page.locator('#loginButton').click(); await page.waitForURL(base + '/');
-    await page.locator('.sa-menu-link[data-page-link="network"]').click();
+    await page.locator('.sa-menu-link[data-page-link="connection"]').click();
     const rows = page.locator('#pdpTableBody .sa-pdp-row');
     await rows.first().waitFor();
     const settle = async () => { await page.waitForFunction(() => !SimpleAdmin.Vue.apps['#networkApp'].pdpBusy); };

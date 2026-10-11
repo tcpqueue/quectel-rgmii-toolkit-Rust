@@ -24,7 +24,7 @@ async function freePort() {
    await page.goto(base+'/login.html');await page.locator('#loginLanguage').selectOption(language);
    await page.locator('#username').fill('admin');await page.locator('#password').fill('admin');
    await page.locator('#loginButton').click();await page.waitForURL(base+'/');
-   await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+   await page.locator('.sa-menu-link[data-page-link="system"]').click();
    await page.waitForFunction(()=>document.querySelector('#webUsernameInput')?.value==='admin');
    assert.equal(await page.locator('#webuiPortInput').inputValue(),String(new URL(base).port));
    await page.locator('#webuiPortHeading').scrollIntoViewIfNeeded();
@@ -41,14 +41,14 @@ async function freePort() {
     await page.waitForFunction(()=>document.querySelector('#settingsApp')?.textContent.includes('通过 ADB 转发访问时'));
     base='http://127.0.0.1:'+next;
     await page.setViewportSize({width:1280,height:1000});
-    await page.goto(base+'/'); await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+    await page.goto(base+'/'); await page.locator('.sa-menu-link[data-page-link="system"]').click();
     await page.waitForFunction(()=>document.querySelector('#webUsernameInput')?.value==='admin');
     await page.locator('#webUsernameInput').fill('owner');
     await page.locator('#currentPasswordInput').fill('admin');
     await page.locator('form').filter({has:page.locator('#webUsernameInput')}).locator('button[type="submit"]').click();
     await page.waitForURL(base+'/login.html');
     await page.locator('#username').fill('owner');await page.locator('#password').fill('admin');await page.locator('#loginButton').click();await page.waitForURL(base+'/');
-    await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+    await page.locator('.sa-menu-link[data-page-link="system"]').click();
     await page.waitForFunction(()=>document.querySelector('#webUsernameInput')?.value==='owner');
     await page.locator('#webUsernameInput').fill('admin');await page.locator('#currentPasswordInput').fill('admin');
     await page.locator('form').filter({has:page.locator('#webUsernameInput')}).locator('button[type="submit"]').click();

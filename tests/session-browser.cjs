@@ -35,13 +35,13 @@ async function freePort() {
    await login(page,language,'/\\example.com');
    assert.equal(new URL(page.url()).host,new URL(base).host);
    await page.waitForFunction(title=>document.title.startsWith(title),say('首页','Home'));
-   await page.locator('.sa-menu-link[data-page-link="settings"]').click();
-   await page.waitForFunction(title=>document.title.startsWith(title),say('设置','Settings'));
+   await page.locator('.sa-menu-link[data-page-link="lan"]').click();
+   await page.waitForFunction(title=>document.title.startsWith(title),say('网络功能','Network features'));
    // Back and forward switch the page once, not once per history event.
-   await page.locator('.sa-menu-link[data-page-link="network"]').click();
+   await page.locator('.sa-menu-link[data-page-link="bands"]').click();
    const switches=await page.evaluate(async()=>{let count=0;addEventListener('simpleadmin:page-changed',()=>count++);history.back();await new Promise(r=>setTimeout(r,400));return count;});
    assert.equal(switches,1);
-   assert.equal(new URL(page.url()).hash,'#settings');
+   assert.equal(new URL(page.url()).hash,'#lan');
    // Network feature changes report invalid input and the module's answer under the list.
    const message=page.locator('#networkFeatureMessage');
    await page.locator('#dmzInput').fill('192.168.1.300');

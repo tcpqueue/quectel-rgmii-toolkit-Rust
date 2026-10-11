@@ -3,8 +3,8 @@
 //! which the probe succeeds again:
 //!
 //! 1. re-register on the network (`AT+COPS=2`, then `AT+COPS=0`);
-//! 2. switch the radio off and on (`AT+CFUN=0`, `AT+CFUN=1`), putting cell locks back if the
-//!    module dropped them;
+//! 2. switch the radio off and on (`AT+CFUN=0`, `AT+CFUN=1`), putting cell and frequency
+//!    locks back if the module dropped them;
 //! 3. switch to the other SIM slot, and back again when that does not help;
 //! 4. restart the module (`AT+CFUN=1,1`), at most `max_reboots` times until the connection
 //!    has been seen working again.
@@ -149,6 +149,10 @@ impl Timing {
 #[derive(Default, Serialize, Deserialize)]
 struct Saved {
     reboots: u32,
+    /// Start of the outage that led to a module restart, so the outage that continues after
+    /// the restart keeps its start time (and its notification its full length).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    outage_since: Option<u64>,
 }
 
 struct Runtime {
@@ -157,6 +161,7 @@ struct Runtime {
     outage_seconds: u64,
     cooldown_until: Option<Instant>,
     reboots: u32,
+    outage_since: Option<u64>,
 }
 
 pub struct Watchdog {
@@ -178,10 +183,10 @@ impl Watchdog {
             .filter(|s| s.validate().is_ok())
             .unwrap_or_default();
         let state_path = path.with_file_name("watchdog-state.json");
-        let reboots = std::fs::read(&state_path)
+        let saved = std::fs::read(&state_path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Saved>(&b).ok())
-            .map_or(0, |s| s.reboots);
+            .unwrap_or_default();
         Arc::new(Self {
             settings: tokio::sync::watch::Sender::new(settings),
             runtime: Mutex::new(Runtime {
@@ -189,7 +194,8 @@ impl Watchdog {
                 step: None,
                 outage_seconds: 0,
                 cooldown_until: None,
-                reboots,
+                reboots: saved.reboots,
+                outage_since: saved.outage_since,
             }),
             path,
             state_path,
@@ -238,13 +244,20 @@ impl Watchdog {
         self.settings.send_replace(settings);
         Ok(())
     }
-    async fn set_reboots(&self, reboots: u32) {
+    async fn set_reboots(&self, reboots: u32, outage_since: Option<u64>) {
         let changed = {
             let mut r = self.runtime.lock().unwrap();
-            std::mem::replace(&mut r.reboots, reboots) != reboots
+            let changed = r.reboots != reboots || r.outage_since != outage_since;
+            r.reboots = reboots;
+            r.outage_since = outage_since;
+            changed
         };
         if changed {
-            let data = format!("{}\n", json!({"reboots":reboots}));
+            let saved = Saved {
+                reboots,
+                outage_since,
+            };
+            let data = format!("{}\n", serde_json::to_string(&saved).unwrap_or_default());
             let _ = self.write(self.state_path.clone(), data).await;
         }
     }
@@ -255,6 +268,11 @@ impl Watchdog {
         r.outage_seconds = outage_ms / 1000;
     }
     pub fn start(self: &Arc<Self>, at: At, monitor: Arc<Monitor>, events: Arc<Events>) {
+        // An outage that led to a restart goes on until the probe succeeds again.
+        let resumed = self.runtime.lock().unwrap().outage_since;
+        if let Some(since) = resumed {
+            events.resume_outage(since);
+        }
         let this = self.clone();
         tokio::spawn(async move {
             let mut changes = this.settings.subscribe();
@@ -283,7 +301,7 @@ impl Watchdog {
                     Some(0) => {
                         this.set_phase(if cooling { "cooldown" } else { "monitoring" }, None, 0);
                         // A working connection ends the restart series.
-                        this.set_reboots(0).await;
+                        this.set_reboots(0, None).await;
                     }
                     Some(ms) if cooling => this.set_phase("cooldown", None, ms),
                     Some(ms)
@@ -360,7 +378,7 @@ impl Watchdog {
                         );
                         continue;
                     }
-                    self.set_reboots(reboots + 1).await;
+                    self.set_reboots(reboots + 1, events.outage_since()).await;
                     events.push(
                         "watchdog_step",
                         "bad",
@@ -413,11 +431,29 @@ impl Watchdog {
     /// dropped; any that disappeared are sent again with the values read before.
     async fn radio(&self, at: &At, events: &Events) -> Result<()> {
         const QUERY: &str = "AT+QNWLOCK=\"common/4g\";+QNWLOCK=\"common/5g\"";
-        let before = parser::cell_locks(&at.run(QUERY).await.unwrap_or_default());
+        let before_raw = at.run(QUERY).await.unwrap_or_default();
+        let before = parser::cell_locks(&before_raw);
+        let before_freq =
+            parser::nr_freq_lock(&at.run(crate::freq_lock::QUERY).await.unwrap_or_default())
+                .unwrap_or_default();
         ok(at.run("AT+CFUN=0").await?)?;
         tokio::time::sleep(self.timing.pause + self.timing.pause).await;
         ok(at.run("AT+CFUN=1").await?)?;
         tokio::time::sleep(self.timing.pause).await;
+        if !before_freq.is_empty()
+            && parser::nr_freq_lock(&at.run(crate::freq_lock::QUERY).await.unwrap_or_default())
+                .is_some_and(|e| e.is_empty())
+        {
+            let restored = at
+                .run(&crate::freq_lock::command(&before_freq))
+                .await
+                .is_ok_and(|raw| parser::ok(&raw));
+            events.push(
+                "watchdog_lock_restored",
+                if restored { "info" } else { "bad" },
+                json!({"radio":"nr_freq","ok":restored}),
+            );
+        }
         let after = parser::cell_locks(&at.run(QUERY).await.unwrap_or_default());
         for (radio, key) in [("lte", "common/4g"), ("nr", "common/5g")] {
             if let Some(values) = before[radio].as_array()

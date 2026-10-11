@@ -54,6 +54,14 @@ struct State {
 
 pub struct Events {
     state: Mutex<State>,
+    restored: tokio::sync::broadcast::Sender<Outage>,
+}
+
+/// A finished internet outage, in wall-clock milliseconds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Outage {
+    pub lost: u64,
+    pub restored: u64,
 }
 
 /// An outage is reported once the probe has failed for this long.
@@ -69,6 +77,7 @@ impl Default for Events {
                 outage_since: None,
                 outage_reported: false,
             }),
+            restored: tokio::sync::broadcast::channel(8).0,
         }
     }
 }
@@ -162,6 +171,10 @@ impl Events {
                     json!({"seconds":seconds}),
                     time,
                 );
+                let _ = self.restored.send(Outage {
+                    lost: since,
+                    restored: time,
+                });
             }
             return;
         }
@@ -170,6 +183,23 @@ impl Events {
             state.outage_reported = true;
             Self::add(&mut state, "internet_lost", "bad", json!({}), since);
         }
+    }
+    /// Each reported outage once it ends (outages shorter than `OUTAGE_REPORT_MS` are not sent).
+    pub fn outages(&self) -> tokio::sync::broadcast::Receiver<Outage> {
+        self.restored.subscribe()
+    }
+    /// Start of the outage in progress once it has been reported, for the watchdog to keep
+    /// across a module restart.
+    pub fn outage_since(&self) -> Option<u64> {
+        let state = self.state.lock().unwrap();
+        state.outage_since.filter(|_| state.outage_reported)
+    }
+    /// Continues an outage that started before this program did (the watchdog restarted the
+    /// module): it is already reported and ends with the next successful probe.
+    pub fn resume_outage(&self, since: u64) {
+        let mut state = self.state.lock().unwrap();
+        state.outage_since = Some(since);
+        state.outage_reported = true;
     }
     /// Forgets the outage in progress, e.g. when the probe target changes.
     pub fn reset_probe(&self) {
@@ -263,6 +293,27 @@ mod tests {
             list[1]["time"], 20_000,
             "the outage is dated from its first failure"
         );
+    }
+    #[test]
+    fn finished_outages_are_broadcast() {
+        let e = Events::default();
+        let mut outages = e.outages();
+        e.observe_probe(false, 20_000);
+        e.observe_probe(false, 31_000);
+        assert_eq!(e.outage_since(), Some(20_000));
+        e.observe_probe(true, 65_000);
+        assert_eq!(
+            outages.try_recv().unwrap(),
+            Outage {
+                lost: 20_000,
+                restored: 65_000
+            }
+        );
+        e.resume_outage(100_000);
+        e.observe_probe(true, 190_000);
+        assert_eq!(outages.try_recv().unwrap().lost, 100_000);
+        assert_eq!(kinds(&e).last().unwrap(), "internet_restored");
+        assert!(outages.try_recv().is_err());
     }
     #[test]
     fn events_are_listed_by_time() {

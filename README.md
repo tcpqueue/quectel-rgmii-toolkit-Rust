@@ -1,6 +1,6 @@
 # Quectel RGMII Toolkit · Rust
 
-移远 RM520N 等 5G 模块的轻量管理后台。Rust 原生后端，直接运行在模块上，提供信号监测、频段与小区锁定、短信转发和在线更新，界面支持中文和 English。
+移远 RM520N 等 5G 模块的轻量管理后台。Rust 原生后端，直接运行在模块上，提供信号监测、频段 / 5G 频点 / 小区锁定、短信与断网恢复通知、断网自动恢复和在线更新，界面支持中文和 English。
 
 [**下载最新版**](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases/latest) · [更新记录](CHANGELOG.md) · [文档](#文档) · [Go 原项目](https://github.com/snjzb/quectel-rgmii-toolkit-Go)
 
@@ -10,16 +10,21 @@
 
 ## 功能
 
-| 页面 | 内容 |
-| --- | --- |
-| 总览 | 网络状态、频段、小区、信号与天线读数，CPU、内存、流量；信号、温度、流量和延迟的五分钟趋势；网络事件记录（切换、断网、自动恢复） |
-| 网络与小区 | 频段锁定及 30 秒无信号自动恢复；LTE/5G 邻区扫描与完整扫描；临时 / 持久小区锁定及三分钟拨号失败回退；运营商配置（MBN）；APN 与网络模式；PDP 上下文管理；IMS/VoLTE、SIM 热插拔、数据漫游、SIM 卡槽 |
-| 短信服务 | 收件箱、长短信发送；转发到 Server酱、企业微信、钉钉、飞书、Webhook 或本卡短信 |
-| 系统设置 | Web 账号密码与端口、root 密码、TTL、IP 透传、USB 网络模式、DMZ、LAN IP、DNS 代理、断网自动恢复（看门狗）、AT 终端、在线更新 |
-| 设备信息 | 型号、固件版本、SIM 与设备标识 |
-| 控制台 | 使用 root 密码登录的网页终端 |
+| 分组 | 页面 | 内容 |
+| --- | --- | --- |
+| 设备 | 总览 | 网络状态、频段、小区、信号与天线读数，CPU、内存、流量；信号、温度、流量和延迟的五分钟趋势 |
+| | 网络事件 | 制式与小区切换、断网与恢复、锁定保护和看门狗的每一步，最近 200 条 |
+| 网络 | 频段与频点 | 频段锁定；5G 频点锁定（严格校验、临时 / 持久）；两者都有 30 秒无信号自动恢复；运营商配置（MBN） |
+| | 小区锁定 | 邻区扫描与完整扫描（后台进行，结果保留 10 分钟）；临时 / 持久小区锁定及三分钟拨号失败回退 |
+| | 拨号与 SIM | APN 与网络模式；PDP 上下文；IMS/VoLTE、SIM 热插拔、数据漫游、SIM 卡槽 |
+| 消息 | 短信 | 收件箱、长短信发送 |
+| | 消息通知 | Server酱、企业微信、钉钉、飞书、Webhook、本卡短信；短信转发和断网恢复通知分别选择渠道 |
+| 系统 | 断网恢复 | 看门狗：重新注册、重启射频、切换卡槽、重启模块，每级可单独关闭 |
+| | 网络功能 | IP 透传、USB 网络模式、DMZ、LAN IP、IMEI、DNS 代理、TTL |
+| | AT 终端 · 系统设置 | AT 命令；Web 账号密码与端口、root 密码、语言、在线更新、重启 |
+| | 设备信息 · 控制台 | 型号、固件版本、SIM 与设备标识；root 网页终端 |
 
-界面为苹果风格：电脑上是侧边栏，手机上是底部标签栏，外观可选自动、浅色、深色。所有网页资源随程序提供，不加载外部字体或脚本。
+界面为苹果风格：电脑上是侧边栏，手机上是底部标签栏加页顶子菜单，外观可选自动、浅色、深色。所有网页资源随程序提供，不加载外部字体或脚本。
 
 ## 安装
 
@@ -61,7 +66,9 @@
 | Windows 设备助手：开启 ADB、联网配置、端口、支持型号 | [windows-assistant.md](docs/windows-assistant.md) |
 | 安装后打不开网页 | [install-troubleshooting.md](docs/install-troubleshooting.md) |
 | 在线更新 | [ota.md](docs/ota.md) |
-| 小区锁定、扫描、频段锁定保护、MBN 与短信转发配置 | [sms-cell-lock.md](docs/sms-cell-lock.md) |
+| 小区锁定、扫描、频段锁定保护、MBN | [sms-cell-lock.md](docs/sms-cell-lock.md) |
+| 5G 频点锁定 | [frequency-lock.md](docs/frequency-lock.md) |
+| 消息通知：短信转发与断网恢复通知 | [notifications.md](docs/notifications.md) |
 | 断网自动恢复（看门狗） | [watchdog.md](docs/watchdog.md) |
 | 短信收发与兼容性 | [sms.md](docs/sms.md) · [sms-compatibility.md](docs/sms-compatibility.md) |
 | 五分钟趋势、延迟监测与网络事件 | [monitoring.md](docs/monitoring.md) |
