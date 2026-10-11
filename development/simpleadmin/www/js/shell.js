@@ -2,7 +2,6 @@
 (function (global) {
   'use strict';
   const root = global.SimpleAdmin;
-  const MORE_PAGES = ['deviceinfo', 'console'];
 
   function init() {
     const lang = root.Lang;
@@ -44,18 +43,20 @@
         root.Spa.showPage(page);
       });
     });
+    // Tab-bar entries name a menu group; "more" holds the rest.
     const syncTabs = (event) => {
-      const page = (event && event.detail && event.detail.page) || 'dashboard';
+      const group = (event && event.detail && event.detail.group) || 'overview';
       document.querySelectorAll('.sa-tabbar [data-tab]').forEach((button) => {
         const tab = button.getAttribute('data-tab');
-        const active = tab === page || (tab === 'more' && MORE_PAGES.includes(page));
+        const active = tab === group;
         button.classList.toggle('active', active);
         if (active) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
       });
     };
     global.addEventListener('simpleadmin:page-changed', syncTabs);
-    syncTabs({ detail: { page: (document.querySelector('.sa-page.active') || {}).dataset?.page } });
+    const shown = root.Spa && root.Spa.views.find((view) => view.id === root.Spa.current());
+    syncTabs({ detail: { group: shown && shown.group } });
 
     // Generic dialogs: [data-open-dialog="id"] opens, [data-close] inside closes, backdrop click closes.
     document.querySelectorAll('[data-open-dialog]').forEach((button) => {

@@ -265,7 +265,68 @@ function cellLocking() {
         setScanKind(kind) {
           if (this.isLoading || this.lockBusy || this.scanKind === kind) return;
           this.scanKind = kind;
+          this.showScanResult(kind);
+        },
+        // 扫描在后台进行，页面轮询 scan_status；每种扫描的最近结果在模块内存里保留 10 分钟。
+        scanState: null, scanTimer: null, scanAge: null,
+        async loadScanStatus() {
+          try {
+            this.applyScanStatus(await SimpleAdmin.Api.networkData({ action: 'scan_status' }), false);
+          } catch (_) {}
+        },
+        applyScanStatus(data, started) {
+          clearTimeout(this.scanTimer);
+          const first = !this.scanState;
+          this.scanState = data;
+          const running = data && data.running;
+          if (running) {
+            this.isLoading = true;
+            this.isCellScanning = true;
+            this.scanKind = running.kind;
+            if (running.kind === 'full') this.cellScanMode = running.mode;
+            this.scanTimer = setTimeout(() => this.loadScanStatus(), running.kind === 'neighbour' ? 700 : 3000);
+            return;
+          }
+          const wasScanning = this.isCellScanning;
+          this.isLoading = false;
+          this.isCellScanning = false;
+          if (wasScanning || started) {
+            this.showScanResult(this.scanKind);
+          } else if (first) {
+            // 打开页面时显示最近一次仍有效的结果。
+            const results = (data && data.results) || {};
+            const latest = ['neighbour', 'full'].filter((k) => results[k]).sort((a, b) => results[b].finished - results[a].finished)[0];
+            if (latest) {
+              this.scanKind = latest;
+              this.showScanResult(latest);
+            }
+          }
+        },
+        showScanResult(kind, matchMode) {
+          const results = (this.scanState && this.scanState.results) || {};
+          const result = results[kind];
           this.clearTableRowsBodyCellScan();
+          this.scanError = '';
+          this.scanAge = null;
+          if (!result || (matchMode && result.mode !== this.cellScanMode)) return;
+          if (kind === 'full') this.cellScanMode = result.mode;
+          if (result.error) {
+            this.scanError = this.tr('扫描失败') + ' · ' + result.error;
+            return;
+          }
+          this.nr5g_cells_parsed = (result.cells && result.cells.nr5g_cells_parsed) || [];
+          this.lte_cells_parsed = (result.cells && result.cells.lte_cells_parsed) || [];
+          this.resultDoneCell = true;
+          this.scanAge = { ms: this.scanState.now - result.finished, at: Date.now() };
+        },
+        onScanModeChange() {
+          this.showScanResult('full', true);
+        },
+        scanAgeText() {
+          if (!this.scanAge || !this.resultDoneCell) return '';
+          const minutes = Math.floor((this.scanAge.ms + Date.now() - this.scanAge.at) / 60000);
+          const when = minutes < 1 ? this.tr('刚刚扫描') : (this.lockLanguage === 'zh-CN' ? `${minutes} 分钟前扫描` : `Scanned ${minutes} min ago`);
+          return when + ' · ' + this.tr('结果保留 10 分钟');
         },
         canStartScan() {
           return !this.isLoading && !this.lockBusy && (this.scanKind === 'neighbour' || ['Full Scan', 'LTE Only', 'NR5G Only'].includes(this.cellScanMode));
@@ -278,27 +339,20 @@ function cellLocking() {
           this.clearTableRowsBodyCellScan();
           this.scanError = '';
           this.scanNote = '';
-
+          this.scanAge = null;
           this.isLoading = true;
           this.isCellScanning = true;
-
-          const params = this.scanKind === 'neighbour' ? { action: 'neighbours' } : { action: 'scan', mode: this.cellScanMode };
+          const params = this.scanKind === 'neighbour' ? { action: 'scan_start', kind: 'neighbour' } : { action: 'scan_start', kind: 'full', mode: this.cellScanMode };
           SimpleAdmin.Api.networkData(params)
             .then(data => {
               if (data && data.ok === false) throw new Error(data.error || data.response || '');
-              this.nr5g_cells_parsed = data.nr5g_cells_parsed || [];
-              this.lte_cells_parsed = data.lte_cells_parsed || [];
-              this.resultDoneCell = true;
+              this.applyScanStatus(data, true);
             })
             .catch(error => {
-              console.error("Error processing scan data:", error);
               this.scanError = this.tr('扫描失败') + (error && error.message ? ' · ' + error.message : '');
-            })
-            .finally(() => {
               this.isLoading = false;
               this.isCellScanning = false;
             });
-
         },
         scannedCellsForMode() {
           if (this.scanKind === 'neighbour' || this.cellScanMode === 'Full Scan') return [...this.nr5g_cells_parsed, ...this.lte_cells_parsed];
@@ -543,13 +597,14 @@ function cellLocking() {
           if(!this.lockEventsBound){
             this.lockEventsBound=true;
             window.addEventListener('simpleadmin:language-changed',()=>{this.lockLanguage=SimpleAdmin.Lang.getCurrentLanguage();});
-            const sync=()=>{const active=document.querySelector('[data-page="network"]').classList.contains('active');if(active){this.refreshCellLocks().catch(()=>{});if(!this.lockTimer)this.lockTimer=setInterval(()=>this.refreshCellLocks().catch(()=>{}),5000);}else{clearInterval(this.lockTimer);this.lockTimer=null;}};
+            const sync=()=>{const active=document.querySelector('[data-page="network"]').classList.contains('active');if(active){this.refreshCellLocks().catch(()=>{});this.loadScanStatus();this.loadFreqLock();if(!this.lockTimer)this.lockTimer=setInterval(()=>this.refreshCellLocks().catch(()=>{}),5000);}else{clearInterval(this.lockTimer);this.lockTimer=null;}};
             window.addEventListener('simpleadmin:page-changed',sync);sync();
           }
           // 初始化时，禁止用户操作（还没有准备好）
           this._initialized = false;
           this.loadPdp(true);            // PDP 与功能开关独立加载，不阻塞频段查询
           this.loadMbn();
+          this.loadFreqLock();
 
           await this.getModel();          // 先确定型号
           this.applyModelBands();        // 型号可用后立刻得到当前可用频段
@@ -697,6 +752,140 @@ function cellLocking() {
             }
           };
           this.bandGuardTimer = setTimeout(poll, 1000);
+        },
+        // ---------- 5G 频点锁定 ----------
+        // LTE 频点锁定在 RM520N-EU 上会让基带崩溃，所以只提供 NR。SCS 填错同样可能崩溃，后端会按频段校验。
+        freq: { module: null, saved: null, phase: '', guard: 'idle', error: '', cell_lock_nr: false, allowed_bands: null },
+        freqLoaded: false, freqBusy: false, freqMessage: '', freqFailed: false, freqTimer: null,
+        freqEntries: [{ arfcn: '', scs: '' }],
+        freqPersistence: 'temporary',
+        async loadFreqLock() {
+          try {
+            const data = await SimpleAdmin.Api.networkData({ action: 'freq_lock' });
+            if (data && data.ok !== false) this.freq = Object.assign({}, this.freq, data);
+          } catch (error) {
+            this.freqFailed = true;
+            this.freqMessage = this.tr('读取失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            this.freqLoaded = true;
+          }
+          clearTimeout(this.freqTimer);
+          if (this.freq.guard === 'checking') {
+            this.freqMessage = this.tr('已锁定，正在确认能否找到小区');
+            this.freqFailed = false;
+            this.freqTimer = setTimeout(() => this.loadFreqLock(), 3000);
+          } else if (this.freqFollow) {
+            this.freqFollow = false;
+            this.freqFailed = this.freq.guard === 'reverted' || this.freq.guard === 'failed';
+            this.freqMessage = ({
+              ok: this.tr('已锁定，信号正常'),
+              reverted: this.tr('30 秒内找不到可用小区，已恢复锁定前的状态'),
+              failed: this.tr('30 秒内找不到可用小区，恢复失败，请手动解锁')
+            })[this.freq.guard] || this.freqMessage;
+          }
+        },
+        freqFollow: false,
+        freqLocked() {
+          return Array.isArray(this.freq.module) && this.freq.module.length > 0;
+        },
+        freqStateText() {
+          if (!this.freqLoaded) return this.tr('正在读取...');
+          if (this.freq.module === null) return this.tr('读取失败');
+          if (this.freq.phase === 'restore_failed') return this.tr('开机恢复失败');
+          if (!this.freqLocked()) return this.tr(this.freq.saved ? '持久锁定已保存 · 等待恢复' : '未锁定');
+          return this.tr(this.freq.saved ? '持久锁定 · 重启后自动恢复' : '临时锁定 · 重启后失效');
+        },
+        freqTone() {
+          if (this.freq.phase === 'restore_failed') return 'is-bad';
+          if (!this.freqLocked()) return this.freq.saved ? 'is-warn' : '';
+          return this.freq.saved ? 'is-good' : 'is-warn';
+        },
+        freqListText(list) {
+          return (list || []).map(([arfcn, scs]) => `${arfcn} · ${scs} kHz`).join(', ');
+        },
+        freqAllowedText() {
+          const bands = this.freq.allowed_bands;
+          return bands && bands.length ? bands.map((b) => 'n' + b).join(' ') : '-';
+        },
+        // FR1 频段下行 NR-ARFCN 范围与 SSB 子载波间隔（与后端相同的 3GPP 表），用于提示和默认值。
+        freqBandTable: [[1,422000,434000,[15]],[2,386000,398000,[15]],[3,361000,376000,[15]],[5,173800,178800,[15,30]],[7,524000,538000,[15]],[8,185000,192000,[15]],[20,158200,164200,[15]],[25,386000,399000,[15]],[28,151600,160600,[15]],[38,514000,524000,[15,30]],[40,460000,480000,[15,30]],[41,499200,537999,[15,30]],[48,636667,646666,[30]],[66,422000,440000,[15,30]],[71,123400,130400,[15]],[77,620000,680000,[30]],[78,620000,653333,[30]],[79,693334,733333,[30]]],
+        freqBands(arfcn) {
+          const value = Number(arfcn);
+          if (!Number.isInteger(value) || value <= 0) return [];
+          const allowed = this.freq.allowed_bands;
+          return this.freqBandTable.filter(([band, low, high]) => value >= low && value <= high && (!allowed || allowed.includes(band)));
+        },
+        freqHint(entry) {
+          if (!String(entry.arfcn).trim()) return '';
+          const bands = this.freqBands(entry.arfcn);
+          if (!bands.length) return this.tr('不在可用频段内');
+          // A TDD frequency that also lies in a disallowed FDD band (n41 and n7) crashed the modem.
+          const tdd = (b) => [34, 38, 39, 40, 41, 46, 48, 77, 78, 79, 90].includes(b);
+          const value = Number(entry.arfcn);
+          const clash = this.freqBandTable.find(([band, low, high]) => value >= low && value <= high && !bands.some(([b]) => b === band) && bands.some(([b]) => tdd(b) !== tdd(band)));
+          if (clash) return (this.lockLanguage === 'zh-CN' ? `也属于 n${clash[0]}，不可锁定` : `Also in n${clash[0]}; cannot be locked`);
+          return bands.map(([band, , , scs]) => `n${band} · ${scs.join('/')} kHz`).join(', ');
+        },
+        // 填写频点后自动选上这个频段唯一允许的 SCS（如 n78 只能 30 kHz）。
+        freqArfcnChanged(entry) {
+          const bands = this.freqBands(entry.arfcn);
+          if (!bands.length) return;
+          const common = [15, 30].filter((scs) => bands.every(([, , , list]) => list.includes(scs)));
+          if (!common.includes(Number(entry.scs))) entry.scs = common.length === 1 ? String(common[0]) : (common.includes(30) && bands.some(([b]) => [41, 77, 78, 79].includes(b)) ? '30' : '');
+        },
+        addFreqEntry(arfcn, scs) {
+          if (this.freqEntries.length >= 32) return;
+          const empty = this.freqEntries.find((e) => !String(e.arfcn).trim());
+          if (arfcn !== undefined && this.freqEntries.some((e) => String(e.arfcn) === String(arfcn))) return;
+          const entry = empty || { arfcn: '', scs: '' };
+          if (arfcn !== undefined) { entry.arfcn = String(arfcn); entry.scs = scs ? String(scs) : ''; }
+          if (!empty) this.freqEntries.push(entry);
+          if (arfcn !== undefined && !entry.scs) this.freqArfcnChanged(entry);
+        },
+        removeFreqEntry(index) {
+          this.freqEntries.splice(index, 1);
+          if (!this.freqEntries.length) this.freqEntries.push({ arfcn: '', scs: '' });
+        },
+        // 扫描结果中的 5G 频点（带 SCS 的），可一键加入。
+        freqSuggestions() {
+          const seen = new Map();
+          for (const cell of this.nr5g_cells_parsed || []) {
+            if (cell.scs && !seen.has(cell.freq)) seen.set(cell.freq, { arfcn: cell.freq, scs: cell.scs, band: cell.band });
+          }
+          return Array.from(seen.values()).filter((s) => !this.freqEntries.some((e) => String(e.arfcn) === String(s.arfcn)));
+        },
+        async lockFreq() {
+          const entries = this.freqEntries.filter((e) => String(e.arfcn).trim());
+          if (!entries.length) { this.freqFailed = true; this.freqMessage = this.tr('请至少填写一个频点'); return; }
+          if (entries.some((e) => !e.scs)) { this.freqFailed = true; this.freqMessage = this.tr('请为每个频点选择 SCS'); return; }
+          if (!window.confirm(this.tr('锁定后模块只使用这些 5G 频点，找不到小区时会断网。继续？'))) return;
+          this.freqBusy = true; this.freqFailed = false; this.freqMessage = this.tr('正在执行...');
+          try {
+            const data = await SimpleAdmin.Api.networkData({ action: 'freq_lock_set', entries: entries.map((e) => `${String(e.arfcn).trim()}:${e.scs}`).join(','), persistence: this.freqPersistence, guard: this.bandGuard ? '1' : '0' });
+            if (!data || data.ok === false) throw new Error((data && (data.error || data.response)) || '');
+            this.freqMessage = data.warning || this.tr('已锁定');
+            this.freqFollow = this.bandGuard;
+          } catch (error) {
+            this.freqFailed = true;
+            this.freqMessage = this.tr('锁定失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            this.freqBusy = false;
+            await this.loadFreqLock();
+          }
+        },
+        async unlockFreq() {
+          this.freqBusy = true; this.freqFailed = false; this.freqMessage = this.tr('正在执行...');
+          try {
+            const data = await SimpleAdmin.Api.networkData({ action: 'freq_unlock' });
+            if (!data || data.ok === false) throw new Error((data && (data.error || data.response)) || '');
+            this.freqMessage = this.tr('已解锁');
+          } catch (error) {
+            this.freqFailed = true;
+            this.freqMessage = this.tr('操作失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            this.freqBusy = false;
+            await this.loadFreqLock();
+          }
         },
         // ---------- 运营商配置（MBN） ----------
         mbn: { auto_select: null, profiles: [], policy_sa_bands: null, policy_lte_bands: null },

@@ -21,11 +21,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
       await page.evaluate(lang=>SimpleAdmin.Lang.setLanguage(lang),language);
       for(const width of [1440,390,320]){
         await page.setViewportSize({width,height:1000});
-        for(const [index,view] of ['inbox','compose','forwarding'].entries()){
+        for(const [index,view] of ['inbox','compose'].entries()){
           await page.locator('.sa-sms-tabs button').nth(index).click();await page.waitForTimeout(150);
           assert.equal(await page.locator('.sa-sms-inbox').isVisible(),view==='inbox');
           assert.equal(await page.locator('.sa-sms-compose').isVisible(),view==='compose');
-          assert.equal(await page.locator('#forwardingApp').isVisible(),view==='forwarding');
+          assert.equal(await page.locator('#forwardingApp').isVisible(),false,'notifications have their own page');
           assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)));
           if(view==='inbox'&&width===320){
             const sender=await page.locator('.sa-sms-summary-sender').first().boundingBox(),date=await page.locator('.sa-sms-summary-date').first().boundingBox();
@@ -35,7 +35,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
         }
       }
     }
-    await page.setViewportSize({width:1440,height:1000});await page.locator('[data-page-link="network"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp']?._initialized);
+    await page.setViewportSize({width:1440,height:1000});await page.locator('[data-page-link="cells"]').click();await page.waitForFunction(()=>SimpleAdmin.Vue.apps['#networkApp']?._initialized);
     await page.evaluate(()=>SimpleAdmin.Vue.apps['#networkApp'].requestCellLock({action:'lock_nr_manual',pci:'0',earfcn:'633984',scs:'30',band:'78',persistence:'persistent',auto_unlock:'1'}));
     const labels={'en':'Persistent cell lock','zh-CN':'持久化锁频'};
     for(const [language,label] of Object.entries(labels)){

@@ -58,6 +58,27 @@ pub fn registered(raw: &str) -> bool {
         .and_then(|p| p.get(1).cloned())
         .is_some_and(|state| state == "NOCONN" || state == "CONNECT")
 }
+/// The frequency-lock check: registered with a primary carrier, and any NR carrier on one of
+/// the `locked` NR-ARFCNs. Under NSA a lock the cells do not match only drops the 5G leg, so
+/// LTE alone still counts as connected.
+pub fn nr_frequency_ok(raw: &str, locked: &[u32]) -> bool {
+    let mut primary = false;
+    let mut nr = vec![];
+    for p in raw
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("+QCAINFO:"))
+        .map(parser::fields)
+        .filter(|p| p.len() > 3)
+    {
+        primary |= p[0].eq_ignore_ascii_case("PCC");
+        if p[3].to_ascii_uppercase().contains("NR")
+            && let Ok(freq) = p[1].parse::<u32>()
+        {
+            nr.push(freq);
+        }
+    }
+    registered(raw) && primary && (nr.is_empty() || nr.iter().any(|f| locked.contains(f)))
+}
 /// The guard's check: registered, and serving on the locked bands.
 pub fn locked_and_registered(raw: &str, mode: &str, locked: &str) -> bool {
     registered(raw) && serving_on(raw, mode, locked)

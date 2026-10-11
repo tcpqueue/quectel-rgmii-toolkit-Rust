@@ -40,11 +40,11 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       assert.equal(api['/api/device_info_data'].data.modelName,process.env.DEVICE_URL ? 'RM520N-EU' : 'RG520N-EB');
       assert(api['/api/telemetry'].data.ping.length > 0);
       assert(api['/api/telemetry'].data.signal.length > 0);
-      for (const name of ['deviceinfo','network','sms','settings','index']) {
+      for (const name of ['deviceinfo','events','bands','cells','connection','sms','notify','watchdog','lan','at','system']) {
         const link = page.locator(`.sa-menu-link[data-page-link="${name}"]`);
         if (await link.count()) {await link.click(); await page.waitForTimeout(200);}
       }
-      await page.locator('.sa-menu-link[data-page-link="settings"]').click();
+      await page.locator('.sa-menu-link[data-page-link="system"]').click();
       await page.reload(); await page.waitForTimeout(500);
       const overview = page.locator('.sa-menu-link').first(); await overview.click();
       await page.waitForFunction(() => document.querySelector('.art-update-label b')?.textContent.length > 0);

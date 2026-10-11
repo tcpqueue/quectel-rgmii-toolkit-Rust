@@ -1,6 +1,7 @@
 use crate::{
     at::At,
     cleanup::{Cleanup, Part, Receipt},
+    events::{Events, Outage},
     parser,
     persistence::Store,
     sms,
@@ -47,14 +48,28 @@ pub struct Channel {
     #[serde(skip_serializing)]
     pub clear: bool,
 }
+/// Notification channels (credentials) shared by two senders: SMS forwarding (`enabled`)
+/// and the internet-restored notice (`outage_enabled`). Each sender uses the enabled
+/// channels its own platform list names.
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
     pub sms_enabled: bool,
     pub delete_after_day: bool,
+    /// SMS forwarding.
     pub enabled: bool,
     pub device_name: String,
     pub channels: Vec<Channel>,
+    /// Channels SMS forwarding uses; older files without it use every channel.
+    pub sms_platforms: Vec<String>,
+    /// One notice after an internet outage ends.
+    pub outage_enabled: bool,
+    pub outage_platforms: Vec<String>,
+    /// Shorter outages are not announced.
+    pub outage_min_seconds: u32,
+    /// Browser time zone and language when the settings were saved; the notice text uses them.
+    pub utc_offset_minutes: i32,
+    pub language: String,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -70,6 +85,12 @@ impl Default for Settings {
                     ..Channel::default()
                 })
                 .collect(),
+            sms_platforms: PLATFORMS.iter().map(|p| (*p).into()).collect(),
+            outage_enabled: false,
+            outage_platforms: Vec::new(),
+            outage_min_seconds: 60,
+            utc_offset_minutes: 0,
+            language: "zh-CN".into(),
         }
     }
 }
@@ -169,13 +190,45 @@ impl Settings {
                 }
             }
         }
-        if self.enabled && !self.channels.iter().any(|c| c.enabled) {
+        for list in [&self.sms_platforms, &self.outage_platforms] {
+            let mut seen = HashSet::new();
+            if list
+                .iter()
+                .any(|p| !PLATFORMS.contains(&p.as_str()) || !seen.insert(p))
+            {
+                bail!("invalid or duplicate platform")
+            }
+        }
+        if self.enabled && !self.uses_channel(&self.sms_platforms) {
             bail!("enable at least one channel")
+        }
+        if self.outage_enabled && !self.uses_channel(&self.outage_platforms) {
+            bail!("choose an enabled channel for outage notices")
+        }
+        if !(10..=3600).contains(&self.outage_min_seconds) {
+            bail!("invalid outage threshold")
+        }
+        if !(-720..=840).contains(&self.utc_offset_minutes)
+            || !matches!(self.language.as_str(), "zh-CN" | "en")
+        {
+            bail!("invalid time zone or language")
         }
         Ok(())
     }
+    fn uses_channel(&self, platforms: &[String]) -> bool {
+        self.channels
+            .iter()
+            .any(|c| c.enabled && platforms.contains(&c.platform))
+    }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+enum Kind {
+    #[default]
+    Sms,
+    /// Internet outage, wall-clock milliseconds.
+    Outage { lost: u64, restored: u64 },
+}
 #[derive(Clone, Serialize)]
 struct Notification {
     id: String,
@@ -185,6 +238,72 @@ struct Notification {
     text: String,
     #[serde(skip)]
     parts: Vec<Part>,
+    #[serde(skip)]
+    kind: Kind,
+}
+impl Notification {
+    /// Heading for the outage notice, in the language saved with the settings.
+    fn title(&self, english: bool) -> &'static str {
+        match self.kind {
+            Kind::Sms => "SMS",
+            Kind::Outage { .. } if english => "Internet restored",
+            Kind::Outage { .. } => "网络已恢复",
+        }
+    }
+    fn event(&self) -> &'static str {
+        match self.kind {
+            Kind::Sms => "sms",
+            Kind::Outage { .. } => "outage",
+        }
+    }
+}
+fn clock(ms: u64, offset_minutes: i32) -> String {
+    let offset = chrono::FixedOffset::east_opt(offset_minutes * 60)
+        .unwrap_or_else(|| chrono::FixedOffset::east_opt(0).unwrap());
+    let time = chrono::DateTime::from_timestamp_millis(ms as i64)
+        .unwrap_or_default()
+        .with_timezone(&offset);
+    let zone = if offset_minutes % 60 == 0 {
+        format!("UTC{:+}", offset_minutes / 60)
+    } else {
+        format!(
+            "UTC{}{}:{:02}",
+            if offset_minutes < 0 { '-' } else { '+' },
+            offset_minutes.abs() / 60,
+            offset_minutes.abs() % 60
+        )
+    };
+    format!("{} ({zone})", time.format("%Y-%m-%d %H:%M:%S"))
+}
+fn duration(seconds: u64, english: bool) -> String {
+    let (h, m, s) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
+    let parts = if english {
+        [(h, "h"), (m, "min"), (s, "s")]
+    } else {
+        [(h, "小时"), (m, "分"), (s, "秒")]
+    };
+    let text: Vec<String> = parts
+        .iter()
+        .enumerate()
+        .filter(|(i, (v, _))| *v > 0 || (*i == 2 && h == 0 && m == 0))
+        .map(|(_, (v, unit))| format!("{v} {unit}"))
+        .collect();
+    text.join(" ")
+}
+/// The outage notice body; the channel adds the device heading.
+fn outage_text(o: Outage, offset_minutes: i32, english: bool) -> String {
+    let seconds = o.restored.saturating_sub(o.lost) / 1000;
+    let (lost, back, length) = if english {
+        ("Lost", "Restored", "Downtime")
+    } else {
+        ("断网时间", "恢复时间", "断网时长")
+    };
+    format!(
+        "{lost}: {}\n{back}: {}\n{length}: {}",
+        clock(o.lost, offset_minutes),
+        clock(o.restored, offset_minutes),
+        duration(seconds, english)
+    )
 }
 #[derive(Default)]
 struct Detector {
@@ -267,6 +386,7 @@ impl Detector {
                 continue;
             }
             result.push(Notification {
+                kind: Kind::Sms,
                 id: hex::encode(identity(first)),
                 device: device.into(),
                 sender: parser::text(first, "sender").into(),
@@ -330,6 +450,8 @@ struct Job {
 #[derive(Serialize)]
 struct Record {
     time: i64,
+    /// "sms", "outage" or "test".
+    event: &'static str,
     platform: String,
     sender: String,
     status: String,
@@ -414,7 +536,8 @@ impl Forwarder {
     }
     fn snapshot_locked(&self, s: &State) -> Value {
         let channels: Vec<_> = s.settings.channels.iter().map(|c|json!({"platform":c.platform,"enabled":c.enabled,"number":c.number,"has_url":!c.url.is_empty(),"has_token":!c.token.is_empty(),"has_secret":!c.secret.is_empty()})).collect();
-        json!({"sms_enabled":s.settings.sms_enabled,"delete_after_day":s.settings.delete_after_day,"cleanup":self.cleanup.status(),"enabled":s.settings.enabled,"device_name":s.settings.device_name,"channels":channels,"queued":s.queue.len(),"ready":s.detector.initialized,"error":s.poll_error,"records":s.records,"retry_seconds":180})
+        let st = &s.settings;
+        json!({"sms_enabled":st.sms_enabled,"delete_after_day":st.delete_after_day,"cleanup":self.cleanup.status(),"enabled":st.enabled,"device_name":st.device_name,"channels":channels,"sms_platforms":st.sms_platforms,"outage_enabled":st.outage_enabled,"outage_platforms":st.outage_platforms,"outage_min_seconds":st.outage_min_seconds,"utc_offset_minutes":st.utc_offset_minutes,"language":st.language,"queued":s.queue.len(),"ready":s.detector.initialized,"error":s.poll_error,"records":s.records,"retry_seconds":180})
     }
     fn merge_settings(&self, mut next: Settings) -> Result<Settings> {
         next.migrate();
@@ -471,7 +594,10 @@ impl Forwarder {
             let mut s = self.state.lock().unwrap();
             let reset = s.settings.enabled != next.enabled
                 || s.settings.sms_enabled != next.sms_enabled
-                || s.settings.channels != next.channels;
+                || s.settings.channels != next.channels
+                || s.settings.sms_platforms != next.sms_platforms
+                || s.settings.outage_enabled != next.outage_enabled
+                || s.settings.outage_platforms != next.outage_platforms;
             s.settings = next;
             if reset {
                 s.generation += 1;
@@ -489,9 +615,17 @@ impl Forwarder {
         saved?;
         Ok(self.snapshot())
     }
-    fn record(s: &mut State, platform: &str, sender: &str, status: &str, detail: &str) {
+    fn record(
+        s: &mut State,
+        event: &'static str,
+        platform: &str,
+        sender: &str,
+        status: &str,
+        detail: &str,
+    ) {
         s.records.push_front(Record {
             time: chrono::Utc::now().timestamp_millis(),
+            event,
             platform: platform.into(),
             sender: sender.into(),
             status: status.into(),
@@ -499,7 +633,7 @@ impl Forwarder {
         });
         s.records.truncate(50);
     }
-    pub fn start(self: &Arc<Self>, at: At) {
+    pub fn start(self: &Arc<Self>, at: At, events: &Events) {
         let _ = self.at.set(at.clone());
         let cleanup_self = self.clone();
         let cleanup_at = at.clone();
@@ -562,42 +696,11 @@ impl Forwarder {
                         match s.detector.scan(sms::received(&raw), &device) {
                             Ok(messages) => {
                                 s.poll_error.clear();
+                                let platforms = s.settings.sms_platforms.clone();
                                 for message in messages {
                                     let notification = Arc::new(message);
-                                    let mut pending = 0;
-                                    let mut failed = false;
-                                    for channel in 0..s.settings.channels.len() {
-                                        if !s.settings.channels[channel].enabled {
-                                            continue;
-                                        }
-                                        let bytes: usize =
-                                            s.queue.iter().map(|j| j.notification.text.len()).sum();
-                                        if s.queue.len() >= MAX_JOBS
-                                            || bytes + notification.text.len() > MAX_QUEUED_BYTES
-                                        {
-                                            let platform =
-                                                s.settings.channels[channel].platform.clone();
-                                            Self::record(
-                                                &mut s,
-                                                &platform,
-                                                &notification.sender,
-                                                "failed",
-                                                "queue capacity exceeded",
-                                            );
-                                            failed = true;
-                                            continue;
-                                        }
-                                        let now = Instant::now();
-                                        s.queue.push_back(Job {
-                                            notification: notification.clone(),
-                                            channel,
-                                            part: 0,
-                                            attempts: 0,
-                                            created: now,
-                                            next: now,
-                                        });
-                                        pending += 1;
-                                    }
+                                    let (pending, failed) =
+                                        Self::enqueue(&mut s, &notification, &platforms);
                                     if pending > 0 {
                                         s.outcomes
                                             .insert(notification.id.clone(), (pending, failed));
@@ -620,6 +723,89 @@ impl Forwarder {
                 this.deliver_next().await;
             }
         });
+        let this = self.clone();
+        let mut outages = events.outages();
+        tokio::spawn(async move {
+            loop {
+                match outages.recv().await {
+                    Ok(outage) => {
+                        this.notify_outage(outage);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => return,
+                }
+            }
+        });
+    }
+    /// Queues `notification` on every enabled channel `platforms` names; returns the number
+    /// of jobs and whether a channel was skipped for lack of queue room.
+    fn enqueue(
+        s: &mut State,
+        notification: &Arc<Notification>,
+        platforms: &[String],
+    ) -> (usize, bool) {
+        let mut pending = 0;
+        let mut failed = false;
+        for channel in 0..s.settings.channels.len() {
+            let c = &s.settings.channels[channel];
+            if !c.enabled || !platforms.contains(&c.platform) {
+                continue;
+            }
+            let bytes: usize = s.queue.iter().map(|j| j.notification.text.len()).sum();
+            if s.queue.len() >= MAX_JOBS || bytes + notification.text.len() > MAX_QUEUED_BYTES {
+                let platform = c.platform.clone();
+                Self::record(
+                    s,
+                    notification.event(),
+                    &platform,
+                    &notification.sender,
+                    "failed",
+                    "queue capacity exceeded",
+                );
+                failed = true;
+                continue;
+            }
+            let now = Instant::now();
+            s.queue.push_back(Job {
+                notification: notification.clone(),
+                channel,
+                part: 0,
+                attempts: 0,
+                created: now,
+                next: now,
+            });
+            pending += 1;
+        }
+        (pending, failed)
+    }
+    /// Queues the internet-restored notice for a finished outage, when switched on and the
+    /// outage lasted long enough. Returns the number of channels it went to.
+    fn notify_outage(&self, outage: Outage) -> usize {
+        let mut s = self.state.lock().unwrap();
+        let st = &s.settings;
+        let seconds = outage.restored.saturating_sub(outage.lost) / 1000;
+        // A clock set after the outage started (no network time yet) gives no usable length.
+        if !st.outage_enabled
+            || outage.restored < outage.lost
+            || seconds < u64::from(st.outage_min_seconds)
+        {
+            return 0;
+        }
+        let english = st.language == "en";
+        let notification = Arc::new(Notification {
+            id: format!("outage-{}", outage.lost),
+            device: st.device_name.clone(),
+            sender: String::new(),
+            received_at: clock(outage.restored, st.utc_offset_minutes),
+            text: outage_text(outage, st.utc_offset_minutes, english),
+            parts: Vec::new(),
+            kind: Kind::Outage {
+                lost: outage.lost,
+                restored: outage.restored,
+            },
+        });
+        let platforms = st.outage_platforms.clone();
+        Self::enqueue(&mut s, &notification, &platforms).0
     }
     async fn deliver_next(&self) {
         let work = {
@@ -633,6 +819,7 @@ impl Forwarder {
                     let platform = s.settings.channels[job.channel].platform.clone();
                     Self::record(
                         &mut s,
+                        job.notification.event(),
                         &platform,
                         &job.notification.sender,
                         "failed",
@@ -696,6 +883,7 @@ impl Forwarder {
                     self.completed(&mut s, &job.notification, true);
                     Self::record(
                         &mut s,
+                        job.notification.event(),
                         &channel.platform,
                         &job.notification.sender,
                         "sent",
@@ -710,6 +898,7 @@ impl Forwarder {
                 job.attempts += 1;
                 Self::record(
                     &mut s,
+                    job.notification.event(),
                     &channel.platform,
                     &job.notification.sender,
                     if retry { "retrying" } else { "failed" },
@@ -756,8 +945,9 @@ impl Forwarder {
             device,
             sender: "SimpleAdmin".into(),
             received_at: chrono::Utc::now().to_rfc3339(),
-            text: "SMS forwarding test".into(),
+            text: "SimpleAdmin notification test".into(),
             parts: Vec::new(),
+            kind: Kind::Sms,
         };
         let result = self
             .send(&channel, &note, &note.text, 0, 1, Duration::from_secs(15))
@@ -765,11 +955,11 @@ impl Forwarder {
         let mut s = self.state.lock().unwrap();
         match result {
             Ok(()) => {
-                Self::record(&mut s, platform, "SimpleAdmin", "sent", "test");
+                Self::record(&mut s, "test", platform, "SimpleAdmin", "sent", "test");
                 Ok(json!({"ok":true}))
             }
             Err((message, _)) => {
-                Self::record(&mut s, platform, "SimpleAdmin", "failed", &message);
+                Self::record(&mut s, "test", platform, "SimpleAdmin", "failed", &message);
                 bail!("{message}")
             }
         }
@@ -810,6 +1000,7 @@ impl Forwarder {
         total: usize,
         remaining: Duration,
     ) -> std::result::Result<(), (String, bool)> {
+        let english = self.state.lock().unwrap().settings.language == "en";
         if self.client.get().is_none() {
             let client = reqwest::Client::builder()
                 .dns_resolver(Arc::new(crate::resolver::HttpResolver::default()))
@@ -824,8 +1015,16 @@ impl Forwarder {
             let _ = self.client.set(client);
         }
         let client = self.client.get().unwrap();
-        let (url, body) = payload(c, n, part, index, total, chrono::Utc::now().timestamp())
-            .map_err(|_| ("invalid channel configuration".into(), false))?;
+        let (url, body) = payload(
+            c,
+            n,
+            part,
+            index,
+            total,
+            chrono::Utc::now().timestamp(),
+            english,
+        )
+        .map_err(|_| ("invalid channel configuration".into(), false))?;
         let mut request = client
             .post(url)
             .timeout(remaining.min(Duration::from_secs(15)));
@@ -894,21 +1093,31 @@ impl Forwarder {
         let at = self.at.get().context("SMS service not ready")?;
         let imsi = at.fetch("AT+CIMI", false).await?;
         let number = sms::normalize_number(&c.number, &imsi)?;
-        if sms::normalize_number(&n.sender, &imsi).ok().as_deref() == Some(number.as_str()) {
+        if n.kind == Kind::Sms
+            && sms::normalize_number(&n.sender, &imsi).ok().as_deref() == Some(number.as_str())
+        {
             bail!("Forwarding destination is the sender; loop prevented");
         }
-        let content = format!(
-            "[{}] SMS\nFrom: {}\nTime: {}\n\n{}",
-            n.device, n.sender, n.received_at, n.text
-        );
+        let english = self.state.lock().unwrap().settings.language == "en";
+        let content = match n.kind {
+            Kind::Sms => format!(
+                "[{}] SMS\nFrom: {}\nTime: {}\n\n{}",
+                n.device, n.sender, n.received_at, n.text
+            ),
+            Kind::Outage { .. } => format!("[{}] {}\n{}", n.device, n.title(english), n.text),
+        };
         let parts = sms::submit(&number, &content, rand::random::<u8>())?;
         let started = Instant::now();
         for (index, (pdu, len)) in parts.iter().enumerate() {
             let _guard = self.sms_mutation.lock().await;
             {
                 let state = self.state.lock().unwrap();
+                let sender_on = match n.kind {
+                    Kind::Sms => state.settings.enabled,
+                    Kind::Outage { .. } => state.settings.outage_enabled,
+                };
                 if !state.settings.sms_enabled
-                    || !state.settings.enabled
+                    || !sender_on
                     || state.generation != generation
                     || !state.settings.channels.contains(c)
                 {
@@ -968,16 +1177,20 @@ fn payload(
     index: usize,
     total: usize,
     seconds: i64,
+    english: bool,
 ) -> Result<(reqwest::Url, Value)> {
-    let content = format!(
-        "[{}] SMS ({}/{})\nFrom: {}\nTime: {}\n\n{}",
-        n.device,
-        index + 1,
-        total,
-        n.sender,
-        n.received_at,
-        part
-    );
+    let content = match n.kind {
+        Kind::Sms => format!(
+            "[{}] SMS ({}/{})\nFrom: {}\nTime: {}\n\n{}",
+            n.device,
+            index + 1,
+            total,
+            n.sender,
+            n.received_at,
+            part
+        ),
+        Kind::Outage { .. } => format!("[{}] {}\n{}", n.device, n.title(english), part),
+    };
     let mut url = reqwest::Url::parse(if c.platform == "serverchan" {
         "https://sctapi.ftqq.com"
     } else {
@@ -986,7 +1199,7 @@ fn payload(
     let body = match c.platform.as_str() {
         "serverchan" => {
             url.set_path(&format!("/{}.send", c.token));
-            json!({"title":format!("{} SMS",n.device).chars().take(32).collect::<String>(),"desp":content})
+            json!({"title":format!("{} {}",n.device,n.title(english)).chars().take(32).collect::<String>(),"desp":content})
         }
         "wecom" => json!({"msgtype":"text","text":{"content":content}}),
         "dingtalk" => {
@@ -1007,9 +1220,19 @@ fn payload(
             }
             value
         }
-        "webhook" => {
-            json!({"event":"sms.received","id":n.id,"device":n.device,"sender":n.sender,"received_at":n.received_at,"text":part,"part":index+1,"parts":total})
-        }
+        "webhook" => match n.kind {
+            Kind::Sms => {
+                json!({"event":"sms.received","id":n.id,"device":n.device,"sender":n.sender,"received_at":n.received_at,"text":part,"part":index+1,"parts":total})
+            }
+            Kind::Outage { lost, restored } => {
+                let iso = |ms: u64| {
+                    chrono::DateTime::from_timestamp_millis(ms as i64)
+                        .unwrap_or_default()
+                        .to_rfc3339()
+                };
+                json!({"event":"network.restored","id":n.id,"device":n.device,"lost_at":iso(lost),"restored_at":iso(restored),"seconds":restored.saturating_sub(lost)/1000,"text":part,"part":index+1,"parts":total})
+            }
+        },
         _ => bail!("unknown platform"),
     };
     Ok((url, body))

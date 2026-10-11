@@ -402,8 +402,25 @@ impl Monitor {
                     status: 3,
                 };
                 let mut ip = String::new();
-                // Mock mode: a target under .invalid simulates an outage for the watchdog tests.
-                if this.mock && target.ends_with(".invalid") {
+                // Mock mode: a target under .invalid simulates an outage for the watchdog tests;
+                // "down<N>.invalid" recovers N seconds after its first probe.
+                let mock_down = this.mock && target.ends_with(".invalid") && {
+                    static FIRST: Mutex<Option<(String, u64)>> = Mutex::new(None);
+                    let mut first = FIRST.lock().unwrap();
+                    let since = match &*first {
+                        Some((seen, since)) if *seen == target => *since,
+                        _ => {
+                            *first = Some((target.clone(), time));
+                            time
+                        }
+                    };
+                    target
+                        .strip_prefix("down")
+                        .and_then(|rest| rest.strip_suffix(".invalid"))
+                        .and_then(|n| n.parse::<u64>().ok())
+                        .is_none_or(|n| time.saturating_sub(since) < n * 1000)
+                };
+                if mock_down {
                     sample.status = 1;
                 } else if this.mock {
                     sample.rtt = ((24.0

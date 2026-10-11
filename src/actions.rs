@@ -71,11 +71,25 @@ pub fn scan_mode(mode: &str) -> Result<&'static str> {
         _ => bail!("invalid scan mode"),
     }
 }
-/// FR1 SA cells use 15 or 30 kHz and FR2 cells 60 or 120 kHz. Quectel warns that
-/// locking a cell with an SCS its band does not support crashes the module.
+/// SSB subcarrier spacings an FR1 band allows (3GPP TS 38.101-1 table 5.4.3.3-1); `None`
+/// for a band the table here does not list.
+pub fn nr_band_scs(band: u32) -> Option<&'static [u32]> {
+    const ONLY_15: &[u32] = &[15];
+    const ONLY_30: &[u32] = &[30];
+    const BOTH: &[u32] = &[15, 30];
+    Some(match band {
+        1 | 2 | 3 | 7 | 8 | 12 | 13 | 14 | 18 | 20 | 25 | 26 | 28 | 29 | 30 | 51 | 65 | 70 | 71
+        | 74 | 75 | 76 | 91 | 92 | 93 | 94 => ONLY_15,
+        5 | 34 | 38 | 39 | 40 | 41 | 53 | 66 | 90 => BOTH,
+        24 | 46 | 48 | 50 | 77 | 78 | 79 | 96 => ONLY_30,
+        _ => return None,
+    })
+}
+/// FR1 cells use 15 or 30 kHz, as the band allows, and FR2 cells 60 or 120 kHz. Quectel warns
+/// that locking with an SCS the band does not support crashes the module.
 pub fn nr_scs_valid(band: u32, scs: u32) -> bool {
     if band < 257 {
-        matches!(scs, 15 | 30)
+        nr_band_scs(band).map_or(matches!(scs, 15 | 30), |allowed| allowed.contains(&scs))
     } else {
         matches!(scs, 60 | 120)
     }

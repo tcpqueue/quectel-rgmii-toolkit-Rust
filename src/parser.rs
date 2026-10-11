@@ -907,6 +907,24 @@ pub fn cell_locks(raw: &str) -> Value {
     }
     out
 }
+/// NR frequency lock from `AT+QNWCFG="nr5g_earfcn_lock"`, e.g.
+/// `+QNWCFG: "nr5g_earfcn_lock",2,504990:30:513000:30`, as (arfcn, scs) pairs; empty when
+/// unlocked, `None` when the answer has no such line.
+pub fn nr_freq_lock(raw: &str) -> Option<Vec<(u32, u32)>> {
+    let p = lines(raw)
+        .filter_map(|l| l.trim().strip_prefix("+QNWCFG:"))
+        .map(fields)
+        .find(|p| p.first().is_some_and(|k| k == "nr5g_earfcn_lock"))?;
+    let count: usize = p.get(1)?.parse().ok()?;
+    let values: Vec<u32> = p
+        .get(2)
+        .map(|v| v.split(':').filter_map(|n| n.parse().ok()).collect())
+        .unwrap_or_default();
+    if values.len() != count * 2 {
+        return if count == 0 { Some(vec![]) } else { None };
+    }
+    Some(values.chunks(2).map(|c| (c[0], c[1])).collect())
+}
 /// LTE operating band for a downlink EARFCN (3GPP TS 36.101 table 5.7.3-1).
 pub fn lte_band(earfcn: u32) -> Option<u32> {
     const BANDS: [(u32, u32, u32); 27] = [
@@ -1009,8 +1027,7 @@ pub fn nr_meas(raw: &str) -> Vec<(u32, u32, String)> {
 /// MBN profiles and auto-selection from `AT+QMBNCFG="AutoSel";+QMBNCFG="list"`, and the NR SA
 /// bands the active profile allows from `AT+QNWPREFCFG="policy_band"`.
 pub fn mbn(raw: &str) -> Value {
-    let mut out =
-        json!({"auto_select":null,"profiles":[],"policy_sa_bands":null,"policy_lte_bands":null});
+    let mut out = json!({"auto_select":null,"profiles":[],"policy_sa_bands":null,"policy_nsa_bands":null,"policy_lte_bands":null});
     let mut profiles = vec![];
     for line in lines(raw) {
         let line = line.trim();
@@ -1033,6 +1050,7 @@ pub fn mbn(raw: &str) -> Value {
             let p = fields(tail);
             match p.first().map(String::as_str) {
                 Some("nr5g_band") if p.len() > 1 => out["policy_sa_bands"] = json!(p[1]),
+                Some("nsa_nr5g_band") if p.len() > 1 => out["policy_nsa_bands"] = json!(p[1]),
                 Some("lte_band") if p.len() > 1 => out["policy_lte_bands"] = json!(p[1]),
                 _ => {}
             }
