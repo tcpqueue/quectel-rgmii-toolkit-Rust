@@ -177,10 +177,13 @@ impl Events {
         state.outage_since = None;
         state.outage_reported = false;
     }
-    /// Newest first.
+    /// Newest first by event time. An outage is dated from its first failed probe but only
+    /// recorded 10 s later, so insertion order is not time order.
     pub fn snapshot(&self) -> Value {
         let state = self.state.lock().unwrap();
-        json!({"events": state.list.iter().rev().cloned().collect::<Vec<_>>()})
+        let mut list: Vec<Value> = state.list.iter().rev().cloned().collect();
+        list.sort_by_key(|e| std::cmp::Reverse(e["time"].as_u64().unwrap_or(0)));
+        json!({ "events": list })
     }
     pub fn clear(&self) {
         self.state.lock().unwrap().list.clear();
@@ -259,6 +262,25 @@ mod tests {
         assert_eq!(
             list[1]["time"], 20_000,
             "the outage is dated from its first failure"
+        );
+    }
+    #[test]
+    fn events_are_listed_by_time() {
+        let e = Events::default();
+        e.observe_radio(radio("LTE", "1", "B3"), 1_000);
+        e.observe_probe(false, 20_000);
+        e.observe_radio(radio("", "", ""), 26_000);
+        e.observe_probe(false, 31_000);
+        let times: Vec<u64> = e.snapshot()["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v["time"].as_u64().unwrap())
+            .collect();
+        assert_eq!(
+            times,
+            [26_000, 20_000],
+            "the outage sorts before the later signal loss"
         );
     }
     #[test]

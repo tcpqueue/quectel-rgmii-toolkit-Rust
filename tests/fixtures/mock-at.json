@@ -21,5 +21,6 @@
   "AT+QNWCFG=\"nr5g_meas_info\"": "+QNWCFG: \"nr5g_meas_info\",1,627264,403,-98,-11,15\r\n\r\nOK",
   "AT+QNWPREFCFG=\"lte_band\"": "+QNWPREFCFG: \"lte_band\",1:3:5:8:34:38:39:40:41\r\n\r\nOK",
   "AT+QNWPREFCFG=\"nsa_nr5g_band\"": "+QNWPREFCFG: \"nsa_nr5g_band\",1:28:41:78\r\n\r\nOK",
-  "AT+QNWPREFCFG=\"nr5g_band\"": "+QNWPREFCFG: \"nr5g_band\",1:5:28:41:78\r\n\r\nOK"
+  "AT+QNWPREFCFG=\"nr5g_band\"": "+QNWPREFCFG: \"nr5g_band\",1:5:28:41:78\r\n\r\nOK",
+  "AT+QENG=\"servingcell\";+QCAINFO": "+QENG: \"servingcell\",\"NOCONN\"\r\n+QENG: \"LTE\",\"FDD\",460,01,1A2B3C4,445,1850,3,5,5,ABCD,-88,-8,-61,10,10,180,-\r\n+QENG: \"NR5G-NSA\",460,01,212,-82,17,-10,660768,78,12,1\r\n\r\nOK\r\n+QCAINFO: \"PCC\",1850,100,\"LTE BAND 3\",1,445,-88,-8,-61,10\r\n+QCAINFO: \"SCC\",660768,12,\"NR5G BAND 78\",212\r\n\r\nOK"
 }

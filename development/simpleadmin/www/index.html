@@ -332,7 +332,7 @@
 <thead><tr><th scope="col">配置</th><th scope="col">版本</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
 <tbody id="mbnTableBody">
 <tr v-if="!mbn.profiles.length"><td colspan="4" class="ui-empty" v-text="mbnLoaded ? tr('模块未返回 MBN 列表') : tr('正在读取...')"></td></tr>
-<tr v-for="profile in mbn.profiles" :key="profile.index" class="sa-mbn-row" :class="{'is-selected': profile.active}">
+<tr v-for="profile in mbnShown()" :key="profile.index" class="sa-mbn-row" :class="{'is-selected': profile.active}">
 <td data-no-i18n>{{ profile.name }}</td><td data-no-i18n class="sa-mbn-version">{{ profile.version }}</td>
 <td><span class="ui-tag" :class="profile.active ? 'is-good' : (profile.selected ? 'is-warn' : '')" v-text="profile.active ? tr('使用中') : (profile.selected ? tr('已选择，重启后生效') : tr('未使用'))"></span></td>
 <td><button type="button" class="btn btn-outline-primary btn-sm sa-mbn-select" :disabled="mbnBusy || profile.selected" @click="selectMbn(profile)">选用</button></td>
@@ -340,7 +340,7 @@
 </tbody>
 </table>
 </div>
-<div class="ui-actions"><span class="ui-status" id="mbnMessage" :class="{'text-danger': mbnFailed}" role="status" aria-live="polite" v-text="mbnMessage"></span><button v-if="mbnRebootNeeded" type="button" class="btn btn-warning" id="mbnReboot" @click="rebootForMbn()">立即重启模块</button><button type="button" class="btn btn-secondary" @click="loadMbn(true)" :disabled="mbnBusy">刷新</button></div>
+<div class="ui-actions"><button v-if="mbn.profiles.length > mbnShown().length || mbnExpanded" type="button" class="art-text-button" id="mbnToggle" @click="mbnExpanded = !mbnExpanded" v-text="mbnExpanded ? tr('收起') : tr('显示全部') + ' ' + mbn.profiles.length"></button><span class="ui-status" id="mbnMessage" :class="{'text-danger': mbnFailed}" role="status" aria-live="polite" v-text="mbnMessage"></span><button v-if="mbnRebootNeeded" type="button" class="btn btn-warning" id="mbnReboot" @click="rebootForMbn()">立即重启模块</button><button type="button" class="btn btn-secondary" @click="loadMbn(true)" :disabled="mbnBusy">刷新</button></div>
 </div>
 <p class="ui-foot">MBN 决定模块允许使用的频段和 VoLTE 等设置。例如移动配置下 SA 只允许 n28、n41，无法锁定 n78。更换配置后需重启模块。</p>
 </section>

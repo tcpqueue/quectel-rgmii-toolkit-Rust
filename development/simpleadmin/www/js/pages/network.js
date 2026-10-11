@@ -700,7 +700,13 @@ function cellLocking() {
         },
         // ---------- 运营商配置（MBN） ----------
         mbn: { auto_select: null, profiles: [], policy_sa_bands: null, policy_lte_bands: null },
-        mbnLoaded: false, mbnBusy: false, mbnMessage: '', mbnFailed: false, mbnRebootNeeded: false,
+        mbnLoaded: false, mbnBusy: false, mbnMessage: '', mbnFailed: false, mbnRebootNeeded: false, mbnExpanded: false,
+        // The module lists dozens of carrier profiles; by default only the active and selected ones.
+        mbnShown() {
+          if (this.mbnExpanded) return this.mbn.profiles;
+          const current = this.mbn.profiles.filter((p) => p.active || p.selected);
+          return current.length ? current : this.mbn.profiles;
+        },
         async loadMbn(force = false) {
           try {
             const data = await SimpleAdmin.Api.networkData(force ? { action: 'mbn', force: '1' } : { action: 'mbn' });

@@ -125,6 +125,8 @@ async function freePort() {
     // --- MBN ---
     const rows = page.locator('#mbnTableBody .sa-mbn-row');
     await rows.first().waitFor();
+    assert.equal(await rows.count(), 1, "only the active profile is shown at first");
+    await page.locator("#mbnToggle").click();
     assert.equal(await rows.count(), 3);
     assert.match(await page.locator('#mbnSummary').textContent(), /Commercial-CT/);
     assert.match(await page.locator('section[aria-labelledby="mbnTitle"]').innerText(), /SA: n1 n5 n28 n41 n78/);

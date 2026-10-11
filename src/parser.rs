@@ -1078,7 +1078,18 @@ pub fn neighbours(raw: &str) -> Value {
             && at(&p, k + 5).parse::<u32>().is_ok()
         {
             nr.push(json!({"type":"NR5G","role":"服务小区","band":at(&p,k+8),"freq":at(&p,k+7),"pci":at(&p,k+5),"rsrp":at(&p,k+10),"scs":scs_khz(&at(&p,k+13))}));
+        } else if let Some(k) = p.iter().position(|s| s == "NR5G-NSA")
+            && at(&p, k + 3).parse::<u32>().is_ok()
+        {
+            // "NR5G-NSA",<MCC>,<MNC>,<PCID>,<RSRP>,<SINR>,<RSRQ>,<ARFCN>,<band>,<NR_DL_bandwidth>,<scs>
+            nr.push(json!({"type":"NR5G","role":"服务小区","band":at(&p,k+8),"freq":at(&p,k+7),"pci":at(&p,k+3),"rsrp":at(&p,k+4),"scs":scs_khz(&at(&p,k+10))}));
         }
+    }
+    // The intra-frequency list can repeat the serving cell itself.
+    if let Some(serving) = lte.iter().find(|c| c["role"] == "服务小区").cloned() {
+        lte.retain(|c| {
+            c["role"] == "服务小区" || c["freq"] != serving["freq"] || c["pci"] != serving["pci"]
+        });
     }
     // NR neighbours from nr5g_meas_info carry no band or SCS. A neighbour inherits both from
     // the serving cell when its frequency falls in the serving band; otherwise the SCS stays
@@ -1227,6 +1238,52 @@ mod tests {
             (&json!("41"), &Value::Null)
         );
         assert_eq!(nr_bands(520000), [38, 41].to_vec());
+    }
+    #[test]
+    fn nsa_serving_cell_anchors_the_nr_neighbours() {
+        // Captured from an RM520N-EU on China Mobile in NSA (RM520NEUDAR03A08M4G).
+        let raw = "+QENG: \"servingcell\",\"NOCONN\"\r\n\
+                   +QENG: \"LTE\",\"FDD\",460,00,F581B57,262,1300,3,5,5,99D2,-93,-13,-60,15,15,150,-\r\n\
+                   +QENG: \"NR5G-NSA\",460,00,108,-82,17,-10,504990,41,12,1\r\n\
+                   +QENG: \"neighbourcell intra\",\"LTE\",1300,262,-12,-95,-62,8,30,6,52,6,44\r\n\
+                   +QENG: \"neighbourcell intra\",\"LTE\",1300,30,-15,-108,-70,2,18,6,52,6,44\r\n\r\nOK\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1,504990,109,-90,-12\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1,504990,108,-85,-11\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1,504990,898,-98,-14\r\n\r\nOK\r\n";
+        let v = neighbours(raw);
+        let nr = v["nr5g_cells_parsed"].as_array().unwrap();
+        assert_eq!(nr.len(), 3, "the serving cell 108 is not listed twice");
+        assert_eq!(
+            (
+                &nr[0]["role"],
+                &nr[0]["pci"],
+                &nr[0]["band"],
+                &nr[0]["scs"],
+                &nr[0]["rsrp"]
+            ),
+            (
+                &json!("服务小区"),
+                &json!("108"),
+                &json!("41"),
+                &json!(30),
+                &json!("-82")
+            )
+        );
+        assert_eq!(
+            (&nr[1]["role"], &nr[1]["pci"], &nr[1]["scs"], &nr[1]["rsrp"]),
+            (&json!("同频邻区"), &json!("109"), &json!(30), &json!("-90"))
+        );
+        let lte = v["lte_cells_parsed"].as_array().unwrap();
+        assert_eq!(
+            lte.len(),
+            2,
+            "the serving cell is not repeated as a neighbour"
+        );
+        assert_eq!(
+            (&lte[0]["pci"], &lte[0]["role"]),
+            (&json!("262"), &json!("服务小区"))
+        );
+        assert_eq!(lte[1]["pci"], "30");
     }
     #[test]
     fn mbn_lists_profiles_and_policy_bands() {

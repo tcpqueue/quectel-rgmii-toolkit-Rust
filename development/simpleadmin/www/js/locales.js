@@ -525,6 +525,8 @@
 "请至少开启一个恢复步骤": "Turn on at least one recovery step",
 "已允许看门狗重启模块。断网时模块可能自动重启，确定保存？": "The watchdog may restart the module during an outage. Save?",
 "锁定保护": "Lock protection",
+"显示全部": "Show all",
+"收起": "Show less",
 "这个 5G 邻区的频段或子载波间隔不确定，不能直接锁定；可用完整扫描获取后再锁定。": "The band or subcarrier spacing of this 5G neighbour is unknown, so it cannot be locked directly; run a full scan to get it first.",
 "锁定后 30 秒内找不到小区，自动恢复为锁定前的频段": "If no cell is found within 30 s of a lock, the previous bands are restored",
 "锁定失败": "Lock failed",
