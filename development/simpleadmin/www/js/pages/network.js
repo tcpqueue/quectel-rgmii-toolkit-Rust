@@ -261,6 +261,7 @@ function cellLocking() {
         // 邻区扫描读 AT+QENG（约 1 秒，只含服务小区和 LTE 邻区）；完整扫描用 AT+QSCAN（几分钟）。
         scanKind: 'neighbour',
         scanError: '',
+        scanNote: '',
         setScanKind(kind) {
           if (this.isLoading || this.lockBusy || this.scanKind === kind) return;
           this.scanKind = kind;
@@ -276,6 +277,7 @@ function cellLocking() {
         startCellScan() {
           this.clearTableRowsBodyCellScan();
           this.scanError = '';
+          this.scanNote = '';
 
           this.isLoading = true;
           this.isCellScanning = true;
@@ -311,8 +313,16 @@ function cellLocking() {
           return JSON.stringify([cell.type, cell.freq, cell.pci, cell.band].map(String));
         },
         // NR5G-SA 每次只能锁一个小区，LTE 最多 10 个；两种制式不能同时选。
+        cellLockable(cell) {
+          return cell.type !== 'NR5G' || !!cell.scs;
+        },
         toggleCellSelection(cell) {
           if (this.lockBusy || this.isLoading || !cell) return;
+          if (!this.cellLockable(cell)) {
+            this.scanNote = this.tr('这个 5G 邻区的频段或子载波间隔不确定，不能直接锁定；可用完整扫描获取后再锁定。');
+            return;
+          }
+          this.scanNote = '';
           const index = this.selectedCells.findIndex(selected => this.cellSelectionKey(selected) === this.cellSelectionKey(cell));
           if (index !== -1) {
             this.selectedCells.splice(index, 1);
@@ -539,6 +549,7 @@ function cellLocking() {
           // 初始化时，禁止用户操作（还没有准备好）
           this._initialized = false;
           this.loadPdp(true);            // PDP 与功能开关独立加载，不阻塞频段查询
+          this.loadMbn();
 
           await this.getModel();          // 先确定型号
           this.applyModelBands();        // 型号可用后立刻得到当前可用频段
@@ -631,13 +642,122 @@ function cellLocking() {
             alert("没有选中任何频段，请选择至少一个频段！");
             return;
           }
-          await SimpleAdmin.Api.networkData({ action: 'lock_bands', mode: selectedMode, values: newCheckedValues.join(':') });
+          this.bandGuardMessage = '';
+          this.bandGuardFailed = false;
+          let result = null;
+          try {
+            result = await SimpleAdmin.Api.networkData({ action: 'lock_bands', mode: selectedMode, values: newCheckedValues.join(':'), guard: this.bandGuard ? '1' : '0' });
+            if (result && result.ok === false) throw new Error(result.error || result.response || '');
+          } catch (error) {
+            this.bandGuardFailed = true;
+            this.bandGuardMessage = this.tr('锁定失败') + (error.message ? ' · ' + error.message : '');
+            return;
+          }
           this.invalidateLockedBands(selectedMode);
+          if (result && result.guard) this.followBandGuard();
           await this.startModalCountdown(3);
           await Promise.all([
             this.getSupportedBands(true, selectedMode),
             this.getCurrentSettings()
           ]);
+        },
+        // ---------- 频段锁定保护：30 秒内无信号恢复原频段 ----------
+        bandGuard: (() => { try { return localStorage.getItem('sa-band-guard') !== '0'; } catch (_) { return true; } })(),
+        bandGuardMessage: '',
+        bandGuardFailed: false,
+        bandGuardTimer: null,
+        setBandGuard(enabled) {
+          this.bandGuard = enabled;
+          try { localStorage.setItem('sa-band-guard', enabled ? '1' : '0'); } catch (_) {}
+        },
+        followBandGuard() {
+          clearTimeout(this.bandGuardTimer);
+          const poll = async () => {
+            let status = null;
+            try { status = await SimpleAdmin.Api.networkData({ action: 'band_guard' }); } catch (_) {}
+            const phase = status && status.phase;
+            if (phase === 'checking') {
+              const left = Math.max(0, 30 - Math.round((Date.now() - status.started) / 1000));
+              this.bandGuardMessage = this.tr('已锁定，正在确认能否找到小区') + (left ? ` · ${left} s` : '');
+              this.bandGuardTimer = setTimeout(poll, 3000);
+              return;
+            }
+            this.bandGuardFailed = phase === 'reverted' || phase === 'failed';
+            this.bandGuardMessage = ({
+              ok: this.tr('已锁定，信号正常'),
+              reverted: this.tr('30 秒内找不到小区，已恢复原来的频段'),
+              failed: this.tr('30 秒内找不到小区，恢复原频段失败，请手动点“恢复全部”'),
+              cancelled: ''
+            })[phase] || '';
+            if (this.bandGuardFailed) {
+              this.locked_lte_bands = null;
+              this.locked_nsa_bands = null;
+              this.locked_sa_bands = null;
+              this.getSupportedBands(true, 'ALL');
+            }
+          };
+          this.bandGuardTimer = setTimeout(poll, 1000);
+        },
+        // ---------- 运营商配置（MBN） ----------
+        mbn: { auto_select: null, profiles: [], policy_sa_bands: null, policy_lte_bands: null },
+        mbnLoaded: false, mbnBusy: false, mbnMessage: '', mbnFailed: false, mbnRebootNeeded: false, mbnExpanded: false,
+        // The module lists dozens of carrier profiles; by default only the active and selected ones.
+        mbnShown() {
+          if (this.mbnExpanded) return this.mbn.profiles;
+          const current = this.mbn.profiles.filter((p) => p.active || p.selected);
+          return current.length ? current : this.mbn.profiles;
+        },
+        async loadMbn(force = false) {
+          try {
+            const data = await SimpleAdmin.Api.networkData(force ? { action: 'mbn', force: '1' } : { action: 'mbn' });
+            if (data && Array.isArray(data.profiles)) this.mbn = data;
+          } catch (error) {
+            this.mbnFailed = true;
+            this.mbnMessage = this.tr('读取失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            this.mbnLoaded = true;
+          }
+        },
+        mbnActive() {
+          return this.mbn.profiles.find((p) => p.active) || null;
+        },
+        mbnBands(list) {
+          return list ? list.split(':').map((b) => 'n' + b).join(' ') : '-';
+        },
+        async runMbn(params, confirmText) {
+          if (this.mbnBusy || (confirmText && !window.confirm(this.tr(confirmText)))) return;
+          this.mbnBusy = true;
+          this.mbnFailed = false;
+          this.mbnMessage = this.tr('正在执行...');
+          try {
+            const data = await SimpleAdmin.Api.networkData(params);
+            if (!data || data.ok === false) throw new Error((data && (data.error || data.response)) || '');
+            this.mbnRebootNeeded = true;
+            this.mbnMessage = this.tr('已保存，重启模块后生效');
+          } catch (error) {
+            this.mbnFailed = true;
+            this.mbnMessage = this.tr('操作失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            await this.loadMbn(true);
+            this.mbnBusy = false;
+          }
+        },
+        setMbnAutoSel(enabled) {
+          return this.runMbn({ action: 'mbn_autosel', enabled: enabled ? '1' : '0' }, enabled ? null : '关闭自动选择后，换成其他运营商的 SIM 卡时不会自动切换配置。继续？');
+        },
+        selectMbn(profile) {
+          return this.runMbn({ action: 'mbn_select', name: profile.name }, '将关闭自动选择并改用此配置，重启模块后生效。选错配置可能导致无法注册网络，继续？');
+        },
+        async rebootForMbn() {
+          if (!window.confirm(this.tr('立即重启模块？网络会中断约 1 分钟。'))) return;
+          try {
+            await SimpleAdmin.Api.settingsData({ action: 'reboot' });
+            this.mbnMessage = this.tr('模块正在重启，请约 1 分钟后刷新页面');
+            this.mbnRebootNeeded = false;
+          } catch (error) {
+            this.mbnFailed = true;
+            this.mbnMessage = this.tr('操作失败') + (error.message ? ' · ' + error.message : '');
+          }
         },
 
         async lockSelectedBands() {

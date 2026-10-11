@@ -53,6 +53,9 @@ pub struct App {
     pub webui: crate::webui::ListenerState,
     pub cell_lock: Arc<crate::cell_lock::CellLock>,
     pub ota: Arc<crate::ota::Ota>,
+    pub events: Arc<crate::events::Events>,
+    pub band_guard: Arc<crate::band_guard::BandGuard>,
+    pub watchdog: Arc<crate::watchdog::Watchdog>,
 }
 pub fn json_response(status: u16, value: Value) -> Response {
     (StatusCode::from_u16(status).unwrap(), axum::Json(value)).into_response()
@@ -151,8 +154,15 @@ impl App {
         let store = Arc::new(Store::new(config.mock));
         let auth = Auth::new(config.auth_file.clone(), &store)?;
         let at = At::start(config.mock, config.devices())?;
+        let events = Arc::new(crate::events::Events::default());
         let monitor = Monitor::new(
             config.auth_file.with_file_name("monitor.json"),
+            config.mock,
+            store.clone(),
+            events.clone(),
+        );
+        let watchdog = crate::watchdog::Watchdog::new(
+            config.auth_file.with_file_name("watchdog.json"),
             config.mock,
             store.clone(),
         );
@@ -190,6 +200,9 @@ impl App {
             webui: crate::webui::ListenerState::default(),
             cell_lock,
             ota,
+            events,
+            band_guard: Default::default(),
+            watchdog,
         }))
     }
     pub fn start(self: &Arc<Self>) {
@@ -198,6 +211,8 @@ impl App {
         self.forwarding.start(self.at.clone());
         self.cell_lock.start(self.at.clone());
         self.ota.start();
+        self.watchdog
+            .start(self.at.clone(), self.monitor.clone(), self.events.clone());
         let app = self.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(30));
@@ -352,7 +367,16 @@ fn method_allowed(path: &str, action: &str, method: &str) -> bool {
         "/api/network_data" => {
             matches!(
                 action,
-                "" | "settings" | "cell_lock_status" | "model" | "bands" | "pdp" | "neighbours"
+                "" | "settings"
+                    | "cell_lock_status"
+                    | "model"
+                    | "bands"
+                    | "pdp"
+                    | "neighbours"
+                    | "events"
+                    | "band_guard"
+                    | "mbn"
+                    | "watchdog"
             )
         }
         "/api/settings_data" => matches!(action, "" | "status"),
@@ -606,11 +630,60 @@ async fn network(app: &Arc<App>, p: &Params) -> Result<Value> {
             data["module"] = parser::cell_locks(&raw);
             Ok(data)
         }
-        "neighbours" => Ok(parser::neighbours(
-            &app.at
+        "neighbours" => {
+            let mut raw = app
+                .at
                 .run("AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"")
-                .await?,
-        )),
+                .await?;
+            raw.push('\n');
+            raw.push_str(&nr_measurements(app).await);
+            Ok(parser::neighbours(&raw))
+        }
+        "events" => Ok(app.events.snapshot()),
+        "events_clear" => {
+            app.events.clear();
+            Ok(json!({"ok":true}))
+        }
+        "band_guard" => Ok(app.band_guard.snapshot()),
+        "lock_bands" => lock_bands(app, p).await,
+        "reset_bands" => {
+            app.band_guard.cancel();
+            run_action(app, &actions::network(p)?).await
+        }
+        "mbn" => Ok(parser::mbn(&app.at.page("mbn", force).await?)),
+        "mbn_autosel" => {
+            run_action(
+                app,
+                &format!(
+                    "AT+QMBNCFG=\"AutoSel\",{}",
+                    u8::from(p.flag("enabled", true))
+                ),
+            )
+            .await
+        }
+        "mbn_select" => mbn_select(app, p.get("name")).await,
+        "watchdog" => {
+            let mut data = app.watchdog.snapshot();
+            data["probe_enabled"] = json!(app.monitor.schedule().ping_enabled);
+            Ok(data)
+        }
+        "watchdog_save" => {
+            let settings = crate::watchdog::Settings {
+                enabled: p.flag("enabled", false),
+                outage_seconds: p.integer("outage_seconds", 30, 3600)?,
+                cooldown_minutes: p.integer("cooldown_minutes", 5, 240)?,
+                reregister: p.flag("reregister", false),
+                radio: p.flag("radio", false),
+                sim_switch: p.flag("sim_switch", false),
+                reboot: p.flag("reboot", false),
+                max_reboots: p.integer("max_reboots", 1, 10)?,
+            };
+            app.watchdog.save(settings).await?;
+            let mut data = app.watchdog.snapshot();
+            data["ok"] = json!(true);
+            data["probe_enabled"] = json!(app.monitor.schedule().ping_enabled);
+            Ok(data)
+        }
         "pdp" => Ok(parser::pdp(&app.at.page("pdp", force).await?)),
         "sim_detect" => {
             // Keep the insert level the module already uses; only the switch changes.
@@ -827,6 +900,77 @@ async fn set_language(app: &Arc<App>, p: &Params, body: &str) -> Result<Value> {
     let store = app.store.clone();
     tokio::task::spawn_blocking(move || store.write(&path, bytes.as_bytes(), 0o644)).await??;
     Ok(value)
+}
+/// NR neighbour measurements. When the module has measurement reporting switched off, it is
+/// switched on for one reading and off again, so the module's setting stays as it was.
+async fn nr_measurements(app: &Arc<App>) -> String {
+    const QUERY: &str = "AT+QNWCFG=\"nr5g_meas_info\"";
+    let raw = app.at.run(QUERY).await.unwrap_or_default();
+    let off = parser::lines(&raw)
+        .filter_map(|l| l.trim().strip_prefix("+QNWCFG:"))
+        .map(parser::fields)
+        .any(|f| f.len() == 2 && f[0] == "nr5g_meas_info" && f[1] == "0");
+    if !off {
+        return raw;
+    }
+    if !app
+        .at
+        .run("AT+QNWCFG=\"nr5g_meas_info\",1")
+        .await
+        .is_ok_and(|r| parser::ok(&r))
+    {
+        return String::new();
+    }
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let raw = app.at.run(QUERY).await.unwrap_or_default();
+    let _ = app.at.run("AT+QNWCFG=\"nr5g_meas_info\",0").await;
+    raw
+}
+/// Band lock with the optional 30-second guard that restores the previous list when the
+/// module finds no cell.
+async fn lock_bands(app: &Arc<App>, p: &Params) -> Result<Value> {
+    let command = actions::network(p)?;
+    let mode = actions::band_mode(p.get("mode"))?;
+    app.band_guard.cancel();
+    if !p.flag("guard", false) {
+        return run_action(app, &command).await;
+    }
+    let previous = crate::band_guard::BandGuard::previous(&app.at, mode).await?;
+    let mut result = run_action(app, &command).await?;
+    if result["ok"] == true {
+        app.band_guard.watch(
+            app.at.clone(),
+            app.events.clone(),
+            mode,
+            p.get("values").to_owned(),
+            previous,
+        );
+        result["guard"] = json!(true);
+    }
+    Ok(result)
+}
+/// Selects an MBN profile by name. The name must be one the module lists; selecting it means
+/// switching auto-selection off and deactivating the current profile first. Takes effect after
+/// a restart.
+async fn mbn_select(app: &Arc<App>, name: &str) -> Result<Value> {
+    let listed = parser::mbn(&app.at.page("mbn", true).await?);
+    let known = listed["profiles"]
+        .as_array()
+        .is_some_and(|list| list.iter().any(|p| p["name"] == name));
+    if name.is_empty() || !known || name.contains('"') {
+        bail!("unknown MBN profile")
+    }
+    for command in [
+        "AT+QMBNCFG=\"AutoSel\",0".to_owned(),
+        "AT+QMBNCFG=\"deactivate\"".to_owned(),
+        format!("AT+QMBNCFG=\"select\",\"{name}\""),
+    ] {
+        let result = run_action(app, &command).await?;
+        if result["ok"] != true {
+            return Ok(result);
+        }
+    }
+    Ok(json!({"ok":true,"reboot_required":true}))
 }
 async fn run_action(app: &Arc<App>, command: &str) -> Result<Value> {
     let _sms_guard = if command.to_ascii_uppercase().contains("+CMGD") {

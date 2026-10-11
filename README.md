@@ -12,10 +12,10 @@
 
 | 页面 | 内容 |
 | --- | --- |
-| 总览 | 网络状态、频段、小区、信号与天线读数，CPU、内存、流量；信号、温度、流量和延迟的五分钟趋势 |
-| 网络与小区 | 频段锁定；邻区扫描与完整扫描；临时 / 持久小区锁定及三分钟拨号失败回退；APN 与网络模式；PDP 上下文管理；IMS/VoLTE、SIM 热插拔、数据漫游、SIM 卡槽 |
+| 总览 | 网络状态、频段、小区、信号与天线读数，CPU、内存、流量；信号、温度、流量和延迟的五分钟趋势；网络事件记录（切换、断网、自动恢复） |
+| 网络与小区 | 频段锁定及 30 秒无信号自动恢复；LTE/5G 邻区扫描与完整扫描；临时 / 持久小区锁定及三分钟拨号失败回退；运营商配置（MBN）；APN 与网络模式；PDP 上下文管理；IMS/VoLTE、SIM 热插拔、数据漫游、SIM 卡槽 |
 | 短信服务 | 收件箱、长短信发送；转发到 Server酱、企业微信、钉钉、飞书、Webhook 或本卡短信 |
-| 系统设置 | Web 账号密码与端口、root 密码、TTL、IP 透传、USB 网络模式、DMZ、LAN IP、DNS 代理、AT 终端、在线更新 |
+| 系统设置 | Web 账号密码与端口、root 密码、TTL、IP 透传、USB 网络模式、DMZ、LAN IP、DNS 代理、断网自动恢复（看门狗）、AT 终端、在线更新 |
 | 设备信息 | 型号、固件版本、SIM 与设备标识 |
 | 控制台 | 使用 root 密码登录的网页终端 |
 
@@ -61,9 +61,10 @@
 | Windows 设备助手：开启 ADB、联网配置、端口、支持型号 | [windows-assistant.md](docs/windows-assistant.md) |
 | 安装后打不开网页 | [install-troubleshooting.md](docs/install-troubleshooting.md) |
 | 在线更新 | [ota.md](docs/ota.md) |
-| 小区锁定、扫描与短信转发配置 | [sms-cell-lock.md](docs/sms-cell-lock.md) |
+| 小区锁定、扫描、频段锁定保护、MBN 与短信转发配置 | [sms-cell-lock.md](docs/sms-cell-lock.md) |
+| 断网自动恢复（看门狗） | [watchdog.md](docs/watchdog.md) |
 | 短信收发与兼容性 | [sms.md](docs/sms.md) · [sms-compatibility.md](docs/sms-compatibility.md) |
-| 五分钟趋势与延迟监测 | [monitoring.md](docs/monitoring.md) |
+| 五分钟趋势、延迟监测与网络事件 | [monitoring.md](docs/monitoring.md) |
 | 流量统计 | [traffic.md](docs/traffic.md) |
 | 安全设计 | [security.md](docs/security.md) |
 | 资源与存储 | [resource-optimizations.md](docs/resource-optimizations.md) |

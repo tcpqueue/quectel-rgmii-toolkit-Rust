@@ -721,6 +721,97 @@ function simpleSettings() {
           }
         },
 
+        // ---------- 断网自动恢复（看门狗） ----------
+        watchdog: null,
+        watchdogForm: null,
+        watchdogDirty: false,
+        watchdogSaving: false,
+        watchdogMessage: '',
+        watchdogFailed: false,
+        watchdogTimer: null,
+        watchdogSteps: [
+          { key: 'reregister', tier: 1, name: '重新注册网络', note: 'AT+COPS=2 后 AT+COPS=0，约 45 秒内检查是否恢复。影响最小。' },
+          { key: 'radio', tier: 2, name: '重启射频', note: 'AT+CFUN=0 / 1，约 1 分钟。小区锁定若被模块清除，会自动重新应用。' },
+          { key: 'sim_switch', tier: 3, name: '切换 SIM 卡槽', note: '切到另一卡槽，90 秒内未恢复则切回原卡槽。只有一张卡时不建议开启。' },
+          { key: 'reboot', tier: 4, name: '重启模块', note: 'AT+CFUN=1,1。恢复联网后重启计数清零。' }
+        ],
+        async watchdogLoad() {
+          clearTimeout(this.watchdogTimer);
+          try {
+            const data = await SimpleAdmin.Api.networkData({ action: 'watchdog' });
+            this.watchdog = data;
+            if (!this.watchdogDirty || !this.watchdogForm) {
+              this.watchdogForm = Object.assign({}, data.settings);
+              this.watchdogDirty = false;
+            }
+          } catch (error) {
+            this.watchdogFailed = true;
+            this.watchdogMessage = this.t('读取失败') + ' · ' + error.message;
+          }
+          // Follow a recovery in progress while the page is open.
+          if (document.querySelector('#page-settings.active') && !document.hidden) {
+            this.watchdogTimer = setTimeout(() => this.watchdogLoad(), 10000);
+          }
+        },
+        watchdogEdit() {
+          this.watchdogDirty = true;
+          this.watchdogMessage = '';
+        },
+        watchdogStepName(key) {
+          const step = this.watchdogSteps.find((s) => s.key === key);
+          return step ? this.t(step.name) : key;
+        },
+        watchdogPhaseText() {
+          const w = this.watchdog;
+          if (!w) return '';
+          const en = this.language !== 'zh-CN';
+          const minutes = Math.ceil((w.cooldown_seconds || 0) / 60);
+          const texts = {
+            off: ['已关闭', 'Off'],
+            no_probe: ['延迟监测已关闭，无法判断断网', 'Latency monitoring is off; outages cannot be detected'],
+            startup: ['开机等待中', 'Waiting after startup'],
+            monitoring: ['监测中 · 网络正常', 'Watching · connection OK'],
+            outage: [`断网 ${w.outage_seconds} 秒 / ${w.settings.outage_seconds} 秒`, `Offline ${w.outage_seconds} s / ${w.settings.outage_seconds} s`],
+            recovering: [`正在执行第 ${w.tier} 级 · ${this.watchdogStepName(w.step)}`, `Running step ${w.tier} · ${this.watchdogStepName(w.step)}`],
+            cooldown: [minutes ? `冷却中 · ${minutes} 分钟` : '冷却中', minutes ? `Cooling down · ${minutes} min` : 'Cooling down']
+          };
+          let text = (texts[w.phase] || [w.phase, w.phase])[en ? 1 : 0];
+          if (w.reboots) text += en ? ` · ${w.reboots} restarts in a row` : ` · 已连续重启 ${w.reboots} 次`;
+          return text;
+        },
+        async watchdogSave() {
+          const f = this.watchdogForm;
+          if (!f || this.watchdogSaving) return;
+          const outage = Math.round(Number(f.outage_seconds));
+          const cooldown = Math.round(Number(f.cooldown_minutes));
+          const reboots = Math.round(Number(f.max_reboots));
+          this.watchdogFailed = true;
+          if (!(outage >= 30 && outage <= 3600)) { this.watchdogMessage = this.t('断网时间为 30–3600 秒'); return; }
+          if (!(cooldown >= 5 && cooldown <= 240)) { this.watchdogMessage = this.t('间隔为 5–240 分钟'); return; }
+          if (!(reboots >= 1 && reboots <= 10)) { this.watchdogMessage = this.t('重启次数为 1–10 次'); return; }
+          if (f.enabled && !this.watchdogSteps.some((s) => f[s.key])) { this.watchdogMessage = this.t('请至少开启一个恢复步骤'); return; }
+          if (f.enabled && f.reboot && !window.confirm(this.t('已允许看门狗重启模块。断网时模块可能自动重启，确定保存？'))) { this.watchdogFailed = false; this.watchdogMessage = ''; return; }
+          this.watchdogSaving = true;
+          this.watchdogMessage = '';
+          try {
+            const flag = (v) => (v ? '1' : '0');
+            const data = await SimpleAdmin.Api.networkData({
+              action: 'watchdog_save', enabled: flag(f.enabled), outage_seconds: String(outage), cooldown_minutes: String(cooldown),
+              reregister: flag(f.reregister), radio: flag(f.radio), sim_switch: flag(f.sim_switch), reboot: flag(f.reboot), max_reboots: String(reboots)
+            });
+            if (!data || data.ok === false) throw new Error((data && data.error) || '');
+            this.watchdog = data;
+            this.watchdogForm = Object.assign({}, data.settings);
+            this.watchdogDirty = false;
+            this.watchdogFailed = false;
+            this.watchdogMessage = this.t('已保存');
+          } catch (error) {
+            this.watchdogMessage = this.t('保存失败') + (error.message ? ' · ' + error.message : '');
+          } finally {
+            this.watchdogSaving = false;
+          }
+        },
+
         init() {
           if (!this.isRebooted) {
             return;  // 如果设备正在重启，跳过
@@ -731,6 +822,11 @@ function simpleSettings() {
           this.fetchCurrentSettings();  // 发送 AT 命令获取当前设置
           this.fetchTTL();  // 获取 TTL 状态
           this.otaRefresh();
+          this.watchdogLoad();
+          // Pages mount once; reload the watchdog state on every return to this page.
+          window.addEventListener('simpleadmin:page-changed', (event) => {
+            if (event.detail && event.detail.page === 'settings') this.watchdogLoad();
+          });
         },
       };
     }

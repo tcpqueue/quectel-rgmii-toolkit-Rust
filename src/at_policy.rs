@@ -31,6 +31,11 @@ pub fn action(command: &str) -> bool {
         "+QNWPREFCFG=\"NR5G_DISABLE_MODE\",",
         "+QNWLOCK=\"COMMON/4G\",",
         "+QNWLOCK=\"COMMON/5G\", ",
+        "+COPS=",
+        "+QMBNCFG=\"AUTOSEL\",",
+        "+QMBNCFG=\"DEACTIVATE\"",
+        "+QMBNCFG=\"SELECT\",",
+        "+QNWCFG=\"NR5G_MEAS_INFO\",",
     ]
     .iter()
     .any(|p| upper.contains(p.trim_end()))
@@ -51,6 +56,19 @@ pub fn timeout(command: &str) -> Duration {
                 } else if up.contains("+CGACT=") {
                     // The network decides; the manual allows up to 150 s.
                     150000
+                } else if up.starts_with("+COPS=") || up.starts_with("AT+COPS=") {
+                    // Registration answers once the network decides; 3GPP allows 180 s.
+                    180000
+                } else if matches!(
+                    up.as_str(),
+                    "AT+CFUN=0" | "AT+CFUN=1" | "+CFUN=0" | "+CFUN=1"
+                ) {
+                    // Switching the radio off or on (watchdog); the module needs several seconds.
+                    15000
+                } else if up.contains("+QMBNCFG=\"DEACTIVATE\"")
+                    || up.contains("+QMBNCFG=\"SELECT\",")
+                {
+                    10000
                 } else if up.contains("+QNWLOCK=") && up.contains("\",") {
                     // Setting or clearing a lock re-selects the cell; an RM520N-EU answers after ~1.3 s.
                     10000

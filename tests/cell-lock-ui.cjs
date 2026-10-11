@@ -109,9 +109,10 @@ const lte = Array.from({length: 11}, (_, i) => ({
     await scan('NR5G Only');
     await resetRequests();
     await rows.nth(0).click();
-    await lock.click();
+    assert.equal(await lock.isDisabled(), true, 'nothing to lock');
     assert.equal(await page.evaluate(() => requests.length), 0, 'a scanned NR cell without SCS must not be locked');
-    assert.match(await page.evaluate(() => cellApp.lockMessage), /子载波间隔/);
+    assert.match(await page.evaluate(() => cellApp.scanNote), /子载波间隔/);
+    assert.equal(await checked(), 0, 'a cell without SCS cannot be selected');
     await page.evaluate(() => { scanResult.nr5g_cells_parsed[0] = {...scanResult.nr5g_cells_parsed[0], scs: 30}; });
 
     await scan('NR5G Only');

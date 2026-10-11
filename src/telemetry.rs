@@ -178,8 +178,11 @@ struct History {
     traffic_sampler: TrafficSampler,
     sampled: Option<Instant>,
     ip: String,
+    /// Wall-clock time of the first failed probe of the outage in progress.
+    fail_since: Option<u64>,
 }
 pub struct Monitor {
+    pub events: Arc<crate::events::Events>,
     stream: String,
     history: Mutex<History>,
     schedule: tokio::sync::watch::Sender<Schedule>,
@@ -234,7 +237,12 @@ pub fn normalize(raw: &str) -> Result<String> {
     Ok(target)
 }
 impl Monitor {
-    pub fn new(path: PathBuf, mock: bool, store: Arc<Store>) -> Arc<Self> {
+    pub fn new(
+        path: PathBuf,
+        mock: bool,
+        store: Arc<Store>,
+        events: Arc<crate::events::Events>,
+    ) -> Arc<Self> {
         let saved = std::fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
@@ -249,6 +257,7 @@ impl Monitor {
             .filter(|s| s.validate().is_ok())
             .unwrap_or_default();
         Arc::new(Self {
+            events,
             stream: format!("{:016x}", rand::random::<u64>()),
             history: Mutex::new(History {
                 target,
@@ -267,6 +276,7 @@ impl Monitor {
                 traffic: Ring::new(Traffic::default()),
                 traffic_sampler: TrafficSampler::default(),
                 sampled: None,
+                fail_since: None,
             }),
             schedule: tokio::sync::watch::Sender::new(schedule),
             mock,
@@ -310,17 +320,24 @@ impl Monitor {
         }
         let time = now();
         let max_gap = u128::from((self.schedule().sample_ms() * 3).max(15000));
-        let mut history = self.history.lock().unwrap();
-        if history.sampled.is_some_and(|last| stamp <= last) {
-            return;
-        }
-        history.sampled = Some(stamp);
-        history.signal.add(Signal { time, values });
-        if let Some(point) = history
-            .traffic_sampler
-            .sample(Some(stamp), time, counters, max_gap)
         {
-            history.traffic.add(point);
+            let mut history = self.history.lock().unwrap();
+            if history.sampled.is_some_and(|last| stamp <= last) {
+                return;
+            }
+            history.sampled = Some(stamp);
+            history.signal.add(Signal { time, values });
+            if let Some(point) =
+                history
+                    .traffic_sampler
+                    .sample(Some(stamp), time, counters, max_gap)
+            {
+                history.traffic.add(point);
+            }
+        }
+        // A failed query says nothing about the radio; it must not read as a lost signal.
+        if !raw.contains("ERROR") {
+            self.events.observe_dashboard(&data);
         }
     }
     pub fn start(self: &Arc<Self>, at: At) {
@@ -385,7 +402,10 @@ impl Monitor {
                     status: 3,
                 };
                 let mut ip = String::new();
-                if this.mock {
+                // Mock mode: a target under .invalid simulates an outage for the watchdog tests.
+                if this.mock && target.ends_with(".invalid") {
+                    sample.status = 1;
+                } else if this.mock {
                     sample.rtt = ((24.0
                         + 9.0 * (time as f64 / 8000.0).sin()
                         + 4.0 * (time as f64 / 2000.0).sin())
@@ -446,14 +466,23 @@ impl Monitor {
                     }
                 }
                 seq = seq.wrapping_add(1);
-                {
+                let recorded = {
                     let mut h = this.history.lock().unwrap();
                     if generation == h.generation {
                         sample.jitter =
                             adjacent_jitter(h.ping.last(), &sample, current.ping_ms() * 3 / 2);
                         h.ip = ip;
                         h.ping.add(sample);
+                        if sample.status == 0 {
+                            h.fail_since = None;
+                        } else if h.fail_since.is_none() {
+                            h.fail_since = Some(time);
+                        }
                     }
+                    generation == h.generation
+                };
+                if recorded {
+                    this.events.observe_probe(sample.status == 0, time);
                 }
                 tokio::select! {
                     _ = tokio::time::sleep_until(started + interval) => {}
@@ -477,6 +506,15 @@ impl Monitor {
                 .last()
                 .is_some_and(|p| p.status == 0 && now().saturating_sub(p.time) < fresh),
         )
+    }
+    /// How long the latency probe has been failing: `Some(0)` while it succeeds, `None` while
+    /// it is switched off. The watchdog acts on this.
+    pub fn outage_ms(&self) -> Option<u64> {
+        if !self.schedule().ping_enabled {
+            return None;
+        }
+        let since = self.history.lock().unwrap().fail_since;
+        Some(since.map_or(0, |t| now().saturating_sub(t)))
     }
     pub fn traffic_rates(&self) -> Value {
         let history = self.history.lock().unwrap();
@@ -503,7 +541,9 @@ impl Monitor {
             h.generation += 1;
             h.ping.next = 0;
             h.ping.count = 0;
-            h.ip.clear()
+            h.ip.clear();
+            h.fail_since = None;
+            self.events.reset_probe();
         }
         result?;
         Ok(())
@@ -636,6 +676,7 @@ mod tests {
             dir.path().join("monitor.json"),
             true,
             Arc::new(Store::new(true)),
+            Default::default(),
         );
         let base = now() - 300000;
         {
@@ -762,6 +803,7 @@ mod tests {
             dir.path().join("monitor.json"),
             true,
             Arc::new(Store::new(true)),
+            Default::default(),
         );
         let start = Instant::now();
         let time = now();
@@ -801,6 +843,7 @@ mod tests {
             dir.path().join("monitor.json"),
             true,
             Arc::new(Store::new(true)),
+            Default::default(),
         );
         let time = now();
         assert!(monitor.snapshot()["trafficSummary"]["downloadShare"].is_null());
@@ -828,6 +871,7 @@ mod tests {
             dir.path().join("monitor.json"),
             true,
             Arc::new(Store::new(true)),
+            Default::default(),
         );
         let time = now();
         let mut h = monitor.history.lock().unwrap();
