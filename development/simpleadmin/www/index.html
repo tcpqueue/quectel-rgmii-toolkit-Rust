@@ -185,6 +185,17 @@
 </section>
 </div>
 </div>
+<div class="sa-page-app sa-single-column art-device-overview sa-events-app" id="eventsApp" v-cloak="" data-no-i18n>
+<section class="art-chart-section sa-events" aria-labelledby="eventsTitle">
+<div class="art-section-heading"><div><h2 id="eventsTitle">{{ t('网络事件', 'Network events') }}</h2><span>{{ t('信号、切换、断网与自动恢复 · 最近 200 条', 'Signal, handovers, outages and recoveries · newest 200') }}</span></div></div>
+<p v-if="error" class="art-target-message is-error" role="alert">{{ error }}</p>
+<p v-else-if="loaded && !events.length" class="sa-events-empty">{{ t('暂无事件。记录保存在内存中，程序重启后清空。', 'No events yet. The list is kept in memory and cleared when the program restarts.') }}</p>
+<ol class="sa-events-list" id="eventsList" v-if="events.length">
+<li v-for="e in shown" :key="e.id" :class="'is-' + e.level"><time>{{ stamp(e.time) }}</time><span>{{ describe(e) }}</span></li>
+</ol>
+<div class="art-chart-footer" v-if="events.length"><button v-if="events.length > 8" type="button" class="art-text-button" @click="expanded = !expanded">{{ expanded ? t('收起', 'Show less') : t('显示全部 ' + events.length + ' 条', 'Show all ' + events.length) }}</button><button type="button" class="art-text-button" id="eventsClear" @click="clear">{{ t('清空', 'Clear') }}</button></div>
+</section>
+</div>
 </section>
 <section aria-labelledby="page-title-network" class="sa-page" data-page="network" id="page-network">
 <div class="sa-page-titlebar">
@@ -228,6 +239,8 @@
 </div>
 <div class="ui-card sa-band-footer">
 <div class="ui-row"><div class="ui-row-text"><span>活动频段</span><small v-text="bands"></small></div><button @click="resetBandLocking" class="btn btn-warning btn-sm" type="button">恢复全部</button></div>
+<label class="ui-row is-toggle"><span class="ui-row-text"><span>锁定保护</span><small>锁定后 30 秒内找不到小区，自动恢复为锁定前的频段</small></span><input id="bandGuardSwitch" class="form-check-input ui-switch" type="checkbox" role="switch" :checked="bandGuard" @change="setBandGuard($event.target.checked)"/></label>
+<p v-if="bandGuardMessage" id="bandGuardMessage" class="ui-note sa-forward-message" :class="{'text-danger': bandGuardFailed}" role="status" v-text="bandGuardMessage"></p>
 </div>
 <p class="ui-foot">勾选要保留的频段后点击“锁定”；“恢复全部”会解除所有制式的频段限制。频段锁定由模块自动保存，重启后仍然有效，没有临时/持久之分。</p>
 </section>
@@ -309,6 +322,29 @@
 <p class="ui-foot">高亮的选项和打开的开关就是当前设置。IMS 和 SIM 热插拔检测在重启模块后生效；切换卡槽会立即重新注册网络。</p>
 </section>
 
+<section class="ui-group" aria-labelledby="mbnTitle">
+<div class="ui-group-head"><h2 id="mbnTitle">运营商配置（MBN）</h2><span class="ui-sub" id="mbnSummary" v-text="mbnActive() ? tr('当前：') + mbnActive().name : ''"></span></div>
+<div class="ui-card sa-mbn">
+<label class="ui-row is-toggle"><span class="ui-row-text"><span>自动选择</span><small>按 SIM 卡自动选择运营商配置；手动选择配置时会关闭</small></span><input id="mbnAutoSel" class="form-check-input ui-switch" type="checkbox" role="switch" :checked="mbn.auto_select === true" :disabled="mbnBusy || mbn.auto_select === null" @click.prevent="setMbnAutoSel(!mbn.auto_select)"/></label>
+<div class="ui-row"><div class="ui-row-text"><span>当前配置允许的频段</span><small data-no-i18n>SA: {{ mbnBands(mbn.policy_sa_bands) }}</small></div></div>
+<div class="ui-scroll-x sa-mbn-table">
+<table class="table">
+<thead><tr><th scope="col">配置</th><th scope="col">版本</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+<tbody id="mbnTableBody">
+<tr v-if="!mbn.profiles.length"><td colspan="4" class="ui-empty" v-text="mbnLoaded ? tr('模块未返回 MBN 列表') : tr('正在读取...')"></td></tr>
+<tr v-for="profile in mbn.profiles" :key="profile.index" class="sa-mbn-row" :class="{'is-selected': profile.active}">
+<td data-no-i18n>{{ profile.name }}</td><td data-no-i18n class="sa-mbn-version">{{ profile.version }}</td>
+<td><span class="ui-tag" :class="profile.active ? 'is-good' : (profile.selected ? 'is-warn' : '')" v-text="profile.active ? tr('使用中') : (profile.selected ? tr('已选择，重启后生效') : tr('未使用'))"></span></td>
+<td><button type="button" class="btn btn-outline-primary btn-sm sa-mbn-select" :disabled="mbnBusy || profile.selected" @click="selectMbn(profile)">选用</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="ui-actions"><span class="ui-status" id="mbnMessage" :class="{'text-danger': mbnFailed}" role="status" aria-live="polite" v-text="mbnMessage"></span><button v-if="mbnRebootNeeded" type="button" class="btn btn-warning" id="mbnReboot" @click="rebootForMbn()">立即重启模块</button><button type="button" class="btn btn-secondary" @click="loadMbn(true)" :disabled="mbnBusy">刷新</button></div>
+</div>
+<p class="ui-foot">MBN 决定模块允许使用的频段和 VoLTE 等设置。例如移动配置下 SA 只允许 n28、n41，无法锁定 n78。更换配置后需重启模块。</p>
+</section>
+
 <section class="ui-group" aria-labelledby="cellLockTitle">
 <div class="ui-group-head"><h2 id="cellLockTitle">小区锁定</h2></div>
 <div class="ui-card sa-lock-policy">
@@ -334,7 +370,7 @@
 <option value="LTE Only">仅LTE</option>
 <option value="NR5G Only">仅NR5G</option>
 </select>
-<span v-show="scanKind === 'neighbour'" class="ui-status sa-scan-hint">约 1 秒。读取当前服务小区和模块已测到的 LTE 邻区；5G SA 下模块只报告服务小区。</span>
+<span v-show="scanKind === 'neighbour'" class="ui-status sa-scan-hint">约 2 秒。读取服务小区和模块已测到的 LTE、5G 邻区。5G 邻区与服务小区同频段时可直接锁定。</span>
 <button id="cellScanStart" :disabled="!canStartScan()" @click="startCellScan()" class="btn btn-primary" type="button" v-text="scanButtonText()"></button>
 </div></div>
 <div class="ui-scroll-x sa-scan-table">
@@ -344,7 +380,7 @@
 </thead>
 <tbody id="cellScanTableBody">
 <tr v-if="!scannedCellsForMode().length"><td colspan="8" class="ui-empty" v-text="scanError || (resultDoneCell ? tr('没有可锁定的小区') : tr('暂无扫描结果'))"></td></tr>
-<tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :class="{'is-selected': isCellSelected(cell)}" :data-cell-index="index" @click="toggleCellSelection(cell)">
+<tr v-for="(cell, index) in scannedCellsForMode()" :key="cellSelectionKey(cell) + ':' + index" class="table-row" :class="{'is-selected': isCellSelected(cell), 'is-unlockable': !cellLockable(cell)}" :data-cell-index="index" @click="toggleCellSelection(cell)">
 <th scope="row"><input type="checkbox" class="checkbox-cell" :data-cell-index="index" :checked="isCellSelected(cell)" disabled/></th>
 <td>{{ cell.type }}</td><td>{{ cellSource(cell) }}</td><td>{{ cell.band }}</td><td>{{ cell.freq }}</td><td>{{ cell.pci }}</td><td>{{ cell.rsrp }}</td>
 <td><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line v-for="bar in signalBars(cell.rsrp)" :key="bar.x" :x1="bar.x" y1="20" :x2="bar.x" :y2="bar.y"/></svg></td>
@@ -353,7 +389,7 @@
 </table>
 </div>
 <div class="ui-actions sa-cell-scan-actions">
-<span class="ui-status" id="cellSelectHelper" v-text="scanKind === 'neighbour' ? tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。') : tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。完整扫描需要几分钟，请勿离开此页面。')"></span>
+<span class="ui-status" id="cellSelectHelper" :class="{'text-danger': scanNote}" v-text="scanNote || (scanKind === 'neighbour' ? tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。') : tr('点选结果行后锁定：LTE 可多选（最多 10 个），NR5G-SA 只能选 1 个。完整扫描需要几分钟，请勿离开此页面。'))"></span>
 <button :disabled="isLoading || lockBusy || !resultDoneCell" @click="clearTableRowsBodyCellScan()" class="btn btn-danger" type="button">清除</button>
 <button id="cellLockSelected" :disabled="selectedCells.length === 0 || isLoading || lockBusy" @click="lockSelectedCells()" class="btn btn-primary" type="button" v-text="lockSelectedText()"></button>
 </div>
@@ -570,6 +606,21 @@
 </div>
 </div>
 <p class="ui-foot" id="atCommandInputHelper">用分号（;）分隔多个命令，后端会逐条发送，示例：AT+CFUN?;+CCID</p>
+</section>
+
+<section class="ui-group" aria-labelledby="watchdogHeading">
+<div class="ui-group-head"><h2 id="watchdogHeading">断网自动恢复</h2><span class="ui-sub" id="watchdogState" v-text="watchdogPhaseText()"></span></div>
+<div class="ui-card sa-watchdog" v-if="watchdogForm">
+<label class="ui-row is-toggle"><span class="ui-row-text"><span>启用看门狗</span><small>延迟监测持续失败达到设定时间后，按下面的顺序逐级尝试恢复，恢复联网即停止。</small></span><input id="watchdogEnabled" class="form-check-input ui-switch" type="checkbox" role="switch" v-model="watchdogForm.enabled" @change="watchdogEdit()"/></label>
+<p v-if="watchdog && !watchdog.probe_enabled" class="ui-note text-danger" role="status">看门狗靠延迟监测判断是否断网，请先在“总览 → 监测设置”中开启延迟监测。</p>
+<div class="ui-row is-stack"><label for="watchdogOutage">断网多久后开始恢复（秒）</label><div class="ui-row-control"><input id="watchdogOutage" class="form-control" type="number" min="30" max="3600" inputmode="numeric" v-model="watchdogForm.outage_seconds" @input="watchdogEdit()"/></div></div>
+<div class="ui-row is-stack"><label for="watchdogCooldown">两次恢复之间至少间隔（分钟）</label><div class="ui-row-control"><input id="watchdogCooldown" class="form-control" type="number" min="5" max="240" inputmode="numeric" v-model="watchdogForm.cooldown_minutes" @input="watchdogEdit()"/></div></div>
+<div class="ui-row sa-watchdog-steps-head"><span class="ui-row-label">恢复步骤 · 关闭即跳过该级</span></div>
+<label v-for="step in watchdogSteps" :key="step.key" class="ui-row is-toggle sa-watchdog-step"><span class="ui-row-text"><span><b class="sa-tier" data-no-i18n>{{ step.tier }}</b>{{ t(step.name) }}</span><small>{{ t(step.note) }}</small></span><input :id="'watchdogStep-' + step.key" class="form-check-input ui-switch" type="checkbox" role="switch" v-model="watchdogForm[step.key]" @change="watchdogEdit()"/></label>
+<div class="ui-row is-stack" v-if="watchdogForm.reboot"><label for="watchdogMaxReboots">恢复联网前最多连续重启（次）</label><div class="ui-row-control"><input id="watchdogMaxReboots" class="form-control" type="number" min="1" max="10" inputmode="numeric" v-model="watchdogForm.max_reboots" @input="watchdogEdit()"/></div></div>
+<div class="ui-actions"><span class="ui-status" id="watchdogMessage" :class="{'text-danger': watchdogFailed}" role="status" aria-live="polite" v-text="watchdogMessage"></span><button type="button" class="btn btn-primary" id="watchdogSave" :disabled="watchdogSaving || !watchdogDirty" @click="watchdogSave()">保存</button></div>
+</div>
+<p class="ui-foot">每一步执行后会等待一段时间检查是否恢复；所有动作都记录在“总览 → 网络事件”中。程序启动后 3 分钟内不动作，留出注册和拨号时间。</p>
 </section>
 
 <section class="ui-group" aria-labelledby="maintenanceHeading">
@@ -855,8 +906,9 @@
 
 <script src="js/populate-checkbox.js?v=2.94"></script>
 <script src="js/pages/index.js?v=3.4"></script>
-<script src="js/pages/network.js?v=3.0"></script>
-<script src="js/pages/settings.js?v=3.3"></script>
+<script src="js/pages/network.js?v=3.2"></script>
+<script src="js/pages/settings.js?v=3.5"></script>
+<script src="js/pages/events.js?v=1.0"></script>
 <script src="js/pages/sms.js?v=2.94"></script>
 <script src="js/pages/forwarding-guides.js?v=0.2.9"></script>
 <script src="js/pages/forwarding.js?v=0.2.9"></script>

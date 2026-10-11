@@ -38,6 +38,11 @@ pub fn commands(page: &str) -> Vec<&'static str> {
             "AT+QCFG=\"ims\"",
             "AT+QSIMDET?;+QNWPREFCFG=\"roam_pref\";+QUIMSLOT?",
         ],
+        // MBN profiles, then the bands the active profile allows.
+        "mbn" => vec![
+            "AT+QMBNCFG=\"AutoSel\";+QMBNCFG=\"list\"",
+            "AT+QNWPREFCFG=\"policy_band\"",
+        ],
         "sms" => vec![SMS_LIST],
         "model" => vec!["AT+CGMM"],
         _ => vec![],
@@ -84,6 +89,7 @@ fn cacheable(command: &str) -> bool {
             "settings",
             "model",
             "pdp",
+            "mbn",
         ]
         .iter()
         .flat_map(|page| commands(page))

@@ -15,5 +15,11 @@
   "AT+CGDCONT?;+CGACT?;+CGPADDR": "AT+CGDCONT?;+CGACT?;+CGPADDR\r\n+CGDCONT: 1,\"IPV4V6\",\"3gnet\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\n+CGDCONT: 2,\"IPV4V6\",\"3GWAP\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\n+CGDCONT: 4,\"IPV4V6\",\"IMS\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\",0,0,0,0,,,,,,,,,,\"\",,,,0\r\n+CGACT: 1,1\r\n+CGACT: 2,0\r\n+CGACT: 4,1\r\n+CGPADDR: 1,\"10.0.0.197\",\"32.1.13.184.0.0.0.0.0.0.0.0.0.0.0.1\"\r\n+CGPADDR: 2,\"0.0.0.0\",\"0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0\"\r\n+CGPADDR: 4,\"32.1.13.184.0.0.0.0.0.0.0.0.0.0.0.2\"\r\nOK\r\n",
   "AT+QCFG=\"ims\"": "AT+QCFG=\"ims\"\r\n+QCFG: \"ims\",1,1\r\nOK\r\n",
   "AT+QSIMDET?;+QNWPREFCFG=\"roam_pref\";+QUIMSLOT?": "AT+QSIMDET?;+QNWPREFCFG=\"roam_pref\";+QUIMSLOT?\r\n+QSIMDET: 0,1\r\n+QNWPREFCFG: \"roam_pref\",255\r\n+QUIMSLOT: 1\r\nOK\r\n",
-  "AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"": "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",460,11,7127233,345,1600,3,5,5,CE8A,-78,-7,-50,16,0,-,40\r\n+QENG: \"neighbourcell intra\",\"LTE\",1600,346,-9,-84,-60,10,30,6,52,6,44\r\n+QENG: \"neighbourcell inter\",\"LTE\",1300,262,-12,-93,-66,4,20,5,10,8\r\n+QENG: \"neighbourcell inter\",\"LTE\",38950,-,-,-,-,-,0,0,30,6\r\n\r\nOK"
+  "AT+QENG=\"servingcell\";+QENG=\"neighbourcell\"": "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",460,11,7127233,345,1600,3,5,5,CE8A,-78,-7,-50,16,0,-,40\r\n+QENG: \"neighbourcell intra\",\"LTE\",1600,346,-9,-84,-60,10,30,6,52,6,44\r\n+QENG: \"neighbourcell inter\",\"LTE\",1300,262,-12,-93,-66,4,20,5,10,8\r\n+QENG: \"neighbourcell inter\",\"LTE\",38950,-,-,-,-,-,0,0,30,6\r\n\r\nOK",
+  "AT+QMBNCFG=\"AutoSel\";+QMBNCFG=\"list\"": "+QMBNCFG: \"AutoSel\",1\r\n+QMBNCFG: \"List\",0,0,0,\"ROW_Generic_3GPP\",0x0501081F,201901141\r\n+QMBNCFG: \"List\",1,1,1,\"Commercial-CT\",0x0A010809,202203011\r\n+QMBNCFG: \"List\",2,0,0,\"Commercial-CMCC\",0x0A010812,202203011\r\n\r\nOK",
+  "AT+QNWPREFCFG=\"policy_band\"": "+QNWPREFCFG: \"gw_band\",1:8\r\n+QNWPREFCFG: \"lte_band\",1:3:5:8:34:38:39:40:41\r\n+QNWPREFCFG: \"nsa_nr5g_band\",1:28:41:78\r\n+QNWPREFCFG: \"nr5g_band\",1:5:28:41:78\r\n\r\nOK",
+  "AT+QNWCFG=\"nr5g_meas_info\"": "+QNWCFG: \"nr5g_meas_info\",1,627264,403,-98,-11,15\r\n\r\nOK",
+  "AT+QNWPREFCFG=\"lte_band\"": "+QNWPREFCFG: \"lte_band\",1:3:5:8:34:38:39:40:41\r\n\r\nOK",
+  "AT+QNWPREFCFG=\"nsa_nr5g_band\"": "+QNWPREFCFG: \"nsa_nr5g_band\",1:28:41:78\r\n\r\nOK",
+  "AT+QNWPREFCFG=\"nr5g_band\"": "+QNWPREFCFG: \"nr5g_band\",1:5:28:41:78\r\n\r\nOK"
 }

@@ -943,6 +943,104 @@ pub fn lte_band(earfcn: u32) -> Option<u32> {
         .find(|(_, low, high)| (*low..=*high).contains(&earfcn))
         .map(|b| b.0)
 }
+/// NR FR1 bands whose downlink NR-ARFCN range holds `arfcn` (3GPP TS 38.104 table 5.4.2.3-1).
+/// Ranges overlap, so a frequency can belong to several bands.
+pub fn nr_bands(arfcn: u32) -> Vec<u32> {
+    const BANDS: [(u32, u32, u32); 18] = [
+        (1, 422000, 434000),
+        (2, 386000, 398000),
+        (3, 361000, 376000),
+        (5, 173800, 178800),
+        (7, 524000, 538000),
+        (8, 185000, 192000),
+        (20, 158200, 164200),
+        (25, 386000, 399000),
+        (28, 151600, 160600),
+        (38, 514000, 524000),
+        (40, 460000, 480000),
+        (41, 499200, 537999),
+        (48, 636667, 646666),
+        (66, 422000, 440000),
+        (71, 123400, 130400),
+        (77, 620000, 680000),
+        (78, 620000, 653333),
+        (79, 693334, 733333),
+    ];
+    BANDS
+        .iter()
+        .filter(|(_, low, high)| (*low..=*high).contains(&arfcn))
+        .map(|b| b.0)
+        .collect()
+}
+/// NR measurements from `AT+QNWCFG="nr5g_meas_info"` as (arfcn, pci, rsrp). The answer may or
+/// may not start with the on/off flag, so the ARFCN is found by value: it is above 2000 and is
+/// followed by a PCI of at most 1007.
+pub fn nr_meas(raw: &str) -> Vec<(u32, u32, String)> {
+    let mut cells = vec![];
+    for line in lines(raw) {
+        let Some(tail) = line.trim().strip_prefix("+QNWCFG:") else {
+            continue;
+        };
+        let p = fields(tail);
+        if !p
+            .first()
+            .is_some_and(|k| k.eq_ignore_ascii_case("nr5g_meas_info"))
+        {
+            continue;
+        }
+        let numbers: Vec<Option<i64>> = p[1..].iter().map(|s| s.parse().ok()).collect();
+        let Some(i) = (0..numbers.len().saturating_sub(1)).find(|&i| {
+            numbers[i].is_some_and(|v| v > 2000)
+                && numbers[i + 1].is_some_and(|v| (0..=1007).contains(&v))
+        }) else {
+            continue;
+        };
+        let (arfcn, pci) = (numbers[i].unwrap() as u32, numbers[i + 1].unwrap() as u32);
+        let rsrp = p.get(i + 3).cloned().unwrap_or_else(|| "-".into());
+        if !cells
+            .iter()
+            .any(|c: &(u32, u32, String)| c.0 == arfcn && c.1 == pci)
+        {
+            cells.push((arfcn, pci, rsrp));
+        }
+    }
+    cells
+}
+/// MBN profiles and auto-selection from `AT+QMBNCFG="AutoSel";+QMBNCFG="list"`, and the NR SA
+/// bands the active profile allows from `AT+QNWPREFCFG="policy_band"`.
+pub fn mbn(raw: &str) -> Value {
+    let mut out =
+        json!({"auto_select":null,"profiles":[],"policy_sa_bands":null,"policy_lte_bands":null});
+    let mut profiles = vec![];
+    for line in lines(raw) {
+        let line = line.trim();
+        if let Some(tail) = line.strip_prefix("+QMBNCFG:") {
+            let p = fields(tail);
+            match p.first().map(|k| k.to_ascii_lowercase()).as_deref() {
+                Some("autosel") if p.len() > 1 => out["auto_select"] = json!(p[1] == "1"),
+                // "List",<index>,<selected>,<activated>,"<name>",<version>,<date>
+                Some("list") if p.len() > 4 && !p[4].is_empty() => profiles.push(json!({
+                    "index": number(&p[1]),
+                    "selected": p[2] == "1",
+                    "active": p[3] == "1",
+                    "name": p[4],
+                    "version": p.get(5).cloned().unwrap_or_default(),
+                    "date": p.get(6).cloned().unwrap_or_default(),
+                })),
+                _ => {}
+            }
+        } else if let Some(tail) = line.strip_prefix("+QNWPREFCFG:") {
+            let p = fields(tail);
+            match p.first().map(String::as_str) {
+                Some("nr5g_band") if p.len() > 1 => out["policy_sa_bands"] = json!(p[1]),
+                Some("lte_band") if p.len() > 1 => out["policy_lte_bands"] = json!(p[1]),
+                _ => {}
+            }
+        }
+    }
+    out["profiles"] = json!(profiles);
+    out
+}
 /// Serving cell plus the LTE neighbours from `AT+QENG="servingcell";+QENG="neighbourcell"`.
 /// The module only reports 3G/4G neighbours, and inter-frequency entries without a PCI are
 /// dropped because they cannot be locked.
@@ -981,6 +1079,40 @@ pub fn neighbours(raw: &str) -> Value {
         {
             nr.push(json!({"type":"NR5G","role":"服务小区","band":at(&p,k+8),"freq":at(&p,k+7),"pci":at(&p,k+5),"rsrp":at(&p,k+10),"scs":scs_khz(&at(&p,k+13))}));
         }
+    }
+    // NR neighbours from nr5g_meas_info carry no band or SCS. A neighbour inherits both from
+    // the serving cell when its frequency falls in the serving band; otherwise the SCS stays
+    // unknown and the page will not lock it (a wrong SCS can crash the module).
+    let serving = nr.first().cloned();
+    let serving_number =
+        |key: &str| -> Option<u32> { serving.as_ref().and_then(|s| s[key].as_str()?.parse().ok()) };
+    let (serving_band, serving_freq, serving_pci) = (
+        serving_number("band"),
+        serving_number("freq"),
+        serving_number("pci"),
+    );
+    for (arfcn, pci, rsrp) in nr_meas(raw) {
+        if serving_freq == Some(arfcn) && serving_pci == Some(pci) {
+            continue;
+        }
+        let candidates = nr_bands(arfcn);
+        let (band, scs) = match serving_band.filter(|b| candidates.contains(b)) {
+            Some(b) => (b.to_string(), serving.as_ref().unwrap()["scs"].clone()),
+            None => (
+                if candidates.is_empty() {
+                    "-".into()
+                } else {
+                    candidates
+                        .iter()
+                        .map(u32::to_string)
+                        .collect::<Vec<_>>()
+                        .join("/")
+                },
+                Value::Null,
+            ),
+        };
+        let same = serving_freq == Some(arfcn);
+        nr.push(json!({"type":"NR5G","role":if same {"同频邻区"} else {"异频邻区"},"band":band,"freq":arfcn.to_string(),"pci":pci.to_string(),"rsrp":rsrp,"scs":scs}));
     }
     json!({"nr5g_cells_parsed":nr,"lte_cells_parsed":lte})
 }
@@ -1069,6 +1201,46 @@ mod tests {
                 &json!("-72")
             )
         );
+    }
+    #[test]
+    fn nr_neighbours_inherit_the_serving_band_when_it_fits() {
+        // Both the flag-first and the flag-less layout of nr5g_meas_info are accepted.
+        let raw = "+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",460,11,C9A824009,249,C94B00,627264,78,12,-86,-11,30,1,-\r\nOK\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1,627264,249,-86,-11,30\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1,627264,403,-98,-11,15\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",633984,249,-78,-10,28\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",504990,108,-88,-11,20\r\n\
+                   +QNWCFG: \"nr5g_meas_info\",1\r\nOK\r\n";
+        let nr = neighbours(raw)["nr5g_cells_parsed"].clone();
+        let nr = nr.as_array().unwrap();
+        assert_eq!(nr.len(), 4, "the serving cell is not repeated");
+        assert_eq!(nr[1]["role"], "同频邻区");
+        assert_eq!(
+            (&nr[1]["pci"], &nr[1]["band"], &nr[1]["scs"], &nr[1]["rsrp"]),
+            (&json!("403"), &json!("78"), &json!(30), &json!("-98"))
+        );
+        assert_eq!(nr[2]["role"], "异频邻区");
+        assert_eq!((&nr[2]["band"], &nr[2]["scs"]), (&json!("78"), &json!(30)));
+        // n41 is not the serving band: shown with its candidates but no SCS, so it is not lockable.
+        assert_eq!(
+            (&nr[3]["band"], &nr[3]["scs"]),
+            (&json!("41"), &Value::Null)
+        );
+        assert_eq!(nr_bands(520000), [38, 41].to_vec());
+    }
+    #[test]
+    fn mbn_lists_profiles_and_policy_bands() {
+        let raw = "+QMBNCFG: \"AutoSel\",1\r\n\
+                   +QMBNCFG: \"List\",0,0,0,\"ROW_Generic_3GPP\",0x0501081F,201901141\r\n\
+                   +QMBNCFG: \"List\",1,1,1,\"Commercial-CT\",0x0A010809,202203011\r\nOK\r\n\
+                   +QNWPREFCFG: \"gw_band\",1:8\r\n+QNWPREFCFG: \"lte_band\",1:3:5:8:34:39:40:41\r\n+QNWPREFCFG: \"nr5g_band\",1:5:28:41:78\r\nOK\r\n";
+        let v = mbn(raw);
+        assert_eq!(v["auto_select"], true);
+        assert_eq!(v["profiles"][1]["name"], "Commercial-CT");
+        assert_eq!(v["profiles"][1]["active"], true);
+        assert_eq!(v["profiles"][0]["selected"], false);
+        assert_eq!(v["policy_sa_bands"], "1:5:28:41:78");
+        assert!(mbn("ERROR")["auto_select"].is_null());
     }
     #[test]
     fn lte_band_follows_earfcn_ranges() {
