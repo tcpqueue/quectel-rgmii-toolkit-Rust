@@ -88,6 +88,28 @@ async function freePort() {
       if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     }
 
+    // The terminal output grows with a long reply, up to 70 % of the window.
+    const box = page.locator('#atOutputBox');
+    const height = () => box.evaluate(el => el.offsetHeight);
+    assert.equal(await box.evaluate(el => getComputedStyle(el).resize), 'vertical', 'the box can be dragged');
+    await page.locator('#atCommandInput').fill('AT+QSIMSTAT?;+CSQ;+QTEMP;+QUIMSLOT?;+QSPN;+QMAP="WWAN";+QENG="servingcell";+QCAINFO;+QGDNRCNT?;+QGDCNT?;+CGCONTRDP=1;+QRSRP');
+    await page.locator('#atCommandInput').press('Enter');
+    await page.waitForFunction(() => document.querySelector('#atOutputBox').value.includes('+QCAINFO'));
+    await page.waitForTimeout(200);
+    const grown = await height();
+    assert(grown > 260 && grown <= 900 * 0.7 + 1, `fits the reply: ${grown}`);
+    assert(await box.evaluate(el => el.scrollHeight <= el.clientHeight + 2 || el.offsetHeight >= window.innerHeight * 0.7 - 1), 'no inner scrolling below the cap');
+    // Clearing shrinks it back; a size the user dragged to is kept for short replies.
+    await page.locator('.sa-at-input button', {hasText: '清除'}).click();
+    await page.waitForTimeout(200);
+    assert.equal(await height(), 200);
+    await box.evaluate(el => { el.style.height = '420px'; });
+    await page.locator('#atCommandInput').fill('AT+CIMI');
+    await page.locator('#atCommandInput').press('Enter');
+    await page.waitForFunction(() => document.querySelector('#atOutputBox').value.includes('420031234567890'));
+    await page.waitForTimeout(200);
+    assert.equal(await height(), 420, 'keeps the dragged size');
+
     // Phone width: commands wrap instead of widening the page.
     await page.setViewportSize({width: 390, height: 844});
     await page.waitForTimeout(300);

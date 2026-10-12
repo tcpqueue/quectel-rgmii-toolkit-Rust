@@ -723,7 +723,8 @@ dialog.ui-sheet[open] { animation: ui-pop .24s cubic-bezier(.2, .9, .3, 1.1); }
 .sa-ttl-settings-card .ui-row-control { flex-wrap: wrap; }
 .sa-at-terminal { display: grid; }
 .sa-at-output {
-  min-height: 200px; border-radius: 0; background: var(--surface-2) !important; box-shadow: none !important;
+  /* Grows with the reply (settings.js fitAtOutput); the bottom edge can be dragged. */
+  min-height: 200px; resize: vertical; overflow: auto; border-radius: 0; background: var(--surface-2) !important; box-shadow: none !important;
   font: 13px/1.55 var(--mono); padding: 12px 16px; border-bottom: .5px solid var(--separator);
 }
 .sa-at-input .form-control { flex: 1; font-family: var(--mono); }
