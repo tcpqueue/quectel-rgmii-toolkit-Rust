@@ -54,6 +54,8 @@ pub fn commands(page: &str) -> Vec<&'static str> {
     }
 }
 struct Request {
+    /// Entry in the queue log shown on the AT terminal page.
+    id: u64,
     command: String,
     sms: Option<String>,
     storage: Option<crate::sms::Storage>,
@@ -128,6 +130,8 @@ pub struct At {
     pub overrides: Arc<Mutex<HashMap<String, String>>>,
     pub mock: bool,
     pub sms_changed: Arc<tokio::sync::Notify>,
+    /// Running, waiting and recently finished requests, for the AT queue view.
+    pub log: Arc<crate::at_log::AtLog>,
     ready: Instant,
 }
 impl At {
@@ -137,6 +141,8 @@ impl At {
         let mocks = overrides.clone();
         let sms_changed = Arc::new(tokio::sync::Notify::new());
         let sms_notify = sms_changed.clone();
+        let log = Arc::new(crate::at_log::AtLog::default());
+        let worker_log = log.clone();
         std::thread::Builder::new()
             .name("at-worker".into())
             .stack_size(128 * 1024)
@@ -144,10 +150,13 @@ impl At {
                 let fixtures: HashMap<String, String> =
                     serde_json::from_str(include_str!("../tests/fixtures/mock-at.json")).unwrap();
                 let mut port: Option<Port> = None;
+                let now = crate::at_log::Stamp::now;
                 while let Some(request) = rx.blocking_recv() {
                     if request.reply.is_closed() {
+                        worker_log.cancelled(request.id, now());
                         continue;
                     }
+                    worker_log.started(request.id, now());
                     let result = if mock {
                         Ok(crate::mock::response(
                             &request.command,
@@ -189,6 +198,7 @@ impl At {
                             result
                         })()
                     };
+                    worker_log.finished(request.id, &result, now());
                     let _ = request.reply.send(result);
                 }
             })?;
@@ -205,6 +215,7 @@ impl At {
             overrides,
             mock,
             sms_changed,
+            log,
             ready: Instant::now() + Duration::from_secs_f64(delay),
         })
     }
@@ -272,15 +283,24 @@ impl At {
             trace.push(command.into());
         }
         let (reply, rx) = oneshot::channel();
-        self.tx
-            .try_send(Request {
-                command: command.into(),
-                sms,
-                storage,
-                timeout,
-                reply,
-            })
-            .map_err(|_| anyhow::anyhow!("AT queue busy"))?;
+        let id = self.log.queued(command, crate::at_log::Stamp::now());
+        let sent = self.tx.try_send(Request {
+            id,
+            command: command.into(),
+            sms,
+            storage,
+            timeout,
+            reply,
+        });
+        if sent.is_err() {
+            let error = anyhow::anyhow!("AT queue busy");
+            self.log.finished(
+                id,
+                &Err(anyhow::anyhow!("{error}")),
+                crate::at_log::Stamp::now(),
+            );
+            return Err(error);
+        }
         rx.await.context("AT worker stopped")?
     }
     pub async fn fetch(&self, command: &str, force: bool) -> Result<String> {

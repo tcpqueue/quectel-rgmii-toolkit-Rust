@@ -52,6 +52,7 @@ PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/cell-lo
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/pdp-browser.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/recovery-browser.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/views-browser.cjs
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/at-queue-browser.cjs
 node tests/traffic-ui.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/traffic-direction-browser.cjs
 node tests/tls.cjs
@@ -140,3 +141,9 @@ systemctl restart simpleadmin-httpd.service
 默认服务为 HTTP `:80`。手动启动可使用 `--no-tls=false` 启用 HTTPS，证书路径支持 `--cert`、`--key`、`--ca-cert`、`--ca-key`。支持 Go 版单横线参数写法。
 
 服务运行期间通过 WebUI 的 AT 终端执行命令。独立 `at` 子命令需要先停止服务，防止两个持久读取线程争抢 SMD 响应。不要同时启动 Go 和 Rust 后端。
+
+AT 终端页下方的 AT 队列显示正在执行、等待中和最近 30 秒完成的指令（含返回内容、排队与执行耗时），来源包括页面查询、后台刷新和 AT 终端。同一份内容由服务写入 `/tmp/simpleadmin-at-queue.json`（权限 600，模块重启后清空），排查卡顿时可通过 ADB 读取：
+
+```sh
+adb shell cat /tmp/simpleadmin-at-queue.json
+```

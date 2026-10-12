@@ -33,7 +33,7 @@
       html[data-bs-theme="light"], html[data-bs-theme="light"] body { background-color: #f2f2f7; color-scheme: light; }
       [v-cloak] { display: none !important; }
     </style>
-<link href="css/app.css?v=4.1" rel="stylesheet"/>
+<link href="css/app.css?v=4.2" rel="stylesheet"/>
 <link href="favicon.ico" rel="icon"/>
 <script src="js/band_map.js?v=2.94"></script>
 <script src="js/vue.global.prod.js"></script>
@@ -723,6 +723,31 @@
 </div>
 </div>
 </div>
+<div class="sa-page-app" id="atQueueApp" v-cloak="" data-no-i18n>
+<section class="ui-group sa-atq" aria-labelledby="atQueueHeading" data-views="at">
+<div class="ui-group-head"><h2 id="atQueueHeading">{{ t('AT 队列', 'AT queue') }}</h2><div class="ui-accessory"><span class="ui-sub" id="atQueueSummary">{{ summary }}</span><button type="button" class="btn btn-sm" id="atQueuePause" :aria-pressed="paused" @click="pause">{{ paused ? t('继续刷新', 'Resume') : t('暂停刷新', 'Pause') }}</button></div></div>
+<div class="ui-card">
+<p v-if="error" class="ui-note text-danger" role="alert">{{ error }}</p>
+<div class="ui-row sa-atq-item" v-if="running" id="atQueueRunning"><span class="ui-tag is-info">{{ t('执行中', 'Running') }}</span><code class="sa-atq-cmd">{{ running.command }}</code><span class="ui-row-value">{{ t('已运行', 'for') }} {{ took(running) }}</span></div>
+<div class="ui-row sa-atq-item sa-atq-waiting" v-for="item in waiting" :key="item.id"><span class="ui-tag">{{ t('等待', 'Waiting') }}</span><code class="sa-atq-cmd">{{ item.command }}</code><span class="ui-row-value">{{ t('已等待', 'for') }} {{ waited(item) }}</span></div>
+<p v-if="queue && !running && !waiting.length" class="ui-note" id="atQueueIdle">{{ t('队列空闲，没有正在执行或等待的指令。', 'Idle: nothing running or waiting.') }}</p>
+</div>
+</section>
+<section class="ui-group sa-atq" aria-labelledby="atQueueDoneHeading" data-views="at">
+<div class="ui-group-head"><h2 id="atQueueDoneHeading">{{ t('最近 30 秒已完成', 'Finished in the last 30 s') }}</h2></div>
+<div class="ui-card sa-atq-done" id="atQueueDone">
+<p v-if="queue && !done.length" class="ui-empty">{{ t('最近 30 秒没有指令。', 'No commands in the last 30 s.') }}</p>
+<details v-for="item in done" :key="item.id" class="sa-atq-entry" :open="!!open[item.id]" @toggle="toggle(item, $event)">
+<summary class="ui-row sa-atq-item"><time>{{ clock(item.finished_at) }}</time><span class="ui-tag" :class="statusClass(item)">{{ status(item) }}</span><code class="sa-atq-cmd">{{ item.command }}</code><span class="ui-row-value">{{ took(item) }}</span></summary>
+<div class="sa-atq-detail">
+<small>{{ t('排队', 'Queued') }} {{ waited(item) }} · {{ t('执行', 'ran') }} {{ took(item) }}<template v-if="item.truncated"> · {{ t('返回内容过长，只显示前 16 KB', 'Response cut to the first 16 KB') }}</template></small>
+<pre>{{ item.response || t('（无返回内容）', '(no response)') }}</pre>
+</div>
+</details>
+</div>
+<p class="ui-foot">{{ t('所有通过本程序发往模块的指令都在这里排队，包括页面查询、后台刷新和 AT 终端。完成的指令保留 30 秒，点击可查看返回内容；同时写入 /tmp/simpleadmin-at-queue.json，模块重启后清空。返回内容可能包含短信。', 'Every command this program sends to the modem queues here: page queries, background refreshes and the AT terminal. Finished commands stay for 30 s; select one to see its response. A copy is written to /tmp/simpleadmin-at-queue.json and cleared on restart. Responses may include SMS messages.') }}</p>
+</section>
+</div>
 </section>
 <section aria-labelledby="page-title-sms" class="sa-page" data-page="sms" id="page-sms">
 <div class="sa-page-titlebar">
@@ -970,6 +995,7 @@
 <script src="js/pages/network.js?v=3.3"></script>
 <script src="js/pages/settings.js?v=3.5"></script>
 <script src="js/pages/events.js?v=1.1"></script>
+<script src="js/pages/atqueue.js?v=1.0"></script>
 <script src="js/pages/sms.js?v=2.95"></script>
 <script src="js/pages/forwarding-guides.js?v=0.2.9"></script>
 <script src="js/pages/forwarding.js?v=0.3.0"></script>
