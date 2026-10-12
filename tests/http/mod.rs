@@ -703,3 +703,65 @@ async fn websocket_requests_do_not_wait_for_slow_ones() {
     assert_eq!(order[1].0, "scan");
     server.abort();
 }
+
+#[tokio::test]
+async fn at_queue_shows_running_waiting_and_finished_commands() {
+    let (app, _dir) = application();
+    let token = app.auth.create();
+    // Hold the port with a slow scan so the terminal command has to wait behind it.
+    app.at
+        .overrides
+        .lock()
+        .unwrap()
+        .insert("scan_delay_ms".into(), "1500".into());
+    let at = app.at.clone();
+    let scan = tokio::spawn(async move { at.run("AT+QSCAN=3,1").await });
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let terminal = {
+        let app = app.clone();
+        let token = token.clone();
+        tokio::spawn(async move {
+            call(
+                &app,
+                "/api/settings_data",
+                "action=manual_at&command=ATI",
+                &token,
+            )
+            .await
+        })
+    };
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let queue = async || -> Value {
+        let response = call(&app, "/api/settings_data", "action=at_queue", &token).await;
+        assert_eq!(response.status(), 200);
+        serde_json::from_slice(&to_bytes(response.into_body(), 1048576).await.unwrap()).unwrap()
+    };
+    let busy = queue().await;
+    assert_eq!(busy["running"]["command"], "AT+QSCAN=3,1", "{busy}");
+    assert_eq!(busy["waiting"][0]["command"], "ATI", "{busy}");
+    assert!(busy["running"]["run_ms"].as_u64().is_some());
+    assert!(busy["waiting"][0]["wait_ms"].as_u64().unwrap() >= 150);
+
+    scan.await.unwrap().unwrap();
+    assert_eq!(terminal.await.unwrap().status(), 200);
+    let idle = queue().await;
+    assert!(idle["running"].is_null(), "{idle}");
+    assert!(idle["waiting"].as_array().unwrap().is_empty());
+    let done = idle["done"].as_array().unwrap();
+    assert_eq!(done[0]["command"], "ATI", "newest first: {idle}");
+    assert_eq!(done[0]["status"], "ok");
+    assert!(done[0]["response"].as_str().unwrap().contains("OK"));
+    assert_eq!(done[1]["command"], "AT+QSCAN=3,1");
+    assert_eq!(idle["keep_ms"], 30000);
+    // A read, so the page may poll it with GET; other settings actions still need POST.
+    assert!(super::method_allowed(
+        "/api/settings_data",
+        "at_queue",
+        "GET"
+    ));
+    assert!(!super::method_allowed(
+        "/api/settings_data",
+        "manual_at",
+        "GET"
+    ));
+}

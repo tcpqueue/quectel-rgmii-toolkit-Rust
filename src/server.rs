@@ -216,6 +216,12 @@ impl App {
     }
     pub fn start(self: &Arc<Self>) {
         self.at.start_refresh();
+        // Previews keep the copy beside their other state instead of the host's /tmp.
+        self.at.log.start_writer(if self.config.mock {
+            self.config.auth_file.with_file_name("at-queue.json")
+        } else {
+            crate::at_log::FILE.into()
+        });
         self.monitor.start(self.at.clone());
         self.forwarding.start(self.at.clone(), &self.events);
         self.cell_lock.start(self.at.clone());
@@ -391,7 +397,7 @@ fn method_allowed(path: &str, action: &str, method: &str) -> bool {
                     | "freq_lock"
             )
         }
-        "/api/settings_data" => matches!(action, "" | "status"),
+        "/api/settings_data" => matches!(action, "" | "status" | "at_queue"),
         "/api/sms_data" => matches!(action, "" | "list" | "list_meta" | "sim_status"),
         "/api/mock_at" => matches!(action, "" | "show" | "status" | "parse" | "help"),
         _ => false,
@@ -762,6 +768,9 @@ async fn settings(app: &Arc<App>, p: &Params) -> Result<Value> {
         return Ok(parser::settings(
             &app.at.page("settings", p.flag("force", false)).await?,
         ));
+    }
+    if action == "at_queue" {
+        return Ok(app.at.log.snapshot(crate::at_log::Stamp::now()));
     }
     let commands = actions::settings(p)?;
     if commands.len() == 1 {

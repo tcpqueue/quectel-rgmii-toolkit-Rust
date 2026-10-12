@@ -55,7 +55,7 @@ async function freePort() {
     for (const [id, shown] of [['cellLockTitle', true], ['cellScanTitle', true], ['manualLockTitle', true], ['bandLockTitle', false]]) assert.equal(await visible(id), shown, id);
     await page.locator('.sa-sidebar [data-page-link="connection"]').click();
     for (const [id, shown] of [['networkParamsTitle', true], ['pdpTitle', true], ['networkSwitchTitle', true], ['freqLockTitle', false]]) assert.equal(await visible(id), shown, id);
-    const settingsViews = {watchdog: ['watchdogHeading'], lan: ['networkFeaturesHeading', 'ttlHeading'], at: ['atTerminalHeading'], system: ['accountSecurityHeading', 'preferencesHeading', 'otaHeading', 'maintenanceHeading']};
+    const settingsViews = {watchdog: ['watchdogHeading'], lan: ['networkFeaturesHeading', 'ttlHeading'], at: ['atTerminalHeading', 'atQueueHeading', 'atQueueDoneHeading'], system: ['accountSecurityHeading', 'preferencesHeading', 'otaHeading', 'maintenanceHeading']};
     const allSettings = Object.values(settingsViews).flat();
     for (const [view, ids] of Object.entries(settingsViews)) {
       await page.locator(`.sa-sidebar [data-page-link="${view}"]`).click();

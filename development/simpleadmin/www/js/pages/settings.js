@@ -11,6 +11,9 @@ function simpleSettings() {
         fetchATCommand: "",
         countdown: 0,
         atCommandResponse: "",
+        // Height the output box was last fitted to; the user dragged it when it differs.
+        atOutputFitted: 0,
+        atOutputManual: false,
         ttldata: null,
         ttlvalue: 0,
         ttlStatus: false,
@@ -243,6 +246,7 @@ function simpleSettings() {
               this.atCommandResponse = data;
               this.isLoading = false;
               this.isClean = false;
+              this.fitAtOutput();
               //this.fetchCurrentSettings();
               return data; // ★ 把结果再传下去，链式调用更方便
             })
@@ -257,6 +261,23 @@ function simpleSettings() {
         clearResponses() {
           this.atCommandResponse = "";
           this.isClean = true;
+          this.fitAtOutput();
+        },
+
+        // Fits the output box to its text, between 200 px and 70 % of the window. Once the
+        // user has dragged it to a size of their own it keeps that size and only grows.
+        fitAtOutput() {
+          this.$nextTick(() => {
+            const box = document.getElementById('atOutputBox');
+            if (!box || !box.offsetParent) return;
+            const current = box.offsetHeight;
+            if (this.atOutputFitted && Math.abs(current - this.atOutputFitted) > 2) this.atOutputManual = true;
+            const max = Math.max(200, Math.round(window.innerHeight * 0.7));
+            box.style.height = 'auto';
+            const wanted = Math.min(max, Math.max(200, box.scrollHeight + box.offsetHeight - box.clientHeight));
+            box.style.height = (this.atOutputManual ? Math.max(current, wanted) : wanted) + 'px';
+            this.atOutputFitted = box.offsetHeight;
+          });
         },
 
         startRebootCountdown(seconds = 40) {
