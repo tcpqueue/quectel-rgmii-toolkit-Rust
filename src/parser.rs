@@ -35,9 +35,15 @@ pub fn digits(s: &str) -> String {
 fn put(data: &mut Value, key: &str, value: impl Into<Value>) {
     data[key] = value.into();
 }
+/// A bare value line; final results, echoes and the cache's own error or pending notes are not.
 pub fn plain(s: &str) -> bool {
     let up = s.to_ascii_uppercase();
-    !s.is_empty() && up != "OK" && up != "ERROR" && !up.starts_with("AT+") && !s.starts_with('+')
+    !s.is_empty()
+        && up != "OK"
+        && !up.starts_with("ERROR")
+        && !up.starts_with("AT+")
+        && !s.starts_with('+')
+        && s != crate::at_policy::PENDING
 }
 pub fn ok(s: &str) -> bool {
     let up = s.to_ascii_uppercase();
@@ -1354,6 +1360,39 @@ mod tests {
             );
             assert_eq!(data["nr_tx_human"], human_bytes(sent as f64));
             assert_eq!(data["nr_rx_human"], human_bytes(received as f64));
+        }
+    }
+    #[test]
+    fn device_without_sim_keeps_identity_and_hides_query_errors() {
+        // The device page joins its queries; without a SIM the SIM ones fail or time out.
+        let identity = "AT+CGMI;+CGSN;+QGMR\r\nQuectel\r\n\r\n869710030002905\r\n\r\nRM520NEUDAR03A08M4G\r\n\r\nOK\r\n";
+        let lan = "AT+QMAP=\"LANIP\"\r\n+QMAP: \"LANIP\",192.168.223.100,192.168.223.200,192.168.223.1\r\n\r\nOK\r\n";
+        for (status, sim) in [
+            (
+                "+QSIMSTAT: 0,0\r\n\r\n+CME ERROR: 10\r\n",
+                "AT+CIMI;+ICCID;+CNUM\r\n+CME ERROR: 10\r\n",
+            ),
+            (
+                "ERROR: AT response timed out",
+                "ERROR: AT response timed out",
+            ),
+        ] {
+            let d = device(&[identity, status, sim, lan].join("\n"));
+            assert_eq!(d["manufacturer"], "Quectel", "{status}");
+            assert_eq!(d["firmwareVersion"], "RM520NEUDAR03A08M4G", "{status}");
+            assert_eq!(d["imei"], "869710030002905", "{status}");
+            assert_eq!(d["imsi"], "-", "{status}");
+            assert_eq!(d["lanIp"], "192.168.223.1", "{status}");
+        }
+        assert_eq!(
+            device("+QSIMSTAT: 0,0\r\n\r\n+CME ERROR: 10\r\n")["simStatus"],
+            "未插卡"
+        );
+        // A failed or pending identity query leaves the fields empty instead of showing its text.
+        for raw in ["ERROR: AT response timed out", crate::at_policy::PENDING] {
+            let d = device(raw);
+            assert_eq!(d["manufacturer"], "-", "{raw}");
+            assert_eq!(d["firmwareVersion"], "-", "{raw}");
         }
     }
     #[test]

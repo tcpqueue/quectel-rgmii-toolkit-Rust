@@ -12,12 +12,17 @@ use tokio::sync::{mpsc, oneshot};
 pub const DASHBOARD: &str = "AT+QSIMSTAT?;+CSQ;+QTEMP;+QUIMSLOT?;+QSPN;+QMAP=\"WWAN\";+QENG=\"servingcell\";+QCAINFO;+QGDNRCNT?;+QGDCNT?;+CGCONTRDP=1;+QRSRP";
 pub const SIGNAL: &str = "AT+QTEMP;+QENG=\"servingcell\"";
 pub const SMS_LIST: &str = "AT+CMGF=0;+CNMI=2,1,0,0,0;+CMGL=4";
+pub const DEVICE_IDENTITY: &str = "AT+CGMI;+CGSN;+QGMR";
+pub const DEVICE_SIM: &str = "AT+CIMI;+ICCID;+CNUM";
 pub fn commands(page: &str) -> Vec<&'static str> {
     match page {
         "dashboard" => vec![DASHBOARD],
+        // Module identity first and alone: without a SIM the SIM queries fail or stall, and a
+        // chained command that times out loses every answer in it, the IMEI included.
         "device" => vec![
-            "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM",
+            DEVICE_IDENTITY,
             "AT+QSIMSTAT?;+CPIN?;+QMAP=\"WWAN\"",
+            DEVICE_SIM,
             "AT+QMAP=\"LANIP\"",
         ],
         "network" => vec![
@@ -60,8 +65,21 @@ struct Entry {
     updated: Option<Instant>,
     response: Arc<str>,
     running: Option<tokio::sync::watch::Receiver<bool>>,
+    /// The last run failed (timeout, port error); its text must not be served for `max_age`.
+    failed: bool,
 }
 const CACHE_BYTES: usize = 1024 * 1024;
+/// How long a failed query's error stays cached before the next request retries it.
+const FAILED_MAX_AGE: Duration = Duration::from_secs(3);
+
+fn fresh(command: &str, entry: &Entry) -> bool {
+    let max_age = if entry.failed {
+        FAILED_MAX_AGE
+    } else {
+        policy::max_age(command)
+    };
+    entry.updated.is_some_and(|time| time.elapsed() < max_age)
+}
 
 fn trim_cache(cache: &mut HashMap<String, Entry>, keep: &str) {
     while cache.values().map(|e| e.response.len()).sum::<usize>() > CACHE_BYTES {
@@ -282,9 +300,7 @@ impl At {
             }
             if let Some(entry) = cache.get(command)
                 && !force
-                && entry
-                    .updated
-                    .is_some_and(|time| time.elapsed() < policy::max_age(command))
+                && fresh(command, entry)
             {
                 return Ok(entry.response.to_string());
             }
@@ -305,6 +321,7 @@ impl At {
                         updated: None,
                         response: Arc::from(policy::PENDING),
                         running: None,
+                        failed: false,
                     },
                 );
             }
@@ -323,15 +340,15 @@ impl At {
                     {
                         tokio::time::sleep(delay).await
                     }
-                    let response = this
-                        .run(&command)
-                        .await
-                        .unwrap_or_else(|e| format!("ERROR: {e}"));
+                    let result = this.run(&command).await;
+                    let failed = result.is_err();
+                    let response = result.unwrap_or_else(|e| format!("ERROR: {e}"));
                     let mut cache = this.cache.lock().unwrap();
                     if let Some(entry) = cache.get_mut(&command) {
                         entry.response = Arc::from(response);
                         entry.updated = Some(Instant::now());
                         entry.running = None;
+                        entry.failed = failed;
                     }
                     trim_cache(&mut cache, &command);
                     let _ = sender.send(true);
@@ -407,7 +424,7 @@ impl At {
                             && !policy::immediate(c)
                             && !policy::sms(c)
                             && e.running.is_none()
-                            && e.updated.is_none_or(|t| t.elapsed() >= policy::max_age(c))
+                            && !fresh(c, e)
                     })
                     .map(|(c, _)| c.clone())
                     .collect();
@@ -790,12 +807,44 @@ mod tests {
                     updated: Some(Instant::now()),
                     response: Arc::from("x".repeat(512 * 1024)),
                     running: None,
+                    failed: false,
                 },
             );
             trim_cache(&mut cache, &i.to_string());
         }
         assert!(cache.values().map(|e| e.response.len()).sum::<usize>() <= CACHE_BYTES);
         assert!(cache.contains_key("3"));
+    }
+    #[test]
+    fn failed_queries_are_retried_instead_of_cached_for_their_max_age() {
+        let entry = |failed, age| Entry {
+            requested: Instant::now(),
+            updated: Some(Instant::now() - age),
+            response: Arc::from("ERROR: AT response timed out"),
+            running: None,
+            failed,
+        };
+        // The identity query is cached for 10 minutes once it answered.
+        let age = Duration::from_secs(5);
+        assert!(fresh(DEVICE_IDENTITY, &entry(false, age)));
+        assert!(!fresh(DEVICE_IDENTITY, &entry(true, age)));
+        assert!(fresh(DEVICE_IDENTITY, &entry(true, Duration::ZERO)));
+    }
+    #[test]
+    fn device_identity_does_not_depend_on_the_sim() {
+        let device = commands("device");
+        assert_eq!(device[0], DEVICE_IDENTITY);
+        for part in split(DEVICE_IDENTITY) {
+            assert!(
+                ["AT+CGMI", "AT+CGSN", "AT+QGMR"].contains(&part.as_str()),
+                "{part}"
+            );
+        }
+        assert!(
+            device
+                .iter()
+                .all(|c| !c.contains("+CGSN") || *c == DEVICE_IDENTITY)
+        );
     }
     #[test]
     #[cfg(unix)]

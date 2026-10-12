@@ -76,6 +76,9 @@ pub fn timeout(command: &str) -> Duration {
                 {
                     // Setting or clearing a lock re-selects the cell; an RM520N-EU answers after ~1.3 s.
                     10000
+                } else if up == "AT+CPIN?" {
+                    // The manual allows 5 s; without a SIM the module can take that long to say so.
+                    5000
                 } else {
                     1000
                 }
@@ -89,8 +92,14 @@ pub fn max_age(command: &str) -> Duration {
     let contains = |items: &[&str]| items.iter().all(|s| up.contains(s));
     let secs = if action(command) {
         0
-    } else if up == "AT+CGMM" || up == "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM" {
+    } else if up == "AT+CGMM"
+        || up == "AT+CGMI;+CGSN;+QGMR;+CIMI;+ICCID;+CNUM"
+        || up == crate::at::DEVICE_IDENTITY
+    {
         600
+    } else if up == crate::at::DEVICE_SIM {
+        // A SIM inserted later should show up without waiting ten minutes.
+        60
     } else if up == "AT+QMAP=\"LANIP\""
         || contains(&[
             "+QMAP=\"MPDN_RULE\"",
@@ -166,6 +175,9 @@ mod tests {
             } else if cmd.contains("+QSCAN=") {
                 // Go's 120 s cut off full scans on a real module.
                 180000
+            } else if cmd.contains("+CPIN?") {
+                // Go gave AT+CPIN? 1 s; the manual allows 5 s.
+                c["timeout"].as_u64().unwrap() as u128 + 4000
             } else {
                 c["timeout"].as_u64().unwrap() as u128
             };
