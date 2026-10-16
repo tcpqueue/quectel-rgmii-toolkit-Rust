@@ -47,7 +47,7 @@ async function freePort() {
     // --- Menu: one entry per view; shared pages show only their view's groups ---
     assert.equal(await page.locator('.sa-sidebar [data-page-link]').count(), 13);
     assert.equal(await page.locator('#page-dashboard #eventsApp').count(), 0, 'events moved off the overview');
-    await page.goto(base + '/#network');
+    await page.goto(base + '/#bands');
     await page.waitForFunction(() => location.hash === '#bands');
     assert.equal(await page.locator('#page-title-network').textContent(), '频段与频点');
     for (const [id, shown] of [['bandLockTitle', true], ['freqLockTitle', true], ['mbnTitle', true], ['cellScanTitle', false], ['pdpTitle', false]]) assert.equal(await visible(id), shown, id);
@@ -61,7 +61,7 @@ async function freePort() {
       await page.locator(`.sa-sidebar [data-page-link="${view}"]`).click();
       for (const id of allSettings) assert.equal(await visible(id), ids.includes(id), `${view}: ${id}`);
     }
-    await page.goto(base + '/#forwarding');
+    await page.goto(base + '/#notify');
     await page.waitForFunction(() => location.hash === '#notify' && SimpleAdmin.Vue.apps['#forwardingApp']?.loaded);
     await page.goto(base + '/#events');
     await page.locator('#eventsApp').waitFor();
@@ -89,13 +89,14 @@ async function freePort() {
     await page.locator('.sa-tabbar [data-tab="system"]').click();
     await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
     assert.equal(await page.locator('.sa-tabbar [data-tab="system"]').getAttribute('aria-current'), 'page');
-    // An address from before the split opens the same view, from another page or on it.
+    // Addresses from before the split are gone: they open the overview, and the address bar
+    // shows its address even when the overview is already open.
     await page.locator('.sa-tabbar [data-tab="network"]').click();
     await page.waitForFunction(() => location.hash === '#cells', null, {timeout: 5000});
     await page.evaluate(() => { location.hash = '#settings'; });
-    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
-    await page.evaluate(() => { location.hash = '#settings'; });
-    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
+    await page.waitForFunction(() => location.hash === '#dashboard', null, {timeout: 5000});
+    await page.evaluate(() => { location.hash = '#forwarding'; });
+    await page.waitForFunction(() => location.hash === '#dashboard', null, {timeout: 5000});
     assert(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)), 'no horizontal scroll on a phone');
     await page.setViewportSize({width: 1280, height: 900});
 

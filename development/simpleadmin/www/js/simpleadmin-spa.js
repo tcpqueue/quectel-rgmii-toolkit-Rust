@@ -31,9 +31,6 @@
   ];
   // Tab-bar groups open the view last shown in them, or this one the first time.
   const groupDefaults = { overview: 'dashboard', network: 'bands', message: 'sms', system: 'system' };
-  // Addresses from before the menu split (bookmarks, a page reloaded after an online
-  // update): each opens the last view of the group that took its content over.
-  const legacy = { network: 'bands', settings: 'system', forwarding: 'notify' };
   const lastView = {};
   const mountedPages = new Set();
   let currentPage = '';
@@ -122,11 +119,11 @@
     // animate scroll position. Keeping the current URL is safer than showing a scroll.
   }
 
+  // Unknown addresses, including #network, #settings and #forwarding from before the menu
+  // split, open the overview.
   function normalizeView(value) {
     const id = String(value || '').replace(/^#/, '');
-    if (viewIds.has(id)) return id;
-    if (legacy[id]) return lastView[getView(legacy[id]).group] || legacy[id];
-    return 'dashboard';
+    return viewIds.has(id) ? id : 'dashboard';
   }
 
   // A tab-bar entry. Group names are checked before view names: the "system" group and the
@@ -361,7 +358,7 @@
       const hash = global.location.hash.replace(/^#/, '');
       const viewId = normalizeView(hash);
       if (viewId === currentView) {
-        // An old address for the view already shown: correct the address bar only.
+        // An unknown address while the overview is shown: correct the address bar only.
         if (hash && hash !== viewId) updateAddressHash(viewId, true);
         return;
       }
