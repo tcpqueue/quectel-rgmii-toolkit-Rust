@@ -2,6 +2,11 @@
 
 每个版本的完整说明和下载见 [GitHub Releases](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases)。
 
+## v0.4.9 · 菜单修复
+
+- 修复手机底部“系统”标签总是打开“系统设置”，而不是该组上次打开的页面（“系统”既是分组名也是页面名）。
+- 去掉菜单拆分前的旧地址 `#network`、`#settings`、`#forwarding`，打开它们会进入总览；收藏了旧地址的请改用新地址（如 `#bands`、`#system`、`#notify`）。
+
 ## v0.4.8 · 5G 频点锁定、消息通知与菜单拆分
 
 - **菜单拆分**：按 设备 / 网络 / 消息 / 系统 分组，原来很长的“网络与小区”“系统设置”拆成频段与频点、小区锁定、拨号与 SIM、断网恢复、网络功能、AT 终端、系统设置；网络事件独立成页。手机底部标签栏按分组切换，页顶有子菜单，每组记住上次打开的页面。旧地址（#network、#settings、#forwarding）仍可用。

@@ -29,8 +29,8 @@
     { id: 'deviceinfo', page: 'deviceinfo', group: 'more', title: '设备信息' },
     { id: 'console', page: 'console', group: 'more', title: '控制台' }
   ];
-  // Old addresses and tab-bar entries: a page or group name opens its last view.
-  const aliases = { network: 'bands', settings: 'system', forwarding: 'notify', overview: 'dashboard', message: 'sms', system: 'system' };
+  // Tab-bar groups open the view last shown in them, or this one the first time.
+  const groupDefaults = { overview: 'dashboard', network: 'bands', message: 'sms', system: 'system' };
   const lastView = {};
   const mountedPages = new Set();
   let currentPage = '';
@@ -119,14 +119,18 @@
     // animate scroll position. Keeping the current URL is safer than showing a scroll.
   }
 
+  // Unknown addresses, including #network, #settings and #forwarding from before the menu
+  // split, open the overview.
   function normalizeView(value) {
     const id = String(value || '').replace(/^#/, '');
-    if (viewIds.has(id)) return id;
-    if (aliases[id]) {
-      const group = (views.find((view) => view.id === aliases[id]) || {}).group;
-      return lastView[group] || aliases[id];
-    }
-    return 'dashboard';
+    return viewIds.has(id) ? id : 'dashboard';
+  }
+
+  // A tab-bar entry. Group names are checked before view names: the "system" group and the
+  // "system" view share a name, and the tab must reopen the group's last view.
+  function showGroup(name) {
+    if (!groupDefaults[name]) return showPage(name);
+    return showPage(lastView[name] || groupDefaults[name]);
   }
 
   function getView(id) {
@@ -352,7 +356,12 @@
     // Back/forward fires both popstate and hashchange; switch pages only once.
     const followAddress = () => {
       const hash = global.location.hash.replace(/^#/, '');
-      if (normalizeView(hash) === currentView) return;
+      const viewId = normalizeView(hash);
+      if (viewId === currentView) {
+        // An unknown address while the overview is shown: correct the address bar only.
+        if (hash && hash !== viewId) updateAddressHash(viewId, true);
+        return;
+      }
       showPage(hash, { updateHash: false });
     };
     global.addEventListener('popstate', followAddress);
@@ -374,7 +383,7 @@
   global.addEventListener('load', resetScrollPositionAfterBrowserRestore);
   global.addEventListener('pageshow', resetScrollPositionAfterBrowserRestore);
 
-  root.Spa = { showPage, mountPage, resetScrollPosition, views, current: () => currentView };
+  root.Spa = { showPage, showGroup, mountPage, resetScrollPosition, views, current: () => currentView };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });

@@ -40,7 +40,7 @@
           return;
         }
         if (moreSheet.open) moreSheet.close();
-        root.Spa.showPage(page);
+        root.Spa.showGroup(page);
       });
     });
     // Tab-bar entries name a menu group; "more" holds the rest.
