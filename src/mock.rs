@@ -16,10 +16,12 @@ pub fn kind(raw: &str) -> Option<&'static str> {
         _ => None,
     }
 }
+/// `freq_lock` is the NR frequency lock of this simulated module (empty when unlocked).
 pub fn response(
     command: &str,
     fixtures: &HashMap<String, String>,
     overrides: &HashMap<String, String>,
+    freq_lock: &mut String,
 ) -> String {
     // Real cell scans hold the AT port for up to two minutes; previews can reproduce that.
     if command.to_ascii_uppercase().contains("+QSCAN")
@@ -33,22 +35,19 @@ pub fn response(
         return envelope(command, raw);
     }
     // The NR frequency lock keeps its value, so previews can lock, read back and unlock.
-    static FREQ_LOCK: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
     if command == crate::freq_lock::QUERY {
-        let state = FREQ_LOCK.lock().unwrap();
-        let value = if state.is_empty() {
+        let value = if freq_lock.is_empty() {
             "0"
         } else {
-            state.as_str()
+            freq_lock.as_str()
         };
         return envelope(command, &format!("+QNWCFG: \"nr5g_earfcn_lock\",{value}"));
     }
     if let Some(value) = command.strip_prefix("AT+QNWCFG=\"nr5g_earfcn_lock\",") {
-        let mut state = FREQ_LOCK.lock().unwrap();
-        if value == "0" && state.is_empty() {
+        if value == "0" && freq_lock.is_empty() {
             return envelope(command, "ERROR");
         }
-        *state = if value == "0" {
+        *freq_lock = if value == "0" {
             String::new()
         } else {
             value.into()
@@ -219,7 +218,7 @@ mod tests {
     fn mock_traffic_preserves_download_and_upload_direction() {
         let fixtures =
             serde_json::from_str(include_str!("../tests/fixtures/mock-at.json")).unwrap();
-        let raw = response(DASHBOARD, &fixtures, &HashMap::new());
+        let raw = response(DASHBOARD, &fixtures, &HashMap::new(), &mut String::new());
         let data = parser::dashboard(&raw);
         let received = data["nr_rx_bytes"].as_u64().unwrap();
         let sent = data["nr_tx_bytes"].as_u64().unwrap();

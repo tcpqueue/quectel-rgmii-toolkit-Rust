@@ -851,9 +851,9 @@ async fn sms_data(app: &Arc<App>, p: &Params) -> Result<Value> {
         }
         "sim_status" => {
             let raw = app.at.run("AT+CPIN?").await?.to_ascii_uppercase();
-            Ok(
-                json!({"inserted":!raw.contains("SIM NOT INSERTED")&&!raw.contains("+CME ERROR: 10")}),
-            )
+            let absent = raw.contains("SIM NOT INSERTED")
+                || raw.lines().any(|line| parser::cme_error(line, 10));
+            Ok(json!({ "inserted": !absent }))
         }
         "send" => send_sms(app, p.get("number"), p.get("message")).await,
         _ => bail!("unsupported action"),

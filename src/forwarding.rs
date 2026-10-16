@@ -595,8 +595,10 @@ impl Forwarder {
             let reset = s.settings.enabled != next.enabled
                 || s.settings.sms_enabled != next.sms_enabled
                 || s.settings.channels != next.channels
-                || s.settings.sms_platforms != next.sms_platforms
-                || s.settings.outage_enabled != next.outage_enabled
+                || s.settings.sms_platforms != next.sms_platforms;
+            // Outage notices have their own switch and channel list; changing them must not
+            // drop queued SMS forwards or forget which messages were already forwarded.
+            let outage_changed = s.settings.outage_enabled != next.outage_enabled
                 || s.settings.outage_platforms != next.outage_platforms;
             s.settings = next;
             if reset {
@@ -604,6 +606,8 @@ impl Forwarder {
                 s.detector = Detector::default();
                 s.queue.clear();
                 s.outcomes.clear();
+            } else if outage_changed {
+                s.queue.retain(|job| job.notification.kind == Kind::Sms);
             }
             if !s.settings.delete_after_day {
                 self.cleanup.cancel();

@@ -45,6 +45,14 @@ pub fn plain(s: &str) -> bool {
         && !s.starts_with('+')
         && s != crate::at_policy::PENDING
 }
+/// True when `line` is `+CME ERROR: <code>` with exactly this code (10 is "SIM not
+/// inserted"; 100 is an unknown error and must not match).
+pub fn cme_error(line: &str, code: u32) -> bool {
+    line.trim()
+        .to_ascii_uppercase()
+        .strip_prefix("+CME ERROR:")
+        .is_some_and(|v| v.trim().parse() == Ok(code))
+}
 pub fn ok(s: &str) -> bool {
     let up = s.to_ascii_uppercase();
     up.contains("OK") && !up.contains("ERROR")
@@ -360,7 +368,7 @@ pub fn dashboard(raw: &str) -> Value {
     for line in lines(raw) {
         let up = line.to_ascii_uppercase();
         if up.contains("SIM NOT INSERTED")
-            || up.contains("+CME ERROR: 10")
+            || cme_error(line, 10)
             || up.contains("+CPIN: NOT INSERTED")
         {
             sim = Some(false)
@@ -556,7 +564,7 @@ pub fn device(raw: &str) -> Value {
     for line in lines(raw) {
         let up = line.to_ascii_uppercase();
         if up.contains("SIM NOT INSERTED")
-            || up.contains("+CME ERROR: 10")
+            || cme_error(line, 10)
             || up.contains("+CPIN: NOT INSERTED")
         {
             sim = Some(false);
@@ -1386,6 +1394,15 @@ mod tests {
         }
         assert_eq!(
             device("+QSIMSTAT: 0,0\r\n\r\n+CME ERROR: 10\r\n")["simStatus"],
+            "未插卡"
+        );
+        // Error 100 is "unknown", not a missing SIM.
+        assert!(cme_error(" +CME ERROR: 10 ", 10));
+        for line in ["+CME ERROR: 100", "+CME ERROR: 107", "+CMS ERROR: 10"] {
+            assert!(!cme_error(line, 10), "{line}");
+        }
+        assert_ne!(
+            device("+QSIMSTAT: 0,1\r\n+CPIN: READY\r\n+CME ERROR: 100\r\n")["simStatus"],
             "未插卡"
         );
         // A failed or pending identity query leaves the fields empty instead of showing its text.

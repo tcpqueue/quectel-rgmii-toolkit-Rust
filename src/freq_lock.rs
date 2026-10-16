@@ -430,6 +430,10 @@ impl FreqLock {
                 restored = unlock(&at).await.is_ok();
             }
             let _guard = this.mutation.lock().await;
+            // A lock or unlock made meanwhile saved its own state; keep it.
+            if this.state.lock().unwrap().generation != generation {
+                return;
+            }
             // The failed lock must not come back after a restart.
             let mut saved_before = saved_before;
             if back.is_empty() {
@@ -555,6 +559,49 @@ mod tests {
         );
         assert!(check(&[(633984, 15)], &all).is_err(), "n78 is 30 kHz only");
         assert!(allowed_bands(POLICY, "ERROR").is_err());
+    }
+    #[tokio::test]
+    async fn a_lock_made_while_the_guard_reverts_is_kept() {
+        let at = At::start(true, vec![]).unwrap();
+        // No service on any lock: the guard puts the previous lock back and checks it too.
+        at.overrides.lock().unwrap().insert(
+            "AT+QENG=\"servingcell\";+QCAINFO".into(),
+            "+QENG: \"servingcell\",\"SEARCH\"".into(),
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("freq-lock.json");
+        let lock = FreqLock::new(path.clone(), Arc::new(Store::new(true)), true);
+        let events = Arc::new(Events::default());
+        lock.lock(
+            &at,
+            &events,
+            vec![(504990, 30)],
+            vec![(513000, 30)],
+            true,
+            true,
+        )
+        .await
+        .unwrap();
+        let reverted = async {
+            while parser::nr_freq_lock(&at.run(QUERY).await.unwrap()) != Some(vec![(513000, 30)]) {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(10), reverted)
+            .await
+            .unwrap();
+        // While the guard checks the previous lock, a new persistent lock replaces it.
+        lock.lock(&at, &events, vec![(520000, 30)], vec![], true, false)
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let saved: Saved = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved.entries, [(520000, 30)]);
+        assert_eq!(lock.snapshot(None)["phase"], "persistent");
+        assert_eq!(
+            parser::nr_freq_lock(&at.run(QUERY).await.unwrap()),
+            Some(vec![(520000, 30)])
+        );
     }
     #[test]
     fn a_seen_cell_decides_the_scs() {
