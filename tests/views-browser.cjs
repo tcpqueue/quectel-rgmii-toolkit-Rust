@@ -79,6 +79,23 @@ async function freePort() {
     await page.waitForFunction(() => location.hash === '#sms', null, {timeout: 5000});
     await page.locator('.sa-tabbar [data-tab="network"]').click();
     await page.waitForFunction(() => location.hash === '#cells', null, {timeout: 5000});
+    // "system" names both the group and a view; the tab must still reopen the group's last view.
+    await page.locator('.sa-tabbar [data-tab="system"]').click();
+    await page.waitForFunction(() => location.hash === '#system', null, {timeout: 5000});
+    await page.locator('#page-settings .sa-subnav [data-view-link="at"]').click();
+    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
+    await page.locator('.sa-tabbar [data-tab="network"]').click();
+    await page.waitForFunction(() => location.hash === '#cells', null, {timeout: 5000});
+    await page.locator('.sa-tabbar [data-tab="system"]').click();
+    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
+    assert.equal(await page.locator('.sa-tabbar [data-tab="system"]').getAttribute('aria-current'), 'page');
+    // An address from before the split opens the same view, from another page or on it.
+    await page.locator('.sa-tabbar [data-tab="network"]').click();
+    await page.waitForFunction(() => location.hash === '#cells', null, {timeout: 5000});
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForFunction(() => location.hash === '#at', null, {timeout: 5000});
     assert(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)), 'no horizontal scroll on a phone');
     await page.setViewportSize({width: 1280, height: 900});
 
