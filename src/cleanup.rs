@@ -177,28 +177,31 @@ impl Cleanup {
         }
         let entries = sms::received(&raw);
         for receipt in due {
-            let mut remaining = receipt.parts.clone();
-            let verified = receipt.parts.iter().all(|part| {
-                entries.iter().any(|v| {
+            // Each part is deleted only while the message at its index is still the one that
+            // was forwarded. A part that is gone (deleted by hand, or by an earlier run that
+            // stopped half way) is done; the others are still deleted.
+            let mut remaining = Vec::new();
+            let mut failed = false;
+            for part in &receipt.parts {
+                let present = entries.iter().any(|v| {
                     v["indices"][0].as_u64() == Some(part.index as u64)
                         && sms::Storage::of(v) == part.storage
                         && identity(v) == part.fingerprint
-                })
-            });
-            let mut failed = false;
-            if verified {
-                for part in &receipt.parts {
-                    let raw = at.delete_sms(part.storage, &[part.index], false).await?;
-                    if !parser::ok(&raw) {
-                        failed = true;
-                        break;
-                    }
-                    remaining.retain(|p| p.index != part.index || p.storage != part.storage);
+                });
+                if !present {
+                    continue;
                 }
-                at.invalidate().await;
-            } else {
-                remaining.clear();
+                if failed
+                    || !at
+                        .delete_sms(part.storage, &[part.index], false)
+                        .await
+                        .is_ok_and(|raw| parser::ok(&raw))
+                {
+                    failed = true;
+                    remaining.push(part.clone());
+                }
             }
+            at.invalidate().await;
             let mut s = self.state.lock().unwrap();
             if let Some(index) = s.receipts.iter().position(|r| r.id == receipt.id) {
                 if remaining.is_empty() {
@@ -313,6 +316,55 @@ mod tests {
         );
         c.flush().await;
         assert_eq!(std::fs::read_to_string(path).unwrap(), "[]");
+    }
+    #[tokio::test]
+    async fn a_deletion_stopped_half_way_finishes_later() {
+        let dir = tempfile::tempdir().unwrap();
+        let c = Cleanup::new(dir.path().join("receipts.json"), Arc::new(Store::new(true)));
+        let one = "+CMGL: 1,\"REC READ\",\"10086\",,\"26/09/06,12:00:00+32\"\nOne\n";
+        let two = "+CMGL: 2,\"REC READ\",\"10086\",,\"26/09/06,12:00:01+32\"\nTwo\n";
+        let both = format!("{one}{two}OK");
+        let entries = sms::received(&both);
+        c.schedule(Receipt {
+            id: "test".into(),
+            delivered: VALID_CLOCK + 1000,
+            parts: entries
+                .iter()
+                .map(|v| Part {
+                    storage: sms::Storage::ME,
+                    index: v["indices"][0].as_u64().unwrap() as u16,
+                    fingerprint: identity(v),
+                })
+                .collect(),
+        });
+        c.flush().await;
+        let at = At::start(true, vec![]).unwrap();
+        {
+            let mut overrides = at.overrides.lock().unwrap();
+            overrides.insert("sms".into(), both.clone());
+            overrides.insert("AT+CMGD=2".into(), "+CMS ERROR: 500".into());
+        }
+        age(&c, VALID_CLOCK + 87400);
+        c.delete_due(&at, VALID_CLOCK + 87400).await.unwrap();
+        assert_eq!(c.status()["pending"], 1, "the failed part is kept");
+        // The first part is gone now; the second still has to go.
+        {
+            let mut overrides = at.overrides.lock().unwrap();
+            overrides.insert("sms".into(), format!("{two}OK"));
+            overrides.remove("AT+CMGD=2");
+        }
+        c.flush().await;
+        c.delete_due(&at, VALID_CLOCK + 87500).await.unwrap();
+        assert_eq!(c.status()["pending"], 0);
+        let deleted: Vec<_> = at
+            .trace
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|s| s.starts_with("AT+CMGD="))
+            .cloned()
+            .collect();
+        assert_eq!(deleted, ["AT+CMGD=1", "AT+CMGD=2", "AT+CMGD=2"]);
     }
     #[tokio::test]
     async fn reused_indices_cancel_deletion_and_disabled_option_clears_receipts() {

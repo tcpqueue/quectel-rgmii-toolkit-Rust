@@ -501,6 +501,29 @@ async fn disabling_sms_clears_pending_work_and_preserves_channel_settings() {
         1,
         "changing cleanup policy must preserve retries"
     );
+    // Outage notices have their own settings; saving them keeps the SMS retries and dedup.
+    f.state.lock().unwrap().detector.initialized = true;
+    let mut outage = f.state.lock().unwrap().settings.clone();
+    outage.outage_enabled = true;
+    outage.outage_platforms = vec!["serverchan".into()];
+    f.save(outage.clone()).await.unwrap();
+    assert_eq!(f.snapshot()["queued"], 1);
+    assert_eq!(f.snapshot()["ready"], true);
+    assert_eq!(
+        f.notify_outage(Outage {
+            lost: 1_760_000_000_000,
+            restored: 1_760_000_100_000
+        }),
+        1
+    );
+    outage.outage_enabled = false;
+    f.save(outage).await.unwrap();
+    assert_eq!(
+        f.snapshot()["queued"],
+        1,
+        "only the outage notice is dropped"
+    );
+    assert_eq!(f.snapshot()["ready"], true);
     f.sms_settings(false, true).await.unwrap();
     assert!(!f.sms_enabled());
     assert_eq!(f.snapshot()["queued"], 0);

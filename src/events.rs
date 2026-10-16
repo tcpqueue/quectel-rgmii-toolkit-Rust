@@ -2,7 +2,7 @@
 //! by the latency probe, and actions taken by the band-lock guard and the watchdog. Kept in
 //! memory only; a restart starts an empty list.
 use serde_json::{Value, json};
-use std::{collections::VecDeque, sync::Mutex};
+use std::{collections::VecDeque, sync::Mutex, time::Instant};
 
 const CAPACITY: usize = 200;
 
@@ -43,13 +43,35 @@ impl Radio {
     }
 }
 
+/// Start of an outage: the first failed probe, or the start an earlier process recorded
+/// before the watchdog restarted the module (`mono` unknown then).
+#[derive(Clone, Copy)]
+struct Since {
+    wall: u64,
+    mono: Option<Instant>,
+}
+impl Since {
+    /// Wall-clock start as the clock reads now. Measured from the monotonic clock where known,
+    /// so a clock set during the outage (network time after boot) moves the start with it.
+    fn wall_at(&self, wall: u64, mono: Instant) -> u64 {
+        match self.mono {
+            Some(start) => {
+                wall.saturating_sub(mono.saturating_duration_since(start).as_millis() as u64)
+            }
+            None => self.wall,
+        }
+    }
+}
+
 struct State {
     list: VecDeque<Value>,
     next_id: u64,
     radio: Option<Radio>,
-    /// Wall-clock time of the first failed probe of the current outage.
-    outage_since: Option<u64>,
+    outage: Option<Since>,
     outage_reported: bool,
+    /// A probe has succeeded since this program started. Failures before that are the module
+    /// still registering and dialing after boot, not an outage.
+    seen_ok: bool,
 }
 
 pub struct Events {
@@ -74,8 +96,9 @@ impl Default for Events {
                 list: VecDeque::with_capacity(CAPACITY),
                 next_id: 1,
                 radio: None,
-                outage_since: None,
+                outage: None,
                 outage_reported: false,
+                seen_ok: false,
             }),
             restored: tokio::sync::broadcast::channel(8).0,
         }
@@ -155,33 +178,41 @@ impl Events {
             );
         }
     }
-    /// Feeds one latency probe result: reports an outage after `OUTAGE_REPORT_MS` of failures
-    /// and its end with the duration.
-    pub fn observe_probe(&self, ok: bool, time: u64) {
+    /// Feeds one latency probe result taken at `wall` (wall clock, ms) and `mono`: reports an
+    /// outage after `OUTAGE_REPORT_MS` of failures and its end with the duration.
+    pub fn observe_probe(&self, ok: bool, wall: u64, mono: Instant) {
         let mut state = self.state.lock().unwrap();
         if ok {
-            if let Some(since) = state.outage_since.take()
+            state.seen_ok = true;
+            if let Some(since) = state.outage.take()
                 && std::mem::take(&mut state.outage_reported)
             {
-                let seconds = time.saturating_sub(since) / 1000;
+                let lost = since.wall_at(wall, mono);
                 Self::add(
                     &mut state,
                     "internet_restored",
                     "info",
-                    json!({"seconds":seconds}),
-                    time,
+                    json!({"seconds":wall.saturating_sub(lost) / 1000}),
+                    wall,
                 );
                 let _ = self.restored.send(Outage {
-                    lost: since,
-                    restored: time,
+                    lost,
+                    restored: wall,
                 });
             }
             return;
         }
-        let since = *state.outage_since.get_or_insert(time);
-        if !state.outage_reported && time.saturating_sub(since) >= OUTAGE_REPORT_MS {
+        if !state.seen_ok && state.outage.is_none() {
+            return;
+        }
+        let since = *state.outage.get_or_insert(Since {
+            wall,
+            mono: Some(mono),
+        });
+        let lost = since.wall_at(wall, mono);
+        if !state.outage_reported && wall.saturating_sub(lost) >= OUTAGE_REPORT_MS {
             state.outage_reported = true;
-            Self::add(&mut state, "internet_lost", "bad", json!({}), since);
+            Self::add(&mut state, "internet_lost", "bad", json!({}), lost);
         }
     }
     /// Each reported outage once it ends (outages shorter than `OUTAGE_REPORT_MS` are not sent).
@@ -192,19 +223,25 @@ impl Events {
     /// across a module restart.
     pub fn outage_since(&self) -> Option<u64> {
         let state = self.state.lock().unwrap();
-        state.outage_since.filter(|_| state.outage_reported)
+        state
+            .outage
+            .filter(|_| state.outage_reported)
+            .map(|since| since.wall_at(crate::telemetry::now(), Instant::now()))
     }
     /// Continues an outage that started before this program did (the watchdog restarted the
     /// module): it is already reported and ends with the next successful probe.
     pub fn resume_outage(&self, since: u64) {
         let mut state = self.state.lock().unwrap();
-        state.outage_since = Some(since);
+        state.outage = Some(Since {
+            wall: since,
+            mono: None,
+        });
         state.outage_reported = true;
     }
     /// Forgets the outage in progress, e.g. when the probe target changes.
     pub fn reset_probe(&self) {
         let mut state = self.state.lock().unwrap();
-        state.outage_since = None;
+        state.outage = None;
         state.outage_reported = false;
     }
     /// Newest first by event time. An outage is dated from its first failed probe but only
@@ -275,17 +312,27 @@ mod tests {
         assert_eq!(first["detail"]["from"], "249");
         assert_eq!(first["detail"]["band"], "N1");
     }
+    /// One probe at `ms`, with the wall clock and the monotonic clock in step.
+    fn probe(e: &Events, ok: bool, ms: u64) {
+        probe_at(e, ok, ms, ms)
+    }
+    /// One probe at wall time `wall` and `mono` ms after a fixed start.
+    fn probe_at(e: &Events, ok: bool, wall: u64, mono: u64) {
+        static START: std::sync::LazyLock<Instant> = std::sync::LazyLock::new(Instant::now);
+        e.observe_probe(ok, wall, *START + std::time::Duration::from_millis(mono))
+    }
     #[test]
     fn short_probe_failures_are_not_outages() {
         let e = Events::default();
-        e.observe_probe(false, 1_000);
-        e.observe_probe(false, 9_000);
-        e.observe_probe(true, 10_000);
+        probe(&e, true, 0);
+        probe(&e, false, 1_000);
+        probe(&e, false, 9_000);
+        probe(&e, true, 10_000);
         assert!(kinds(&e).is_empty());
-        e.observe_probe(false, 20_000);
-        e.observe_probe(false, 30_000);
-        e.observe_probe(false, 31_000);
-        e.observe_probe(true, 65_000);
+        probe(&e, false, 20_000);
+        probe(&e, false, 30_000);
+        probe(&e, false, 31_000);
+        probe(&e, true, 65_000);
         assert_eq!(kinds(&e), ["internet_lost", "internet_restored"]);
         let list = e.snapshot()["events"].clone();
         assert_eq!(list[0]["detail"]["seconds"], 45);
@@ -298,10 +345,11 @@ mod tests {
     fn finished_outages_are_broadcast() {
         let e = Events::default();
         let mut outages = e.outages();
-        e.observe_probe(false, 20_000);
-        e.observe_probe(false, 31_000);
-        assert_eq!(e.outage_since(), Some(20_000));
-        e.observe_probe(true, 65_000);
+        probe(&e, true, 10_000);
+        probe(&e, false, 20_000);
+        probe(&e, false, 31_000);
+        assert!(e.outage_since().is_some());
+        probe(&e, true, 65_000);
         assert_eq!(
             outages.try_recv().unwrap(),
             Outage {
@@ -310,18 +358,52 @@ mod tests {
             }
         );
         e.resume_outage(100_000);
-        e.observe_probe(true, 190_000);
+        probe(&e, true, 190_000);
         assert_eq!(outages.try_recv().unwrap().lost, 100_000);
         assert_eq!(kinds(&e).last().unwrap(), "internet_restored");
         assert!(outages.try_recv().is_err());
     }
     #[test]
+    fn failures_before_the_first_success_are_startup_not_an_outage() {
+        let e = Events::default();
+        let mut outages = e.outages();
+        for ms in (0..90_000).step_by(1_000) {
+            probe(&e, false, ms);
+        }
+        probe(&e, true, 90_000);
+        assert!(kinds(&e).is_empty());
+        assert!(outages.try_recv().is_err());
+        // After a restart by the watchdog the outage that led to it still counts.
+        let e = Events::default();
+        let mut outages = e.outages();
+        e.resume_outage(5_000);
+        probe(&e, false, 60_000);
+        probe(&e, true, 95_000);
+        assert_eq!(outages.try_recv().unwrap().lost, 5_000);
+    }
+    #[test]
+    fn a_clock_set_during_an_outage_does_not_stretch_it() {
+        let e = Events::default();
+        let mut outages = e.outages();
+        probe_at(&e, true, 1_000, 1_000);
+        probe_at(&e, false, 2_000, 2_000);
+        probe_at(&e, false, 13_000, 13_000);
+        // Network time arrives: the wall clock jumps 26 years ahead.
+        let set = 1_790_000_000_000;
+        probe_at(&e, false, set, 20_000);
+        probe_at(&e, true, set + 40_000, 60_000);
+        let outage = outages.try_recv().unwrap();
+        assert_eq!(outage.restored - outage.lost, 58_000);
+        assert_eq!(outage.lost, set + 40_000 - 58_000);
+    }
+    #[test]
     fn events_are_listed_by_time() {
         let e = Events::default();
         e.observe_radio(radio("LTE", "1", "B3"), 1_000);
-        e.observe_probe(false, 20_000);
+        probe(&e, true, 19_000);
+        probe(&e, false, 20_000);
         e.observe_radio(radio("", "", ""), 26_000);
-        e.observe_probe(false, 31_000);
+        probe(&e, false, 31_000);
         let times: Vec<u64> = e.snapshot()["events"]
             .as_array()
             .unwrap()

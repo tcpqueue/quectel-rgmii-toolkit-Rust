@@ -150,6 +150,8 @@ impl At {
                 let fixtures: HashMap<String, String> =
                     serde_json::from_str(include_str!("../tests/fixtures/mock-at.json")).unwrap();
                 let mut port: Option<Port> = None;
+                // Per instance, so parallel tests each get their own simulated module.
+                let mut mock_freq_lock = String::new();
                 let now = crate::at_log::Stamp::now;
                 while let Some(request) = rx.blocking_recv() {
                     if request.reply.is_closed() {
@@ -162,6 +164,7 @@ impl At {
                             &request.command,
                             &fixtures,
                             &mocks.lock().unwrap(),
+                            &mut mock_freq_lock,
                         ))
                     } else {
                         (|| -> Result<String> {

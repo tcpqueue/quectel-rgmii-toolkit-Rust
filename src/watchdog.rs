@@ -268,9 +268,12 @@ impl Watchdog {
         r.outage_seconds = outage_ms / 1000;
     }
     pub fn start(self: &Arc<Self>, at: At, monitor: Arc<Monitor>, events: Arc<Events>) {
-        // An outage that led to a restart goes on until the probe succeeds again.
+        // An outage that led to a restart goes on until the probe succeeds again. A record left
+        // while the watchdog was switched off afterwards is stale.
         let resumed = self.runtime.lock().unwrap().outage_since;
-        if let Some(since) = resumed {
+        if let Some(since) = resumed
+            && self.settings().enabled
+        {
             events.resume_outage(since);
         }
         let this = self.clone();
@@ -279,8 +282,14 @@ impl Watchdog {
             loop {
                 let settings = *changes.borrow_and_update();
                 let tick = this.timing.tick;
+                // A working connection ends the restart series, during the startup wait too.
+                if monitor.connected() == Some(true) {
+                    this.set_reboots(0, None).await;
+                }
                 if !settings.enabled {
                     this.set_phase("off", None, 0);
+                    // Switched off: no restart series continues.
+                    this.set_reboots(0, None).await;
                     if changes.changed().await.is_err() {
                         return;
                     }
@@ -299,9 +308,7 @@ impl Watchdog {
                     }
                     None => this.set_phase("no_probe", None, 0),
                     Some(0) => {
-                        this.set_phase(if cooling { "cooldown" } else { "monitoring" }, None, 0);
-                        // A working connection ends the restart series.
-                        this.set_reboots(0, None).await;
+                        this.set_phase(if cooling { "cooldown" } else { "monitoring" }, None, 0)
                     }
                     Some(ms) if cooling => this.set_phase("cooldown", None, ms),
                     Some(ms)
@@ -438,7 +445,21 @@ impl Watchdog {
                 .unwrap_or_default();
         ok(at.run("AT+CFUN=0").await?)?;
         tokio::time::sleep(self.timing.pause + self.timing.pause).await;
-        ok(at.run("AT+CFUN=1").await?)?;
+        // The radio is off now; giving up after one failed answer would leave it off.
+        let mut on = Err(anyhow::anyhow!("radio not switched on"));
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(self.timing.pause).await;
+            }
+            on = match at.run("AT+CFUN=1").await {
+                Ok(raw) => ok(raw),
+                Err(e) => Err(e),
+            };
+            if on.is_ok() {
+                break;
+            }
+        }
+        on?;
         tokio::time::sleep(self.timing.pause).await;
         if !before_freq.is_empty()
             && parser::nr_freq_lock(&at.run(crate::freq_lock::QUERY).await.unwrap_or_default())
@@ -512,6 +533,45 @@ mod tests {
             s.steps().iter().map(|s| s.tier()).collect::<Vec<_>>(),
             [2, 3, 4]
         );
+    }
+    #[tokio::test]
+    async fn the_radio_is_switched_on_again_after_a_failed_answer() {
+        let dir = tempfile::tempdir().unwrap();
+        let watchdog = Watchdog::new(
+            dir.path().join("watchdog.json"),
+            true,
+            Arc::new(Store::new(true)),
+        );
+        let at = At::start(true, vec![]).unwrap();
+        at.overrides
+            .lock()
+            .unwrap()
+            .insert("AT+CFUN=1".into(), "ERROR".into());
+        assert!(watchdog.radio(&at, &Events::default()).await.is_err());
+        let tries = at
+            .trace
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| *c == "AT+CFUN=1")
+            .count();
+        assert_eq!(tries, 3);
+    }
+    #[tokio::test]
+    async fn a_restart_record_is_dropped_while_switched_off() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = dir.path().join("watchdog-state.json");
+        std::fs::write(&state, r#"{"reboots":2,"outage_since":5000}"#).unwrap();
+        let store = Arc::new(Store::new(true));
+        let watchdog = Watchdog::new(dir.path().join("watchdog.json"), true, store.clone());
+        let events = Arc::new(Events::default());
+        let monitor = Monitor::new(dir.path().join("monitor.json"), true, store, events.clone());
+        let at = At::start(true, vec![]).unwrap();
+        watchdog.start(at, monitor, events.clone());
+        assert_eq!(events.outage_since(), None, "a stale outage is not resumed");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let saved: Saved = serde_json::from_slice(&std::fs::read(&state).unwrap()).unwrap();
+        assert_eq!((saved.reboots, saved.outage_since), (0, None));
     }
     #[test]
     fn settings_are_validated() {

@@ -178,8 +178,9 @@ struct History {
     traffic_sampler: TrafficSampler,
     sampled: Option<Instant>,
     ip: String,
-    /// Wall-clock time of the first failed probe of the outage in progress.
-    fail_since: Option<u64>,
+    /// First failed probe of the outage in progress. Monotonic, so a clock set after boot
+    /// neither starts the watchdog early nor stretches an outage.
+    fail_since: Option<Instant>,
 }
 pub struct Monitor {
     pub events: Arc<crate::events::Events>,
@@ -493,13 +494,14 @@ impl Monitor {
                         if sample.status == 0 {
                             h.fail_since = None;
                         } else if h.fail_since.is_none() {
-                            h.fail_since = Some(time);
+                            h.fail_since = Some(started.into_std());
                         }
                     }
                     generation == h.generation
                 };
                 if recorded {
-                    this.events.observe_probe(sample.status == 0, time);
+                    this.events
+                        .observe_probe(sample.status == 0, time, started.into_std());
                 }
                 tokio::select! {
                     _ = tokio::time::sleep_until(started + interval) => {}
@@ -531,7 +533,7 @@ impl Monitor {
             return None;
         }
         let since = self.history.lock().unwrap().fail_since;
-        Some(since.map_or(0, |t| now().saturating_sub(t)))
+        Some(since.map_or(0, |t| t.elapsed().as_millis() as u64))
     }
     pub fn traffic_rates(&self) -> Value {
         let history = self.history.lock().unwrap();
