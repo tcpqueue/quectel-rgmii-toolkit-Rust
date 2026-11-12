@@ -1723,7 +1723,7 @@ dependencies = [
 
 [[package]]
 name = "simpleadmin-httpd"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -1825,8 +1825,6 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "surge-ping"
 version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30498e9c9feba213c3df6ed675bdf75519ccbee493517e7225305898c86cac05"
 dependencies = [
  "hex",
  "parking_lot",

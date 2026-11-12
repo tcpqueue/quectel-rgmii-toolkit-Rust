@@ -33,3 +33,11 @@
 2. 导出公钥：`openssl pkey -in ota.pem -pubout -outform DER | tail -c 32 | base64`，填到模块的“验证公钥”。
 3. 用 `SIMPLEADMIN_OTA_KEY=ota.pem` 运行打包。脚本要求私钥与 `src/ota-public-key.txt` 一致，分支需要先把该文件换成自己的公钥。
 4. 发布到 GitHub Release，或把三个文件放在同一个网址目录下。
+
+发布前可用旧版后端验证真实签名包：
+
+```sh
+OTA_TEST_BINARY=/path/to/older/simpleadmin-httpd node tests/release-ota.cjs
+```
+
+该测试使用旧版内置的官方公钥检查新清单，验证发现更新、下载、篡改拒绝、解包、逐文件校验与 ARM 程序格式；预览模式不运行设备安装脚本。可通过 `RELEASE_DIR` 指定待检查的 Release 附件目录。

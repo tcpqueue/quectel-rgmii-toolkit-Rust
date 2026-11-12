@@ -56,7 +56,11 @@ PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/at-queu
 node tests/traffic-ui.cjs
 PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright" node tests/traffic-direction-browser.cjs
 node tests/tls.cjs
+node tests/offline-dns.cjs
+sudo unshare -n sh -c 'ip link set lo up; node tests/offline-ping.cjs'
 ```
+
+`tests/offline-ping.cjs` 在仅有回环接口的独立网络命名空间中运行，覆盖 ICMP DGRAM/RAW、IPv4/IPv6、持续接收错误、无路由、关闭期间的 socket 回收和恢复探测。测试只访问本机，不切换真实模块制式或网络。
 
 添加 `CAPTURE_DOCS=1` 可用模拟数据重新生成 README 截图。添加 `DEVICE_URL=http://127.0.0.1:18081` 则测试 ADB 转发后的真机；设备测试使用默认凭据时请先确认设备状态。`tests/device-soak.cjs` 支持 `DEVICE_USER`、`DEVICE_PASSWORD`，只运行只读 AT 查询和五分钟采集检查。
 
