@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 case "$PWD" in /mnt/*) echo "Build in a Linux native directory." >&2; exit 1;; esac
 cargo test --locked
+cargo test --locked -p surge-ping
 cargo test --locked -p simpleadmin-installer
 cargo build --locked --release --target armv7-unknown-linux-musleabihf
 cargo build --locked --release --target x86_64-pc-windows-gnu --bin simpleadmin-httpd

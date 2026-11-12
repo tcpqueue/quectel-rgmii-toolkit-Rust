@@ -381,6 +381,9 @@ impl Monitor {
             loop {
                 let current = *schedule.borrow_and_update();
                 if !current.ping_enabled {
+                    // Dropping the last client also stops its receiver and closes its socket.
+                    client4 = None;
+                    client6 = None;
                     if schedule.changed().await.is_err() {
                         return;
                     }
@@ -433,7 +436,13 @@ impl Monitor {
                     ip = "192.0.2.1".into();
                 } else {
                     let deadline = started + budget;
-                    let address = resolver.resolve(&target, deadline).await;
+                    let address = tokio::select! {
+                        address = resolver.resolve(&target, deadline) => address,
+                        changed = schedule.changed() => {
+                            if changed.is_err() { return; }
+                            continue;
+                        }
+                    };
                     if let Some(address) = address {
                         ip = address.to_string();
                         let slot = if address.is_ipv4() {
@@ -464,19 +473,30 @@ impl Monitor {
                                 deadline.saturating_duration_since(tokio::time::Instant::now()),
                             );
                             sample.status = 1;
-                            match tokio::time::timeout_at(
-                                deadline,
-                                pinger.ping(surge_ping::PingSequence(seq), &[0u8; 32]),
-                            )
-                            .await
-                            {
+                            let result = tokio::select! {
+                                result = tokio::time::timeout_at(
+                                    deadline,
+                                    pinger.ping(surge_ping::PingSequence(seq), &[0u8; 32]),
+                                ) => result,
+                                changed = schedule.changed() => {
+                                    if changed.is_err() { return; }
+                                    continue;
+                                }
+                            };
+                            // A Pinger also owns the socket, so drop it before replacing the client.
+                            drop(pinger);
+                            match result {
                                 Ok(Ok((_, rtt))) => {
                                     sample.status = 0;
                                     sample.rtt =
                                         (rtt.as_secs_f64() * 10000.0).round().min(65534.0) as u16
                                 }
                                 Ok(Err(surge_ping::SurgeError::Timeout { .. })) | Err(_) => {}
-                                Ok(Err(_)) => sample.status = 2,
+                                Ok(Err(_)) => {
+                                    sample.status = 2;
+                                    // Recreate on the next scheduled probe, never inside a retry loop.
+                                    *slot = None;
+                                }
                             }
                         } else {
                             sample.status = 2
