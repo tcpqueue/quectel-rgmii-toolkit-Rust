@@ -173,6 +173,13 @@ function getStaticNetworkInfo() {
       return qci > 0 ? String(qci) : '-';
     },
 
+    formatCQI() {
+      const dl = Number(this.cqi_dl) || 0;
+      const ul = Number(this.cqi_ul) || 0;
+      if (dl <= 0 && ul <= 0) return '-';
+      return `${dl} ↓ / ${ul} ↑`;
+    },
+
     fetchNetworkInfo() {
       if (!this._dashboardActive || !this.isDashboardPageActive()) {
         this.stopDashboardRefresh();
