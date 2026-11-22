@@ -122,7 +122,9 @@ pub fn max_age(command: &str) -> Duration {
         "+CGCONTRDP=1",
         "+QNWLOCK=\"COMMON/4G\"",
         "+QNWLOCK=\"COMMON/5G\"",
-    ]) {
+    ]) || up.contains("+QNWCFG=\"NR5G_AMBR\"")
+        || up.contains("+C5GQOSRDP")
+    {
         30
     } else if sms(command) {
         5
