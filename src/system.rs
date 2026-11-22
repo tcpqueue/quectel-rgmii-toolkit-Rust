@@ -1,11 +1,25 @@
 use crate::{parser::human_bytes, persistence::Store};
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
-use std::{collections::HashMap, path::Path, sync::Mutex, time::Duration};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
+
+const CPU_SAMPLE_MIN_INTERVAL: Duration = Duration::from_secs(1);
+
+struct CpuSample {
+    total: u64,
+    idle: u64,
+    percent: u64,
+    at: Instant,
+}
 
 #[derive(Default)]
 pub struct Metrics {
-    cpu: Mutex<Option<(u64, u64)>>,
+    cpu: Mutex<Option<CpuSample>>,
 }
 impl Metrics {
     pub fn read(&self, mock: bool) -> Value {
@@ -13,7 +27,16 @@ impl Metrics {
             return json!({"cpuUsagePercent":36,"ramUsagePercent":58,"ramUsedHuman":"1.2 GB","ramTotalHuman":"2.0 GB"});
         }
         let mut percent = 0;
-        if let Ok(raw) = std::fs::read_to_string("/proc/stat") {
+        let now = Instant::now();
+        let cached = {
+            let prev = self.cpu.lock().unwrap();
+            prev.as_ref()
+                .filter(|s| now.saturating_duration_since(s.at) < CPU_SAMPLE_MIN_INTERVAL)
+                .map(|s| s.percent)
+        };
+        if let Some(p) = cached {
+            percent = p;
+        } else if let Ok(raw) = std::fs::read_to_string("/proc/stat") {
             let values: Vec<u64> = raw
                 .lines()
                 .next()
@@ -27,14 +50,19 @@ impl Metrics {
                 let total = values.iter().sum::<u64>();
                 let idle = values[3] + values.get(4).copied().unwrap_or(0);
                 let mut prev = self.cpu.lock().unwrap();
-                if let Some((old_total, old_idle)) = *prev {
-                    let dt = total.saturating_sub(old_total);
-                    let di = idle.saturating_sub(old_idle);
+                if let Some(old) = prev.as_ref() {
+                    let dt = total.saturating_sub(old.total);
+                    let di = idle.saturating_sub(old.idle);
                     percent = (100 * dt.saturating_sub(di) + dt / 2)
                         .checked_div(dt)
                         .unwrap_or(0);
                 }
-                *prev = Some((total, idle));
+                *prev = Some(CpuSample {
+                    total,
+                    idle,
+                    percent,
+                    at: now,
+                });
             }
         }
         let raw = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();

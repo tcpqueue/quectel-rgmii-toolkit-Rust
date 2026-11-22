@@ -492,10 +492,13 @@ impl Monitor {
                                         (rtt.as_secs_f64() * 10000.0).round().min(65534.0) as u16
                                 }
                                 Ok(Err(surge_ping::SurgeError::Timeout { .. })) | Err(_) => {}
-                                Ok(Err(_)) => {
+                                Ok(Err(ref e)) => {
                                     sample.status = 2;
-                                    // Recreate on the next scheduled probe, never inside a retry loop.
-                                    *slot = None;
+                                    // Keep the ICMP client across transient route/link outages so we
+                                    // do not recreate raw sockets and receiver tasks every second.
+                                    if !Self::keep_ping_client_on_error(e) {
+                                        *slot = None;
+                                    }
                                 }
                             }
                         } else {
@@ -530,7 +533,34 @@ impl Monitor {
             }
         });
     }
-    /// Latest latency probe result, or `None` while the probe is switched off.
+    fn keep_ping_client_on_error(err: &surge_ping::SurgeError) -> bool {
+    match err {
+        surge_ping::SurgeError::NetworkError => true,
+        surge_ping::SurgeError::IOError(io_err) => {
+            if matches!(
+                io_err.kind(),
+                std::io::ErrorKind::NetworkUnreachable
+                    | std::io::ErrorKind::HostUnreachable
+                    | std::io::ErrorKind::AddrNotAvailable
+            ) {
+                return true;
+            }
+            #[cfg(unix)]
+            if let Some(code) = io_err.raw_os_error()
+                && matches!(
+                    code,
+                    libc::ENETUNREACH | libc::EHOSTUNREACH | libc::ENETDOWN | libc::EADDRNOTAVAIL
+                )
+            {
+                return true;
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Latest latency probe result, or `None` while the probe is switched off.
     pub fn connected(&self) -> Option<bool> {
         let schedule = self.schedule();
         if !schedule.ping_enabled {
