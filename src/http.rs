@@ -50,10 +50,10 @@ pub async fn serve_with_permits(
     permits: Arc<tokio::sync::Semaphore>,
 ) -> std::io::Result<()> {
     loop {
-        let (stream, peer) = accept(&listener).await;
-        let Ok(permit) = permits.clone().try_acquire_owned() else {
-            continue;
+        let Ok(permit) = permits.clone().acquire_owned().await else {
+            return Ok(());
         };
+        let (stream, peer) = accept(&listener).await;
         let service =
             hyper_util::service::TowerToHyperService::new(with_peer(router.clone(), peer));
         tokio::spawn(async move {
