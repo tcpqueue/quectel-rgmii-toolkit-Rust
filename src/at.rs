@@ -10,6 +10,8 @@ use std::{
 use tokio::sync::{mpsc, oneshot};
 
 pub const DASHBOARD: &str = "AT+QSIMSTAT?;+CSQ;+QTEMP;+QUIMSLOT?;+QSPN;+QMAP=\"WWAN\";+QENG=\"servingcell\";+QCAINFO;+QGDNRCNT?;+QGDCNT?;+CGCONTRDP=1;+QRSRP";
+pub const AMBR_QNWCFG: &str = "AT+QNWCFG=\"nr5g_ambr\"";
+pub const AMBR_C5GQOS: &str = "AT+C5GQOSRDP";
 pub const SIGNAL: &str = "AT+QTEMP;+QENG=\"servingcell\"";
 pub const SMS_LIST: &str = "AT+CMGF=0;+CNMI=2,1,0,0,0;+CMGL=4";
 pub const DEVICE_IDENTITY: &str = "AT+CGMI;+CGSN;+QGMR";

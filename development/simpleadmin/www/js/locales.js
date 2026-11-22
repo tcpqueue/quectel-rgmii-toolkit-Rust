@@ -94,6 +94,8 @@
     "设备信息": "Device Info",
     "总览": "Overview",
     "网络与小区": "Network and Cells",
+"签约速率": "Subscribed AMBR",
+"QCI (5QI)": "QCI (5QI)",
     "系统设置": "System Settings",
     "短信服务": "SMS Service",
     "退出登录": "Log Out",

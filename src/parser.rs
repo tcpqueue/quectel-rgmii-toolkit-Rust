@@ -1159,6 +1159,170 @@ pub fn neighbours(raw: &str) -> Value {
     }
     json!({"nr5g_cells_parsed":nr,"lte_cells_parsed":lte})
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AmbrEntry {
+    apn: String,
+    cid: i64,
+    dl_mbps: u64,
+    ul_mbps: u64,
+    cqi_dl: u64,
+    cqi_ul: u64,
+    qci: Option<u8>,
+}
+
+fn is_internal_apn(name: &str) -> bool {
+    matches!(
+        name.trim().to_ascii_lowercase().as_str(),
+        "ims" | "sos" | "emergency" | "emergency.apn"
+    )
+}
+
+fn kbps_to_mbps(kbps: u64) -> u64 {
+    if kbps == 0 {
+        0
+    } else {
+        (kbps + 500) / 1000
+    }
+}
+
+fn parse_qci(s: &str) -> Option<u8> {
+    let n: u16 = s.trim().parse().ok()?;
+    (1..=255).contains(&n).then_some(n as u8)
+}
+
+fn parse_qnwcfg_ambr_line(line: &str) -> Option<AmbrEntry> {
+    let (_, tail) = line.split_once(':')?;
+    let p = fields(tail);
+    if p.len() < 6 || !p[0].eq_ignore_ascii_case("nr5g_ambr") {
+        return None;
+    }
+    let cqi_dl = p[2].trim().parse::<u64>().ok()?;
+    let dl_mbps = p[3].trim().parse::<u64>().ok()?;
+    let cqi_ul = p[4].trim().parse::<u64>().ok()?;
+    let ul_mbps = p[5].trim().parse::<u64>().ok()?;
+    if dl_mbps == 0 && ul_mbps == 0 {
+        return None;
+    }
+    Some(AmbrEntry {
+        apn: p[1].trim().to_owned(),
+        cid: 0,
+        dl_mbps,
+        ul_mbps,
+        cqi_dl,
+        cqi_ul,
+        qci: None,
+    })
+}
+
+fn parse_c5gqosrdp_line(line: &str) -> Option<AmbrEntry> {
+    let (_, tail) = line.split_once(':')?;
+    let p = fields(tail);
+    if p.len() < 2 {
+        return None;
+    }
+    let cid = p[0].trim().parse::<i64>().ok().filter(|&c| c > 0)?;
+    let qci = parse_qci(&p[1]);
+    let (dl_mbps, ul_mbps) = if p.len() >= 8 {
+        let dl_kbps = p[6].trim().parse::<u64>().unwrap_or(0);
+        let ul_kbps = p[7].trim().parse::<u64>().unwrap_or(0);
+        (kbps_to_mbps(dl_kbps), kbps_to_mbps(ul_kbps))
+    } else {
+        (0, 0)
+    };
+    if qci.is_none() && dl_mbps == 0 && ul_mbps == 0 {
+        return None;
+    }
+    Some(AmbrEntry {
+        apn: String::new(),
+        cid,
+        dl_mbps,
+        ul_mbps,
+        cqi_dl: 0,
+        cqi_ul: 0,
+        qci,
+    })
+}
+
+fn pick_ambr<'a>(cands: &'a [AmbrEntry], cid: i64, apn: &str) -> Option<&'a AmbrEntry> {
+    if cands.is_empty() {
+        return None;
+    }
+    if cid > 0
+        && let Some(found) = cands.iter().find(|r| r.cid == cid)
+    {
+        return Some(found);
+    }
+    let clean_apn = apn.trim();
+    if !clean_apn.is_empty()
+        && clean_apn != "-"
+        && let Some(found) = cands
+            .iter()
+            .find(|r| r.apn.eq_ignore_ascii_case(clean_apn))
+    {
+        return Some(found);
+    }
+    if let Some(found) = cands
+        .iter()
+        .find(|r| !r.apn.is_empty() && !is_internal_apn(&r.apn))
+    {
+        return Some(found);
+    }
+    cands.first()
+}
+
+pub fn ambr(raw: &str, active_apn: &str, active_cid: i64) -> Option<Value> {
+    let mut qnw_cands = Vec::new();
+    let mut qos_cands = Vec::new();
+    for line in lines(raw) {
+        let up = line.to_ascii_uppercase();
+        if up.starts_with("+QNWCFG:") {
+            if let Some(entry) = parse_qnwcfg_ambr_line(line) {
+                qnw_cands.push(entry);
+            }
+        } else if up.starts_with("+C5GQOSRDP:")
+            && let Some(entry) = parse_c5gqosrdp_line(line)
+        {
+            qos_cands.push(entry);
+        }
+    }
+
+    let qnw = pick_ambr(&qnw_cands, active_cid, active_apn);
+    let qos = pick_ambr(&qos_cands, active_cid, active_apn);
+
+    match (qnw, qos) {
+        (Some(r), q) => {
+            let mut out = json!({
+                "ambr_dl_mbps": r.dl_mbps,
+                "ambr_ul_mbps": r.ul_mbps,
+                "cqi_dl": r.cqi_dl,
+                "cqi_ul": r.cqi_ul,
+                "ambr_source": "AT+QNWCFG=\"nr5g_ambr\"",
+            });
+            if !r.apn.is_empty() {
+                out["ambr_apn"] = json!(r.apn);
+            }
+            if let Some(qci) = q.and_then(|e| e.qci) {
+                out["qci"] = json!(qci);
+            }
+            Some(out)
+        }
+        (None, Some(q)) => {
+            let mut out = json!({
+                "ambr_source": "AT+C5GQOSRDP",
+            });
+            if q.dl_mbps > 0 || q.ul_mbps > 0 {
+                out["ambr_dl_mbps"] = json!(q.dl_mbps);
+                out["ambr_ul_mbps"] = json!(q.ul_mbps);
+            }
+            if let Some(qci) = q.qci {
+                out["qci"] = json!(qci);
+            }
+            Some(out)
+        }
+        (None, None) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1528,5 +1692,35 @@ mod tests {
         assert!(d["ims"].is_null());
         assert!(d["contexts"][0]["active"].is_null());
         assert_eq!(d["sim_slot"], 2);
+    }
+    #[test]
+    fn ambr_prefers_data_apn_and_merges_qci() {
+        let raw = concat!(
+            "+QNWCFG: \"nr5g_ambr\",\"IMS\",6,300,6,75\r\n",
+            "+QNWCFG: \"nr5g_ambr\",\"ctnet\",9,1000,8,200\r\n",
+            "+C5GQOSRDP: 11,5,0,0,0,0,300000,75000,0\r\n",
+            "+C5GQOSRDP: 1,9,0,0,0,0,1000000,200000,0\r\n",
+            "OK\r\n"
+        );
+        let v = ambr(raw, "ctnet", 1).expect("ambr should parse");
+        assert_eq!(v["ambr_dl_mbps"], 1000);
+        assert_eq!(v["ambr_ul_mbps"], 200);
+        assert_eq!(v["cqi_dl"], 9);
+        assert_eq!(v["cqi_ul"], 8);
+        assert_eq!(v["qci"], 9);
+        assert_eq!(v["ambr_apn"], "ctnet");
+        assert_eq!(v["ambr_source"], "AT+QNWCFG=\"nr5g_ambr\"");
+    }
+    #[test]
+    fn ambr_falls_back_to_c5gqosrdp_and_ignores_zeros() {
+        let raw = "+C5GQOSRDP: 1,6,0,0,0,0,500000,100000,0\r\nOK\r\n";
+        let v = ambr(raw, "", 1).expect("c5gqosrdp fallback");
+        assert_eq!(v["ambr_dl_mbps"], 500);
+        assert_eq!(v["ambr_ul_mbps"], 100);
+        assert_eq!(v["qci"], 6);
+        assert_eq!(v["ambr_source"], "AT+C5GQOSRDP");
+
+        let zero = "+QNWCFG: \"nr5g_ambr\",\"ctnet\",0,0,0,0\r\nOK\r\n";
+        assert!(ambr(zero, "ctnet", 1).is_none());
     }
 }

@@ -29,6 +29,13 @@ function getStaticNetworkInfo() {
     ipv6: '-',
     bands: '-',
     bandwidth: '-',
+    ambr_dl_mbps: null,
+    ambr_ul_mbps: null,
+    qci: null,
+    cqi_dl: null,
+    cqi_ul: null,
+    ambr_apn: '',
+    ambr_source: '',
     prxqrsrp: '-',
     drxqrsrp: '-',
     rx2qrsrp: '-',
@@ -154,6 +161,18 @@ function getStaticNetworkInfo() {
       return this.t('获取中...');
     },
 
+    formatAMBR() {
+      const dl = Number(this.ambr_dl_mbps) || 0;
+      const ul = Number(this.ambr_ul_mbps) || 0;
+      if (dl <= 0 && ul <= 0) return '-';
+      return `${dl} ↓ / ${ul} ↑ Mbps`;
+    },
+
+    formatQCI() {
+      const qci = Number(this.qci) || 0;
+      return qci > 0 ? String(qci) : '-';
+    },
+
     fetchNetworkInfo() {
       if (!this._dashboardActive || !this.isDashboardPageActive()) {
         this.stopDashboardRefresh();
@@ -205,6 +224,15 @@ function getStaticNetworkInfo() {
           this[key] = Number(data[key]) || 0;
         }
       });
+
+      const ambrNumKeys = ['ambr_dl_mbps', 'ambr_ul_mbps', 'qci', 'cqi_dl', 'cqi_ul'];
+      ambrNumKeys.forEach((key) => {
+        this[key] = Object.prototype.hasOwnProperty.call(data, key) && data[key] !== null
+          ? (Number(data[key]) || 0)
+          : null;
+      });
+      this.ambr_apn = data.ambr_apn || '';
+      this.ambr_source = data.ambr_source || '';
 
       this.updateTraffic(data);
       this.lastUpdate = data.lastUpdate || new Date().toLocaleString();

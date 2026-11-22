@@ -121,6 +121,8 @@
 <div><dt>网络模式</dt><dd v-text="network_mode"></dd></div>
 <div><dt>频段</dt><dd v-text="bands"></dd></div>
 <div><dt>带宽</dt><dd v-text="bandwidth"></dd></div>
+<div><dt>签约速率</dt><dd v-text="formatAMBR()"></dd></div>
+<div><dt>QCI (5QI)</dt><dd v-text="formatQCI()"></dd></div>
 </dl></section>
 <section class="art-detail-group"><h3><i data-lucide="activity" aria-hidden="true"></i>地址与流量</h3><dl>
 <div><dt>IPv4</dt><dd v-text="formatSensitiveValue(ipv4, 'ipv4')"></dd></div>

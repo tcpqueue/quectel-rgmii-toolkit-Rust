@@ -584,6 +584,26 @@ async fn dashboard(app: &Arc<App>, p: &Params) -> Result<Value> {
     // Page refreshes feed the history too, so rates stay live with background sampling off.
     app.monitor.observe(&raw, stamp);
     let mut data = parser::dashboard(&raw);
+    if parser::text(&data, "network_mode") != "未插卡" {
+        let force = p.flag("force", false);
+        let qnw_raw = app
+            .at
+            .fetch(crate::at::AMBR_QNWCFG, force)
+            .await
+            .unwrap_or_default();
+        let qos_raw = app
+            .at
+            .fetch(crate::at::AMBR_C5GQOS, force)
+            .await
+            .unwrap_or_default();
+        let combined = format!("{raw}\n{qnw_raw}\n{qos_raw}");
+        if let Some(Value::Object(ambr_map)) =
+            parser::ambr(&combined, parser::text(&data, "apn"), 1)
+            && let Some(obj) = data.as_object_mut()
+        {
+            obj.extend(ambr_map);
+        }
+    }
     if p.flag("debug", false) {
         data["raw"] = json!(raw)
     }
