@@ -2,6 +2,15 @@
 
 每个版本的完整说明和下载见 [GitHub Releases](https://github.com/tcpqueue/quectel-rgmii-toolkit-Rust/releases)。
 
+## v0.4.12 · 签约速率、QCI / CQI 展示与断网优化
+
+- **签约速率（AMBR）、QCI (5QI) 与 CQI**：概览页「接入网络」卡片新增签约速率（`↓ / ↑ Mbps`）、`QCI (5QI)` 与 `CQI`（`↓ / ↑`）显示（Closes #35）。
+  - 独立查询 `AT+QNWCFG="nr5g_ambr"` 与 `AT+C5GQOSRDP` 并配置 30 秒缓存，不支持某条指令的固件会静默跳过，不影响主面板；按 `cid` → 当前拨号 `APN` → 非内部 APN（跳过 `ims`/`sos`/`emergency`）优先选取数据承载。
+- **断网与并发性能进一步优化**：
+  - `ENETUNREACH` / `EHOSTUNREACH` / `ENETDOWN` 等瞬态路由不可达错误期间保留现有 ICMP 客户端，不再每秒销毁重建原始 socket 与接收协程。
+  - HTTP 服务改用 `acquire_owned()` 先获取并发许可再 `accept`，避免连接许可打满时 `accept` 空转。
+  - `/proc/stat` CPU 采样增加 1 秒节流窗口，避免多端短间隔轮询导致 CPU 读数跳变。
+
 ## v0.4.11 · 断网时的 CPU 占用修复
 
 - Ping socket 接收出错后关闭故障接收任务，下次定时探测重新建立连接，避免断网或接口异常时持续空转。
